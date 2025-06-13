@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
+//import { Button } from "../components/ui/button";
 import Transcript from "../components/post-call/Transcript";
 import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
@@ -61,12 +61,6 @@ const PostCallDocumentation = ({
         )}
 
         <div className="flex justify-end mt-8">
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 text-lg"
-            onClick={onSave}
-          >
-            Save Documentation
-          </Button>
         </div>
       </CardContent>
     </Card>

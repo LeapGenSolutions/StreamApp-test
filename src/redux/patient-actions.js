@@ -1,10 +1,11 @@
+import { BACKEND_URL } from "../constants";
 import { patientActions } from "./patients-slice";
 
 export const fetchPatientsDetails = () => {
     return async (dispatch) => {
         const fetchPatients = async () => {
             const response = await fetch(
-                'https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/api/patients'
+                `${BACKEND_URL}/api/patients`
             );
 
             if (!response.ok) {

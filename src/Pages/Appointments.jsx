@@ -9,14 +9,14 @@ function Appointments() {
   }, []);
 
   const dispatch = useDispatch();
-  const myEmail = useSelector((state) => state.me.me.email)
-  const appointments = useSelector((state) => state.appointments.appointments)
+  const myEmail = useSelector((state) => state.me.me.email);
+  const appointments = useSelector((state) => state.appointments.appointments);
 
   useEffect(() => {
     if (appointments?.length === 0 && myEmail) {
       dispatch(fetchAppointmentDetails(myEmail));
     }
-  }, [dispatch, appointments, myEmail])
+  }, [dispatch, appointments, myEmail]);
 
   return (
     <div className="space-y-6">
@@ -28,4 +28,4 @@ function Appointments() {
   );
 }
 
-export default Appointments;
+export default Appointments

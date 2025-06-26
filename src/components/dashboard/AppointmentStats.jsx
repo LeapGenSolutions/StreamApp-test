@@ -1,126 +1,109 @@
 import { useDispatch, useSelector } from "react-redux";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Progress } from "../ui/progress";
-// import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { FaUserMd, FaVideo} from "react-icons/fa";
+import { format, parseISO } from "date-fns";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
 
-const AppointmentStats = ({ date = format(new Date(), "yyyy-MM-dd") }) => {
-  const formattedDate = format(new Date(date), "MMMM d, yyyy");
-  const applications = useSelector((state) => state.appointments.appointments);
+const AppointmentStats = ({ date: propDate }) => {
+  const loggedInDoctor = useSelector((state) => state.me.me);
+  const appointments = useSelector((state) => state.appointments.appointments);
   const dispatch = useDispatch();
-  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalAppointments: 0,
     inPersonAppointments: 0,
     virtualAppointments: 0,
   });
-  const myEmail = useSelector((state) => state.me.me.email)
-  const appointments = useSelector((state) => state.appointments.appointments)
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (appointments?.length === 0 && myEmail) {
-      dispatch(fetchAppointmentDetails(myEmail));
+    if (appointments?.length === 0 && loggedInDoctor?.email) {
+      dispatch(fetchAppointmentDetails(loggedInDoctor.email));
     }
-  }, [dispatch, appointments, myEmail])
+  }, [dispatch, appointments, loggedInDoctor]);
+
+  // Get today's date in local timezone (yyyy-MM-dd)
+  const today = propDate || new Date().toLocaleDateString('en-CA');
+  const formattedDate = format(new Date(today), "MMMM d, yyyy");
 
   useEffect(() => {
-    const todayAppointments = applications.filter((app) => app.date === date);
+    setIsLoading(true);
+    const todayAppointments = appointments.filter((app) => {
+      let appDate = app.date;
+      if (typeof appDate === 'string') {
+        try {
+          appDate = format(parseISO(appDate), 'yyyy-MM-dd');
+        } catch {
+          appDate = app.date;
+        }
+      }
+      return (
+        appDate === today &&
+        app.doctorId === loggedInDoctor?.id &&
+        app.status !== 'cancelled'
+      );
+    });
+    // Count by mode
+    const inPersonAppointments = todayAppointments.filter(app => app.type === 'in-person').length;
+    const virtualAppointments = todayAppointments.filter(app => app.type === 'virtual' || app.type === 'online').length;
+    const totalAppointments = todayAppointments.length;
     setStats({
-      totalAppointments: todayAppointments.length,
-      inPersonAppointments: todayAppointments.filter(app => app.type === "in-person").length,
-      virtualAppointments: todayAppointments.filter(app => app.type === "virtual").length,
+      totalAppointments,
+      inPersonAppointments,
+      virtualAppointments,
     });
     setIsLoading(false);
-  }, [applications, date]);
-
+  }, [appointments, today, loggedInDoctor?.id]);
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Today's Appointments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-neutral-200 rounded w-3/4"></div>
-            <div className="h-2 bg-neutral-200 rounded w-full"></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="h-4 bg-neutral-200 rounded w-1/2"></div>
-                <div className="h-2 bg-neutral-200 rounded w-full"></div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-4 bg-neutral-200 rounded w-1/2"></div>
-                <div className="h-2 bg-neutral-200 rounded w-full"></div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-xl shadow p-6 min-h-[220px] animate-pulse">
+        <div className="h-6 w-1/3 bg-neutral-200 rounded mb-4"></div>
+        <div className="h-10 w-1/4 bg-neutral-200 rounded mb-6"></div>
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="h-20 bg-neutral-200 rounded"></div>
+          <div className="h-20 bg-neutral-200 rounded"></div>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-10 w-24 bg-neutral-200 rounded"></div>
+          <div className="h-10 w-24 bg-neutral-200 rounded"></div>
+        </div>
+      </div>
     );
   }
 
-  const totalAppointments = stats?.totalAppointments || 0;
-  const inPersonAppointments = stats?.inPersonAppointments || 0;
-  const virtualAppointments = stats?.virtualAppointments || 0;
-
-  const inPersonPercentage =
-    totalAppointments > 0
-      ? (inPersonAppointments / totalAppointments) * 100
-      : 0;
-
-  const virtualPercentage =
-    totalAppointments > 0 ? (virtualAppointments / totalAppointments) * 100 : 0;
+  const { totalAppointments, inPersonAppointments, virtualAppointments } = stats;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between mb-2">
-          <CardTitle className="text-lg">Today's Appointments</CardTitle>
-          <span className="text-sm font-medium text-neutral-500">
-            {formattedDate}
-          </span>
+    <div className="bg-white rounded-xl shadow p-6 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <div className="text-lg font-semibold text-gray-800">Today's Schedule</div>
+          <div className="text-sm text-gray-500">{formattedDate}</div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-neutral-600 text-sm">Total</span>
-          <span className="text-neutral-800 font-semibold">
-            {totalAppointments}
-          </span>
+        <div className="bg-blue-100 p-3 rounded-full">
+          <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="8" fill="#3b82f6" opacity="0.15"/><path d="M8 7h8M8 11h8M8 15h4" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/></svg>
         </div>
-        <Progress value={100} className="h-2 mb-4" />
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-neutral-600 text-sm">In-Person</span>
-              <span className="text-neutral-800 font-semibold">
-                {inPersonAppointments}
-              </span>
-            </div>
-            <Progress
-              value={inPersonPercentage}
-              className="h-2 mb-2 bg-neutral-200"
-            />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-neutral-600 text-sm">Virtual</span>
-              <span className="text-neutral-800 font-semibold">
-                {virtualAppointments}
-              </span>
-            </div>
-            <Progress
-              value={virtualPercentage}
-              className="h-2 mb-2 bg-neutral-200"
-            />
-          </div>
+      </div>
+      <div className="flex items-center bg-blue-50 rounded-lg p-4 mb-4">
+        <div className="flex-1">
+          <div className="text-sm text-blue-700 font-medium">Total Appointments</div>
+          <div className="text-3xl font-bold text-blue-900">{totalAppointments}</div>
+          <div className="text-xs text-blue-500 mt-1">Scheduled for today</div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="flex flex-col items-center justify-center bg-green-50 rounded-xl p-4 border border-green-100">
+          <FaUserMd className="text-green-500 text-2xl mb-2" />
+          <div className="text-2xl font-bold text-green-700">{inPersonAppointments}</div>
+          <div className="text-sm text-green-700 font-medium">In-Person</div>
+        </div>
+        <div className="flex flex-col items-center justify-center bg-blue-50 rounded-xl p-4 border border-blue-100">
+          <FaVideo className="text-blue-500 text-2xl mb-2" />
+          <div className="text-2xl font-bold text-blue-700">{virtualAppointments}</div>
+          <div className="text-sm text-blue-700 font-medium">Virtual</div>
+        </div>
+      </div>
+    </div>
   );
 };
 

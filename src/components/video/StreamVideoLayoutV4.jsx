@@ -1,11 +1,12 @@
 import { CallingState, CancelCallButton, RecordCallButton, StreamTheme, ToggleAudioPreviewButton, ToggleVideoPreviewButton, useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import SideBySideLayout from "./SideBySideLayout";
-import { navigate } from "wouter/use-browser-location";
+
 import { useEffect, useRef } from 'react';
 
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { useSelector } from "react-redux";
 import sendMessageToQueue from "../../api/SendMessageToQueue";
+import { navigate } from "wouter/use-browser-location";
 
 const StreamVideoLayoutV4 = ({ callId }) => {
     const {
@@ -75,7 +76,7 @@ const StreamVideoLayoutV4 = ({ callId }) => {
         if (intervalRef.current) clearInterval(intervalRef.current);
         if(isCallRecordingInProgress) await call.stopRecording();
         sendMessageToQueue(callId, username);
-        navigate(`/post-call/${callId}`);
+        navigate(`/post-call/${callId}`, {state: { from : "video-call" }});
     };
 
     if (callingState !== CallingState.JOINED) {

@@ -1,13 +1,11 @@
-// src/components/AppointmentCalendar.js
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useSelector } from "react-redux";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import enUS from "date-fns/locale/en-US";
-import { navigate } from "wouter/use-browser-location";
-import { DOCTOR_PORTAL_URL } from "../../constants";
-import { FaCopy } from "react-icons/fa";
+import AppointmentModal from "./AppointmentModal";
+import CustomToolbar from "./CustomToolbar";
+import { fetchAppointmentsByDoctorEmails } from "../../api/callHistory";
 
 const locales = {
   "en-US": enUS,
@@ -22,48 +20,65 @@ const localizer = dateFnsLocalizer({
 });
 
 const AppointmentCalendar = () => {
-  const appointments = useSelector((state) => state.appointments.appointments);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [joinLink, setJoinLink] = useState("");
+  const [appointments, setAppointments] = useState([]);
+  const [selectedDoctors, setSelectedDoctors] = useState([]);
+  const [doctorColorMap, setDoctorColorMap] = useState({});
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (selectedDoctors.length === 0) {
+        setAppointments([]);
+        return;
+      }
+      const data = await fetchAppointmentsByDoctorEmails(selectedDoctors);
+      setAppointments(data);
+    };
+
+    fetchData();
+  }, [selectedDoctors]);
 
   const events = appointments.map((appt) => {
-    const today = new Date(appt.date + " CST"); // Use actual date if available
+    const doctorKey = (appt.doctor_email || "").trim().toLowerCase();
+    const color = doctorColorMap[doctorKey];
+    const [hours, minutes] = appt.time.split(":").map(Number);
 
-    const [hours, minutes] = appt.time.split(":");
-    const start = new Date(today.setHours(+hours, +minutes, 0));
-    const end = new Date(start.getTime() + 30 * 60000); // 30 min slot
+    const start = new Date(
+      new Date(appt.appointment_date + " CST").setHours(hours, minutes, 0)
+    );
+    const end = new Date(start.getTime() + 30 * 60000);
 
     return {
       title: `${appt.full_name} (${appt.status})`,
       start,
       end,
       allDay: false,
+      color: color || "#E5E7EB",
       ...appt,
     };
   });
-  console.log(selectedAppointment);
 
-  const handleJoinClick = () => {
-    setSelectedAppointment(null);
-    navigate(`/meeting-room/${selectedAppointment.id}`);
+  const eventPropGetter = (event) => ({
+    style: {
+      backgroundColor: event.color,
+      color: "white",
+      borderRadius: "4px",
+      border: "none",
+      padding: "2px 4px",
+    },
+  });
+
+  const handleDoctorUpdate = (ids, doctorList) => {
+    setSelectedDoctors(ids);
+    const colorMap = {};
+    doctorList.forEach((doc) => {
+      if (doc.email) {
+        colorMap[doc.email.toLowerCase()] = doc.color;
+      }
+    });
+    setDoctorColorMap(colorMap);
   };
-
-  const handlePostCallClick = () => {
-    setSelectedAppointment(null);
-    navigate(`/post-call/${selectedAppointment.id}`);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(joinLink);
-    alert("Link copied to clipboard!");
-  };
-
-  useEffect(() => {
-    if (selectedAppointment) {
-      const link = `${DOCTOR_PORTAL_URL}${selectedAppointment.id}`;
-      setJoinLink(link);
-    }
-  }, [selectedAppointment]);
 
   return (
     <div style={{ height: "600px", margin: "20px" }}>
@@ -76,87 +91,29 @@ const AppointmentCalendar = () => {
         endAccessor="end"
         style={{ height: 500 }}
         onSelectEvent={(event) => {
-          console.log(event);
-
           setSelectedAppointment(event);
+        }}
+        eventPropGetter={eventPropGetter}
+        components={{
+          toolbar: (props) => (
+            <CustomToolbar
+              {...props}
+              selectedDoctors={selectedDoctors}
+              onDoctorUpdate={handleDoctorUpdate}
+              isDropdownOpen={isDropdownOpen}
+              setDropdownOpen={setDropdownOpen}
+            />
+          ),
         }}
       />
       {selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md">
-            <h1 className="text-2xl font-bold mb-4 text-gray-800">
-              Appointment Details
-            </h1>
-            <div className="space-y-2 text-gray-700">
-              <p>
-                <span className="font-semibold">Appointment ID:</span>{" "}
-                {selectedAppointment.id}
-              </p>
-              <p>
-                <span className="font-semibold">Patient:</span>{" "}
-                {selectedAppointment.full_name}
-              </p>
-              <p>
-                <span className="font-semibold">Time:</span>{" "}
-                {selectedAppointment.time}
-              </p>
-              <p>
-                <span className="font-semibold">Status:</span>{" "}
-                {selectedAppointment.status}
-              </p>
-              <p>
-                <span className="font-semibold">SSN:</span>{" "}
-                {selectedAppointment.ssn}
-              </p>
-              <p>
-                <span className="font-semibold">Doctor:</span>{" "}
-                {selectedAppointment.doctor_name}
-              </p>
-              <p>
-                <span className="font-semibold text-gray-700">
-                  Meeting Link:
-                </span>
-              </p>
-              <div className="flex w-full">
-                <input
-                  type="text"
-                  value={joinLink}
-                  readOnly
-                  className="flex-grow border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-0"
-                />
-                <button
-                  onClick={copyToClipboard}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-r-md"
-                >
-                  <FaCopy className="inline-block mr-1" /> Copy
-                </button>
-              </div>
-            </div>
-            <div className="mt-6 text-right space-x-1">
-              <button
-                onClick={handleJoinClick}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
-              >
-                Join
-              </button>
-              <button
-                onClick={handlePostCallClick}
-                className="bg-zinc-600 hover:bg-zinc-700 text-white font-medium py-2 px-4 rounded"
-              >
-                Post Call Documentation
-              </button>
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <AppointmentModal
+          selectedAppointment={selectedAppointment}
+          setSelectedAppointment={setSelectedAppointment}
+        />
       )}
     </div>
   );
 };
 
-export default AppointmentCalendar;
+export default AppointmentCalendar

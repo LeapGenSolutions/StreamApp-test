@@ -1,0 +1,380 @@
+/* Timeline Dashboard Styles */
+.timeline-dashboard {
+  @apply space-y-8;
+}
+
+.timeline-stats-grid {
+  @apply grid grid-cols-4 gap-6;
+}
+
+.timeline-stat-card {
+  @apply transition-all duration-300 hover:shadow-md hover:transform hover:translate-y-[-2px];
+}
+
+.timeline-stat-card.blue {
+  @apply border-l-4 border-l-blue-500;
+}
+
+.timeline-stat-card.green {
+  @apply border-l-4 border-l-green-500;
+}
+
+.timeline-stat-card.yellow {
+  @apply border-l-4 border-l-yellow-500;
+}
+
+.timeline-stat-card.purple {
+  @apply border-l-4 border-l-purple-500;
+}
+
+.timeline-stat-content {
+  @apply flex items-center justify-between;
+}
+
+.timeline-stat-number {
+  @apply text-2xl font-bold text-gray-900;
+}
+
+.timeline-stat-label {
+  @apply text-sm text-gray-600;
+}
+
+.timeline-main-card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200;
+}
+
+.timeline-header {
+  @apply flex items-center justify-between mb-6;
+}
+
+.timeline-title {
+  @apply text-xl font-semibold text-gray-900;
+}
+
+.timeline-add-btn {
+  @apply bg-blue-600 hover:bg-blue-700 transition-colors duration-200;
+}
+
+.timeline-container {
+  @apply relative;
+}
+
+.timeline-line {
+  @apply absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200;
+}
+
+.timeline-items {
+  @apply space-y-6;
+}
+
+.timeline-item {
+  @apply relative flex items-start space-x-4;
+}
+
+.timeline-dot {
+  @apply relative z-10 flex items-center justify-center w-12 h-12 rounded-full border-4 border-white shadow-lg transition-all duration-300;
+}
+
+.timeline-dot.completed {
+  @apply bg-green-500;
+}
+
+.timeline-dot.in-progress {
+  @apply bg-blue-500 animate-pulse;
+}
+
+.timeline-dot.waiting {
+  @apply bg-yellow-500;
+}
+
+.timeline-dot.no-show {
+  @apply bg-red-500;
+}
+
+.timeline-appointment-card {
+  @apply flex-1 hover:shadow-md transition-shadow duration-300 bg-white border border-gray-100 rounded-lg;
+}
+
+.timeline-appointment-header {
+  @apply flex items-center justify-between mb-3;
+}
+
+.timeline-appointment-meta {
+  @apply flex items-center space-x-3;
+}
+
+.timeline-time {
+  @apply text-lg font-semibold text-gray-900;
+}
+
+.timeline-status-badge {
+  @apply px-2 py-1 rounded-full text-xs font-medium border;
+}
+
+.timeline-status-badge.completed {
+  @apply bg-green-100 text-green-800 border-green-200;
+}
+
+.timeline-status-badge.in-progress {
+  @apply bg-blue-100 text-blue-800 border-blue-200;
+}
+
+.timeline-status-badge.waiting {
+  @apply bg-yellow-100 text-yellow-800 border-yellow-200;
+}
+
+.timeline-status-badge.no-show {
+  @apply bg-red-100 text-red-800 border-red-200;
+}
+
+.timeline-type-badge {
+  @apply flex items-center space-x-1 px-2 py-1 rounded-full text-xs border border-gray-300 bg-gray-50;
+}
+
+.timeline-duration {
+  @apply text-sm text-gray-500;
+}
+
+.timeline-appointment-details {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.timeline-detail-section {
+  @apply space-y-1;
+}
+
+.timeline-detail-label {
+  @apply text-sm font-medium text-gray-700;
+}
+
+.timeline-detail-value {
+  @apply text-gray-900;
+}
+
+.timeline-detail-subtitle {
+  @apply text-sm text-gray-500;
+}
+
+.timeline-active-session {
+  @apply mt-3 pt-3 border-t border-gray-100;
+}
+
+.timeline-active-indicator {
+  @apply flex items-center space-x-2;
+}
+
+.timeline-active-text {
+  @apply text-sm text-blue-600 font-medium;
+}
+
+/* Timeline Animations */
+@keyframes timelineFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.timeline-item {
+  animation: timelineFadeIn 0.5s ease-out;
+}
+
+.timeline-item:nth-child(1) { animation-delay: 0.1s; }
+.timeline-item:nth-child(2) { animation-delay: 0.2s; }
+.timeline-item:nth-child(3) { animation-delay: 0.3s; }
+.timeline-item:nth-child(4) { animation-delay: 0.4s; }
+.timeline-item:nth-child(5) { animation-delay: 0.5s; }
+
+/* Timeline Dot Pulse Animation */
+@keyframes timelinePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+}
+
+.timeline-dot.in-progress {
+  animation: timelinePulse 2s infinite;
+}
+
+/* Responsive Timeline */
+@media (max-width: 1024px) {
+  .timeline-stats-grid {
+    @apply grid-cols-2 gap-4;
+  }
+}
+
+@media (max-width: 768px) {
+  .timeline-stats-grid {
+    @apply grid-cols-1 gap-3;
+  }
+  
+  .timeline-appointment-details {
+    @apply grid-cols-1 gap-2;
+  }
+  
+  .timeline-appointment-header {
+    @apply flex-col items-start space-y-2;
+  }
+  
+  .timeline-appointment-meta {
+    @apply flex-wrap gap-2;
+  }
+  
+  .timeline-dot {
+    @apply w-8 h-8;
+  }
+  
+  .timeline-line {
+    @apply left-4;
+  }
+  
+  .timeline-item {
+    @apply space-x-3;
+  }
+}
+
+@media (max-width: 640px) {
+  .timeline-header {
+    @apply flex-col items-start space-y-3;
+  }
+  
+  .timeline-title {
+    @apply text-lg;
+  }
+  
+  .timeline-add-btn {
+    @apply w-full;
+  }
+  
+  .timeline-stat-content {
+    @apply flex-col items-start space-y-1;
+  }
+}
+
+/* Dark Mode Timeline */
+.dark .timeline-main-card {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .timeline-title {
+  @apply text-gray-100;
+}
+
+.dark .timeline-line {
+  @apply bg-gray-600;
+}
+
+.dark .timeline-appointment-card {
+  @apply bg-gray-700 border-gray-600;
+}
+
+.dark .timeline-time {
+  @apply text-gray-100;
+}
+
+.dark .timeline-detail-label {
+  @apply text-gray-300;
+}
+
+.dark .timeline-detail-value {
+  @apply text-gray-100;
+}
+
+.dark .timeline-detail-subtitle {
+  @apply text-gray-400;
+}
+
+.dark .timeline-duration {
+  @apply text-gray-400;
+}
+
+.dark .timeline-stat-number {
+  @apply text-gray-100;
+}
+
+.dark .timeline-stat-label {
+  @apply text-gray-300;
+}
+
+.dark .timeline-type-badge {
+  @apply bg-gray-600 border-gray-500 text-gray-200;
+}
+
+/* Timeline Loading States */
+.timeline-skeleton {
+  @apply animate-pulse;
+}
+
+.timeline-skeleton-line {
+  @apply h-4 bg-gray-200 rounded;
+}
+
+.timeline-skeleton-circle {
+  @apply w-12 h-12 bg-gray-200 rounded-full;
+}
+
+.timeline-skeleton-card {
+  @apply h-32 bg-gray-200 rounded-lg;
+}
+
+.dark .timeline-skeleton-line,
+.dark .timeline-skeleton-circle,
+.dark .timeline-skeleton-card {
+  @apply bg-gray-600;
+}
+
+/* Page Navigation Styles */
+.page-navigation {
+  @apply mb-8;
+}
+
+.page-navigation-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.page-navigation-title {
+  @apply text-2xl font-bold text-gray-900 dark:text-gray-100;
+}
+
+.page-navigation-subtitle {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.page-navigation-date {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.page-navigation-breadcrumb {
+  @apply flex items-center space-x-2 text-sm;
+}
+
+.page-navigation-breadcrumb-item {
+  @apply flex items-center;
+}
+
+.page-navigation-breadcrumb-separator {
+  @apply text-gray-400 dark:text-gray-600;
+}
+
+.page-navigation-breadcrumb-link {
+  @apply text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100;
+}
+
+.page-navigation-breadcrumb-current {
+  @apply text-gray-900 dark:text-gray-100 font-medium;
+}
+
+.page-navigation-back-button {
+  @apply p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400;
+}
+
+.page-navigation-back-button:hover {
+  @apply text-gray-900 dark:text-gray-100;
+} 

@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
 
 import ReactMarkdown from "react-markdown";
-
+import LoadingCard from "./LoadingCard"; 
 
 const Billing = ({ appointmentId }) => {
   const username = useSelector((state) => state.me.me.email);
@@ -12,7 +12,7 @@ const Billing = ({ appointmentId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [billingCodes, setBillingCodes] = useState("");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch, error } = useQuery({
     queryKey,
     queryFn: () => fetchBillingByAppointment(`${username}_${appointmentId}_billing`, username),
   });
@@ -49,7 +49,19 @@ const Billing = ({ appointmentId }) => {
     mutation.mutate(billingCodes);
   };
 
-  if (isLoading) return <p>Loading billing codes...</p>;
+  // how loading screen
+  if (isLoading) {
+    return <LoadingCard message="Running the diagnosis-to-dollars pipeline… Billing Codes coming right up!" />;
+  }
+
+  // Error fallback
+  if (error) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        Unable to fetch billing codes...!!
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -8,13 +8,19 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "../ui/accordion"
+import LoadingCard from "./LoadingCard";
 
 //  Original clustered data (not deeply nested, still simple)
 
 
 const Clusters = ({appointmentId}) => {
   const username = useSelector((state) => state.me.me.email);
-  const { data } = useQuery({
+
+  const {
+    data,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: "clusters",
     queryFn: ()=>fetchClustersByAppointment(`${username}_${appointmentId}_clusters`, username),
   })
@@ -34,6 +40,19 @@ const Clusters = ({appointmentId}) => {
     }
   },[data])
 
+  if (isLoading) {
+    return (
+      <LoadingCard message="Clustering symptoms with surgical precision…" />
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        Failed to load clusters… Please try again.
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
@@ -45,24 +64,24 @@ const Clusters = ({appointmentId}) => {
           </AccordionTrigger>
           <AccordionContent className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
             {clusteredData?.length > 0 ? (
-            clusteredData.map((c) => (
-              <div key={c.topic} className="mb-5">
-                <h4 className="font-semibold text-gray-900 mb-2">{c.topic}</h4>
-                <p className="text-sm text-gray-600 mb-2">
-                  <span className="font-medium">SOAP Section:</span> {c.soap_section || '—'}
-                </p>
-                <ul className="list-disc ml-6 space-y-1 text-gray-700">
-                  {c.lines?.length > 0 ? (
-                    c.lines.map((line, i) => <li key={i}>{line}</li>)
-                  ) : (
-                    <li className="text-gray-500 italic">No lines available.</li>
-                  )}
-                </ul>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500 italic">No clustered output available.</p>
-          )}
+              clusteredData.map((c) => (
+                <div key={c.topic} className="mb-5">
+                  <h4 className="font-semibold text-gray-900 mb-2">{c.topic}</h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    <span className="font-medium">SOAP Section:</span> {c.soap_section || '—'}
+                  </p>
+                  <ul className="list-disc ml-6 space-y-1 text-gray-700">
+                    {c.lines?.length > 0 ? (
+                      c.lines.map((line, i) => <li key={i}>{line}</li>)
+                    ) : (
+                      <li className="text-gray-500 italic">No lines available.</li>
+                    )}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 italic">No clustered output available.</p>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -72,12 +91,12 @@ const Clusters = ({appointmentId}) => {
           </AccordionTrigger>
           <AccordionContent className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
             {medicationsDiscussed?.length > 0 ? (
-            <ul className="list-disc ml-6 space-y-1 text-gray-700">
-              {medicationsDiscussed.map((m, i) => <li key={i}>{m}</li>)}
-            </ul>
-          ) : (
-            <p className="text-gray-500 italic">No medications discussed.</p>
-          )}
+              <ul className="list-disc ml-6 space-y-1 text-gray-700">
+                {medicationsDiscussed.map((m, i) => <li key={i}>{m}</li>)}
+              </ul>
+            ) : (
+              <p className="text-gray-500 italic">No medications discussed.</p>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -87,23 +106,23 @@ const Clusters = ({appointmentId}) => {
           </AccordionTrigger>
           <AccordionContent className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
             {conditionsMentioned?.count > 0 && conditionsMentioned.conditions ? (
-            Object.entries(conditionsMentioned.conditions).map(
-              ([cond, lines]) => (
-                <div key={cond} className="mb-5">
-                  <h4 className="font-semibold text-gray-900 mb-2">{cond}</h4>
-                  <ul className="list-disc ml-6 space-y-1 text-gray-700">
-                    {lines?.length > 0 ? (
-                      lines.map((line, i) => <li key={i}>{line}</li>)
-                    ) : (
-                      <li className="text-gray-500 italic">No details available.</li>
-                    )}
-                  </ul>
-                </div>
+              Object.entries(conditionsMentioned.conditions).map(
+                ([cond, lines]) => (
+                  <div key={cond} className="mb-5">
+                    <h4 className="font-semibold text-gray-900 mb-2">{cond}</h4>
+                    <ul className="list-disc ml-6 space-y-1 text-gray-700">
+                      {lines?.length > 0 ? (
+                        lines.map((line, i) => <li key={i}>{line}</li>)
+                      ) : (
+                        <li className="text-gray-500 italic">No details available.</li>
+                      )}
+                    </ul>
+                  </div>
+                )
               )
-            )
-          ) : (
-            <p className="text-gray-500 italic">No conditions mentioned.</p>
-          )}
+            ) : (
+              <p className="text-gray-500 italic">No conditions mentioned.</p>
+            )}
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -39,8 +39,10 @@ function Patients() {
   const [showPatients, setShowPatients] = useState([]);
 
   useEffect(() => {
-    dispatch(fetchPatientsDetails());
-  }, [dispatch]);
+    if (patients.length === 0){
+      dispatch(fetchPatientsDetails());
+    }
+  }, [dispatch, patients.length]);
 
   useEffect(() => {
     setShowPatients(patients);
@@ -52,80 +54,79 @@ function Patients() {
 
   // Patient Search Logic
   const handleSearchChange = (e) => {
-  const query = e.target.value;
-  setSearchQuery(query);
-  filterPatients(query);
-};
+    const query = e.target.value;
+    setSearchQuery(query);
+    filterPatients(query);
+  };
 
 
   const filterPatients = (query) => {
-  if (query === "") {
-    setShowPatients(patients);
-    return;
-  }
-  const filteredPatients = patients.filter((p) => {
-    const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
-    return fullName.includes(query.toLowerCase());
-  });
-  setShowPatients(filteredPatients);
-};
+    if (query === "") {
+      setShowPatients(patients);
+      return;
+    }
+    const filteredPatients = patients.filter((p) => {
+      const fullName = `${p?.firstname} ${p?.lastname}`.toLowerCase();
+      return fullName.includes(query.toLowerCase());
+    });
+    setShowPatients(filteredPatients);
+  };
 
 
   const advancedSearchHandler = (query) => {
-    if (!query) { 
+    if (!query) {
       filterPatients();
       return;
     }
-      setShowPatients(
-        patients.filter((p) => {
-          // currently, the dateOfBirth, insurance Provider, insurance id, phone number, email is will not filter and show no partients found
-          // because they are not provided in the patients object
-          const dob = query?.dateOfBirth
-            ? p?.date_of_birth
-              ? p?.date_of_birth ===
-                query.dateOfBirth
-              : false
-            : true;
-          const email = query?.email
-            ? p?.email
-              ? p?.email.includes(query?.email.toLowerCase())
-              : false
-            : true;
-          const insuranceId = query?.insuranceId
-            ? p.insurance_id
-              ? p?.insurance_id
-                  .toLowerCase()
-                  .includes(query?.insuranceId.toLowerCase())
-              : false
-            : true;
-          const insuranceProvider = query?.insuranceProvider
+    setShowPatients(
+      patients.filter((p) => {
+        // currently, the dateOfBirth, insurance Provider, insurance id, phone number, email is will not filter and show no partients found
+        // because they are not provided in the patients object
+        const dob = query?.dateOfBirth
+          ? p?.dob
+            ? p?.dob === query.dateOfBirth
+            : false
+          : true;
+        const email = query?.email
+          ? p?.email
+            ? p?.email.includes(query?.email.toLowerCase())
+            : false
+          : true;
+        const insuranceId = query?.insuranceId
+          ? p?.insurance_id
+            ? p?.insurance_id
+              .toLowerCase()
+              .includes(query?.insuranceId.toLowerCase())
+            : false
+          : true;
+        const insuranceProvider = query?.insuranceProvider
+          ? p?.insurance_provider
             ? p?.insurance_provider
-              ? p?.insurance_provider
-                  .toLowerCase()
-                  .includes(query.insuranceProvider.toLowerCase())
-              : false
-            : true;
-          const phoneNumber = query.phoneNumber
-            ? p?.phone_number
-              ? p?.phone_number.includes(query.phoneNumber)
-              : false
-            : true;
-          const ssn = query.ssn
-            ? p?.ssn
-              ? p?.ssn.toLowerCase().includes(query.ssn.toLowerCase())
-              : false
-            : true;
+              .toLowerCase()
+              .includes(query.insuranceProvider.toLowerCase())
+            : false
+          : true;
+        const phoneNumber = query.phoneNumber
+          ? p?.contactmobilephone
+            ? p?.contactmobilephone.includes(query.phoneNumber)
+            : false
+          : true;
+        const ssn = query.ssn
+          ? p?.ssn
+            ? p?.ssn.toLowerCase().includes(query.ssn.toLowerCase())
+            : false
+          : true;
 
-          return (
-            dob &&
-            email &&
-            insuranceId &&
-            insuranceProvider &&
-            phoneNumber &&
-            ssn
-          );
-        })
-      );
+        return (
+          dob &&
+          email &&
+          insuranceId &&
+          insuranceProvider &&
+          phoneNumber &&
+          ssn
+        );
+      })
+    );
   };
 
   return (
@@ -187,65 +188,70 @@ function Patients() {
                   </TableCell>
                 </TableRow>
               ) : (
-                showPatients?.map((patient) => (
-                  <TableRow key={patient.id}>
-                    <TableCell>
-                      {patient.first_name} {patient.last_name}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        {patient.phone_number}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Mail className="w-4 h-4" />
-                        {patient.email}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>{patient.insurance_provider}</div>
-                      <div className="text-sm text-gray-500">
-                        {patient.insurance_id}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {format(
-                          new Date(),
-                          "MMM dd, yyyy"
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          patient.insuranceVerified ? "success" : "warning"
-                        }
-                      >
-                        {patient.insuranceVerified ? "Verified" : "Pending"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon">
-                          <FileText className="w-4 h-4" />
-                        </Button>
-                        <Link href={`/patients/${patient.id}`}>
-                          <Button
-                            onClick={() => {
-                              navigate(`/patients/${patient.id}`);
-                            }}
-                            variant="ghost"
-                            size="icon"
-                          >
-                            <ExternalLink className="w-4 h-4" />
+                showPatients?.map((patient) => {
+                  if (!patient) {
+                    return null;
+                  }
+                  return (
+                    <TableRow key={patient?.patient_id}>
+                      <TableCell>
+                        {patient?.firstname} {patient?.lastname}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4" />
+                          {patient?.contactmobilephone}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Mail className="w-4 h-4" />
+                          {patient?.email}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>{patient?.insurance_provider}</div>
+                        <div className="text-sm text-gray-500">
+                          {patient?.insurance_id}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          {format(
+                            new Date(),
+                            "MMM dd, yyyy"
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            patient?.insuranceVerified ? "success" : "warning"
+                          }
+                        >
+                          {patient?.insuranceVerified ? "Verified" : "Pending"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon">
+                            <FileText className="w-4 h-4" />
                           </Button>
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <Link href={`/patients/${patient?.patient_id}`}>
+                            <Button
+                              onClick={() => {
+                                navigate(`/patients/${patient?.patient_id}`);
+                              }}
+                              variant="ghost"
+                              size="icon"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

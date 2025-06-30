@@ -4,9 +4,10 @@ import { navigate } from "wouter/use-browser-location";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCallHistory, fetchDoctorsFromHistory } from "../api/callHistory";
-import { useSelector } from "react-redux";
+import { fetchCallHistory } from "../api/callHistory";
+import { useDispatch, useSelector } from "react-redux";
 import { bgColors } from "../constants/colors";
+import { fetchDoctors } from "../redux/doctors-actions";
 
 const getColorForDoctor = (userID) => {
   let hash = 0;
@@ -67,6 +68,15 @@ function CallHistory() {
   const [allDoctors, setAllDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const doctorsCallHistoryData = useSelector((state) => state.doctors?.doctors || []);
+  const dispatch  = useDispatch();
+
+  useEffect(() => {
+    if(doctorsCallHistoryData.length === 0){
+      dispatch(fetchDoctors());
+    }
+    // eslint-disable-next-line
+  }, []);
 
   const dropdownRef = useRef(null);
   const myEmail = useSelector((state) => state.me.me.email);
@@ -75,11 +85,6 @@ function CallHistory() {
     queryKey: ["call-history", selectedDoctors],
     queryFn: () => fetchCallHistory(selectedDoctors),
     enabled: selectedDoctors.length > 0,
-  });
-
-  const { data: doctorsCallHistoryData } = useQuery({
-    queryKey: ["doctors-call-history"],
-    queryFn: fetchDoctorsFromHistory,
   });
 
   useEffect(() => {

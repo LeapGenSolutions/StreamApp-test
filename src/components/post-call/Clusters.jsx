@@ -46,12 +46,8 @@ const Clusters = ({appointmentId}) => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="text-red-500 text-center p-4">
-        Failed to load clusters… Please try again.
-      </div>
-    );
+  if(error){
+    return <LoadingCard />;
   }
 
   return (

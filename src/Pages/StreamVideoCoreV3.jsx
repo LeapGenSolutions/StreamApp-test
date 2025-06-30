@@ -10,6 +10,9 @@ import { useSelector } from 'react-redux';
 import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
 import { insertCallHistory } from '../api/callHistory';
 import { STREAM_API_KEY } from '../constants';
+import { NotesTrigger } from "../components/ui/notes-trigger";
+import { FloatingNotepad } from "../components/ui/floating-notepad";
+
 
 const StreamVideoCoreV3 = () => {
   const apiKey = STREAM_API_KEY;
@@ -30,7 +33,10 @@ const StreamVideoCoreV3 = () => {
   const [rejected, setRejected] = useState(false);
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [popupVisible, setPopupVisible] = useState(false);
+  const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [requestingUser, setRequestingUser] = useState(null);
+  const [meetingStartTime, setMeetingStartTime] = useState(null);
+
 
   // Show browser notification
   const showBrowserNotification = (name) => {
@@ -111,6 +117,8 @@ const StreamVideoCoreV3 = () => {
           },
           create: true,
         });
+
+        setMeetingStartTime(Date.now());
 
         videoCall.on("custom", (event) => {
           if (event.custom?.type === "join-request") {
@@ -375,6 +383,33 @@ const StreamVideoCoreV3 = () => {
             <StreamVideoLayoutV4 callId={callId} />
           </StreamCall>
         </StreamVideo>
+      )}
+      {!loading && showCall && role === "doctor" && (
+        <>
+          <NotesTrigger
+            onToggle={() => setIsNotepadOpen(!isNotepadOpen)}
+            isOpen={isNotepadOpen}
+            patientName={patientName}
+          />
+
+          <FloatingNotepad
+            isOpen={isNotepadOpen}
+            onClose={() => setIsNotepadOpen(false)}
+            patientName={patientName}
+            appointmentId={callId}
+            meetingStartTime={meetingStartTime}
+            isVideoCall={true}
+          />
+
+          {/* Bottom bar indicator when notepad is open */}
+          {/*
+          {isNotepadOpen && (
+            <div className="fixed bottom-0 left-0 right-0 bg-green-600 text-white text-center py-2 text-sm font-medium z-30">
+              🟢 Notes Active - {patientName ? `Patient: ${patientName}` : 'Quick Notes'}
+            </div>
+          )}
+          */}
+        </>
       )}
     </>
   );

@@ -8,6 +8,7 @@ import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
 import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
+import DoctorNotes from "../components/post-call/DoctorNotes";
 import { navigate } from "wouter/use-browser-location";
 
 const PostCallDocumentation = ({
@@ -49,7 +50,7 @@ const PostCallDocumentation = ({
       </CardHeader>
       <CardContent>
         <div className="flex space-x-2 mb-6 justify-center">
-          {['summary', 'transcript', 'soap', 'recommendations', 'billing', 'clusters','doctor Notes'].map(tab => (
+          {['summary', 'transcript', 'soap', 'recommendations', 'billing', 'clusters', 'doctor notes'].map(tab => (
             <button
               key={tab}
               className={`px-4 py-2 rounded font-medium ${docTab === tab ? 'bg-blue-600 text-white' : 'bg-white text-neutral-800 border border-b-0'} transition`}
@@ -79,6 +80,9 @@ const PostCallDocumentation = ({
         )}
         {docTab === 'clusters' && (
           <Clusters appointmentId={callId} />
+        )}
+        {docTab === 'doctor notes' && (
+          <DoctorNotes appointmentId={callId} />
         )}
 
         <div className="flex justify-end mt-8">

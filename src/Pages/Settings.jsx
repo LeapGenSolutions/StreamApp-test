@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 function Settings() {
   useEffect(() => {
@@ -13,7 +14,9 @@ function Settings() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <PageNavigation 
+        title="Settings"
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

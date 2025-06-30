@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
-import { fetchDoctorsFromHistory } from "../api/callHistory";
+import { useDispatch, useSelector } from "react-redux";
 import { ChevronDown } from "lucide-react";
 import { getColorFromName } from "../constants/colors";
+import { fetchDoctors } from "../redux/doctors-actions";
 
 export const doctorColorMap = {};
 
@@ -28,11 +28,19 @@ const DoctorMultiSelect = ({
   const [defaultSelection, setDefaultSelection] = useState([]);
   const dropdownRef = useRef(null);
   const hasPreselected = useRef(false);
+  const rawDoctors = useSelector((state) => state.doctors?.doctors || []);
+  const dispatch  = useDispatch();
+
+  useEffect(() => {
+    if(rawDoctors.length === 0){
+      dispatch(fetchDoctors());
+    }
+    // eslint-disable-next-line
+  }, []);
 
   useEffect(() => {
     const loadDoctors = async () => {
       try {
-        const rawDoctors = await fetchDoctorsFromHistory();
         const enriched = rawDoctors
           .filter((doc) => doc.fullName && doc.userID)
           .map((doc) => {
@@ -64,7 +72,7 @@ const DoctorMultiSelect = ({
     };
 
     loadDoctors();
-  }, [email, onDoctorSelect, selectedDoctors.length]);
+  }, [email, onDoctorSelect, selectedDoctors.length, rawDoctors]);
 
   useEffect(() => {
     if (isDropdownOpen) {

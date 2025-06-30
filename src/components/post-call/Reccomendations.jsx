@@ -35,12 +35,8 @@ const Reccomendations = ({ appointmentId }) => {
     return <LoadingCard message="From symptoms to strategy… aligning recommendations." />;
   }
 
-  if (error) {
-    return (
-      <div className="text-red-500 text-center p-4">
-        Unable to fetch recommendations...!!
-      </div>
-    );
+  if(error){
+    return <LoadingCard />;
   }
 
   return (

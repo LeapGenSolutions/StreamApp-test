@@ -22,12 +22,9 @@ export function PageNavigation({
         <div className="mb-4">
           <button
             onClick={handleBack}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 
-                     bg-white border border-gray-200 rounded-lg hover:bg-gray-50 
-                     hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 
-                     focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-200 
-                     dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-white
-                     transition-colors duration-200"
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
+           text-white bg-blue-600 border border-blue-700 rounded-lg 
+           hover:bg-blue-700 transition-colors duration-200"
             aria-label="Go back to previous page"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
@@ -39,11 +36,11 @@ export function PageNavigation({
       {/* Title Section */}
       {!hideTitle && title && (
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl font-bold text-black">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-600">
               {subtitle}
             </p>
           )}

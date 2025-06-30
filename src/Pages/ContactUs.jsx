@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Mail, Ticket, CheckCircle, Loader2, MessageCircle, Eye
 } from "lucide-react";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 const priorities = ['Low', 'Medium', 'High'];
 const categories = ['Technical', 'Billing', 'General'];
@@ -208,6 +209,7 @@ const Contact = () => {
 
   return (
     <div className="max-w-3xl mx-auto py-12 px-4">
+      <PageNavigation showBackButton={true} hideTitle={true} />
       <h1 className="text-4xl font-bold mb-2 text-center text-blue-700">Contact Us</h1>
       <p className="text-lg text-neutral-700 mb-10 text-center">Reach out for support, service, or inquiries. We're here to help!</p>
 

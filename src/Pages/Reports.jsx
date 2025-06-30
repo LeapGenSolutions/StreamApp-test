@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 function Reports() {
   useEffect(() => {
@@ -13,7 +14,11 @@ function Reports() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Reports</h1>
+      <PageNavigation 
+        title="Reports"
+        subtitle="View and download reports"
+        showDate={true}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>

@@ -33,8 +33,8 @@ const Transcript = ({ appointmentId }) => {
     return <LoadingCard message="Processing clinical chatter… stay with us." />;
   }
 
-  if (error) {
-    return <div>Error while fetching the Transcripts....!!</div>
+  if(error){
+    return <LoadingCard />;
   }
 
   return (

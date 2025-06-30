@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -15,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { Badge } from "../components/ui/badge";
 import {
   Plus,
   Phone,
@@ -25,105 +24,149 @@ import {
   FileText,
 } from "lucide-react";
 import AdvancedSearch from "../components/search/AdvancedSearch";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatientsDetails } from "../redux/patient-actions";
+import { fetchAppointmentDetails } from "../redux/appointment-actions"; 
+import DoctorMultiSelect from "../components/DoctorMultiSelect";
 import { Link } from "wouter";
-import { navigate } from "wouter/use-browser-location";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 function Patients() {
+  const dispatch = useDispatch();
+  const patients = useSelector((state) => state.patients.patients || []);
+  const appointments = useSelector(
+    (state) => state.appointments.appointments || []
+  );
+
+  const today = new Date().toISOString().split("T")[0]; 
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-  const dispatch = useDispatch();
-  const patients = useSelector((state) => state.patients.patients);
   const [showPatients, setShowPatients] = useState([]);
+  const [appointmentFilters, setAppointmentFilters] = useState({
+    selectedDoctors: [],
+    startDate: today,
+    endDate: today,
+  });
+  const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (patients.length === 0){
+    if (patients.length === 0) {
       dispatch(fetchPatientsDetails());
     }
-  }, [dispatch, patients.length]);
+    // eslint-disable-next-line
+  }, [dispatch]);
 
   useEffect(() => {
-    setShowPatients(patients);
-  }, [patients]);
+    if (appointmentFilters.selectedDoctors.length > 0) {
+      dispatch(fetchAppointmentDetails(appointmentFilters.selectedDoctors));
+    } else {
+      setShowPatients([]);
+    }
+  }, [appointmentFilters.selectedDoctors, dispatch]);
+
+  const enrichPatients = useCallback(() => {
+    const { selectedDoctors, startDate, endDate } = appointmentFilters;
+
+    const filteredAppointments = appointments.filter((a) => {
+      const matchDoctor =
+        selectedDoctors.length === 0 ||
+        selectedDoctors.includes(a.doctor_email);
+
+      const apptDate = new Date(a.appointment_date);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      const matchDate =
+        (!start || apptDate >= start) && (!end || apptDate <= end);
+
+      return matchDoctor && matchDate;
+    });
+
+    const latestByPatient = {};
+
+    filteredAppointments.forEach((appt) => {
+      const patient = patients.find((p) => {
+        const fullName = `${p.firstname} ${p.lastname}`.toLowerCase();
+        return (
+          appt.full_name?.toLowerCase() === fullName && appt.ssn === p.ssn
+        );
+      });
+
+      if (patient) {
+        const pid = patient.patient_id;
+        if (
+          !latestByPatient[pid] ||
+          new Date(appt.appointment_date) >
+            new Date(latestByPatient[pid].appointment.appointment_date)
+        ) {
+          latestByPatient[pid] = { patient, appointment: appt };
+        }
+      }
+    });
+
+    setShowPatients(
+      Object.values(latestByPatient).map(({ patient, appointment }) => ({
+        ...patient,
+        lastVisit: parseISO(appointment.appointment_date),
+        doctorName: appointment.doctor_email,
+      }))
+    );
+  }, [patients, appointments, appointmentFilters]);
 
   useEffect(() => {
-    document.title = "Patients - Seismic Connect";
-  }, []);
+    if (patients.length && appointments.length) enrichPatients();
+  }, [patients, appointments, enrichPatients]);
 
-  // Patient Search Logic
   const handleSearchChange = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    filterPatients(query);
-  };
+    const q = e.target.value.toLowerCase();
+    setSearchQuery(q);
 
-
-  const filterPatients = (query) => {
-    if (query === "") {
-      setShowPatients(patients);
+    if (!q) {
+      enrichPatients();
       return;
     }
-    const filteredPatients = patients.filter((p) => {
-      const fullName = `${p?.firstname} ${p?.lastname}`.toLowerCase();
-      return fullName.includes(query.toLowerCase());
-    });
-    setShowPatients(filteredPatients);
-  };
 
+    setShowPatients((prev) =>
+      prev.filter((p) =>
+        `${p.firstname} ${p.lastname}`.toLowerCase().includes(q)
+      )
+    );
+  };
 
   const advancedSearchHandler = (query) => {
     if (!query) {
-      filterPatients();
+      enrichPatients();
       return;
     }
+
     setShowPatients(
       patients.filter((p) => {
-        // currently, the dateOfBirth, insurance Provider, insurance id, phone number, email is will not filter and show no partients found
-        // because they are not provided in the patients object
-        const dob = query?.dateOfBirth
-          ? p?.dob
-            ? p?.dob === query.dateOfBirth
-            : false
+        const dobMatch = query.dateOfBirth ? p.dob === query.dateOfBirth : true;
+        const emailMatch = query.email
+          ? p.email?.toLowerCase().includes(query.email.toLowerCase())
           : true;
-        const email = query?.email
-          ? p?.email
-            ? p?.email.includes(query?.email.toLowerCase())
-            : false
+        const insIdMatch = query.insuranceId
+          ? p.insurance_id?.toLowerCase().includes(query.insuranceId.toLowerCase())
           : true;
-        const insuranceId = query?.insuranceId
-          ? p?.insurance_id
-            ? p?.insurance_id
-              .toLowerCase()
-              .includes(query?.insuranceId.toLowerCase())
-            : false
+        const insProvMatch = query.insuranceProvider
+          ? p.insurance_provider?.toLowerCase().includes(query.insuranceProvider.toLowerCase())
           : true;
-        const insuranceProvider = query?.insuranceProvider
-          ? p?.insurance_provider
-            ? p?.insurance_provider
-              .toLowerCase()
-              .includes(query.insuranceProvider.toLowerCase())
-            : false
+        const phoneMatch = query.phoneNumber
+          ? p.contactmobilephone?.includes(query.phoneNumber)
           : true;
-        const phoneNumber = query.phoneNumber
-          ? p?.contactmobilephone
-            ? p?.contactmobilephone.includes(query.phoneNumber)
-            : false
-          : true;
-        const ssn = query.ssn
-          ? p?.ssn
-            ? p?.ssn.toLowerCase().includes(query.ssn.toLowerCase())
-            : false
+        const ssnMatch = query.ssn
+          ? p.ssn?.toLowerCase().includes(query.ssn.toLowerCase())
           : true;
 
         return (
-          dob &&
-          email &&
-          insuranceId &&
-          insuranceProvider &&
-          phoneNumber &&
-          ssn
+          dobMatch &&
+          emailMatch &&
+          insIdMatch &&
+          insProvMatch &&
+          phoneMatch &&
+          ssnMatch
         );
       })
     );
@@ -131,6 +174,11 @@ function Patients() {
 
   return (
     <div className="space-y-6">
+      <PageNavigation 
+        //title="Patients"
+        //subtitle="View and manage patient records"
+        showDate={false}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
         <Button>
@@ -145,16 +193,15 @@ function Patients() {
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search patients..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-              />
-            </div>
+            <Input
+              className="flex-1"
+              placeholder="Search patients..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
             <Button
               variant="outline"
-              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+              onClick={() => setShowAdvancedSearch((s) => !s)}
             >
               Advanced Search
             </Button>
@@ -162,6 +209,56 @@ function Patients() {
           {showAdvancedSearch && (
             <AdvancedSearch submitHandler={advancedSearchHandler} />
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appointment Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label className="block mb-1 text-sm font-medium">Doctor</label>
+              <DoctorMultiSelect
+                selectedDoctors={appointmentFilters.selectedDoctors}
+                isDropdownOpen={isDoctorDropdownOpen}
+                setDropdownOpen={setIsDoctorDropdownOpen}
+                onDoctorSelect={(emails) =>
+                  setAppointmentFilters((prev) => ({
+                    ...prev,
+                    selectedDoctors: emails,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-sm font-medium">Start Date</label>
+              <Input
+                type="date"
+                value={appointmentFilters.startDate}
+                onChange={(e) =>
+                  setAppointmentFilters((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-sm font-medium">End Date</label>
+              <Input
+                type="date"
+                value={appointmentFilters.endDate}
+                onChange={(e) =>
+                  setAppointmentFilters((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -174,7 +271,7 @@ function Patients() {
                 <TableHead>Contact</TableHead>
                 <TableHead>Insurance</TableHead>
                 <TableHead>Last Visit</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Doctor</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -182,76 +279,54 @@ function Patients() {
               {showPatients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <p className="text-center text-gray-500 py-4">
+                    <p className="py-4 text-center text-gray-500">
                       No Patients Found
                     </p>
                   </TableCell>
                 </TableRow>
               ) : (
-                showPatients?.map((patient) => {
-                  if (!patient) {
-                    return null;
-                  }
-                  return (
-                    <TableRow key={patient?.patient_id}>
-                      <TableCell>
-                        {patient?.firstname} {patient?.lastname}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4" />
-                          {patient?.contactmobilephone}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Mail className="w-4 h-4" />
-                          {patient?.email}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>{patient?.insurance_provider}</div>
-                        <div className="text-sm text-gray-500">
-                          {patient?.insurance_id}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          {format(
-                            new Date(),
-                            "MMM dd, yyyy"
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            patient?.insuranceVerified ? "success" : "warning"
-                          }
-                        >
-                          {patient?.insuranceVerified ? "Verified" : "Pending"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                showPatients?.map((patient) => (
+                  <TableRow key={patient?.patient_id}>
+                    <TableCell>{`${patient?.firstname} ${patient?.lastname}`}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        {patient?.contactmobilephone}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Mail className="w-4 h-4" />
+                        {patient?.email}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{patient?.insurance_provider}</div>
+                      <div className="text-sm text-gray-500">
+                        {patient?.insurance_id}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        {patient?.lastVisit
+                          ? format(parseISO(patient?.lastVisit.toISOString()), "MMM dd, yyyy")
+                          : "N/A"}
+                      </div>
+                    </TableCell>
+                    <TableCell>{patient?.doctorName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon">
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                        <Link href={`/patients/${patient?.patient_id}`}>
                           <Button variant="ghost" size="icon">
-                            <FileText className="w-4 h-4" />
+                            <ExternalLink className="w-4 h-4" />
                           </Button>
-                          <Link href={`/patients/${patient?.patient_id}`}>
-                            <Button
-                              onClick={() => {
-                                navigate(`/patients/${patient?.patient_id}`);
-                              }}
-                              variant="ghost"
-                              size="icon"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -261,4 +336,4 @@ function Patients() {
   );
 }
 
-export default Patients;
+export default Patients

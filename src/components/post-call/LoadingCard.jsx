@@ -2,6 +2,9 @@
 import { Stethoscope } from "lucide-react";
 
 const LoadingCard = ({ message }) => {
+  const fallbackMessage =
+    "Vitals stable, insights loading… Might be a good time for a quick breather! Stretch, hydrate, and check back soon...";
+
   return (
     <div className="flex flex-col items-center justify-center text-center p-6 text-blue-800">
       {/* Spinner ring with stethoscope inside */}
@@ -40,7 +43,7 @@ const LoadingCard = ({ message }) => {
       </svg>
 
       {/* Message below */}
-      <p className="text-sm">{message}</p>
+      <p className="text-sm">{message || fallbackMessage}</p>
     </div>
   );
 };

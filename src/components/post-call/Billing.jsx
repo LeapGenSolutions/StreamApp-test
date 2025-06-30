@@ -55,12 +55,8 @@ const Billing = ({ appointmentId }) => {
   }
 
   // Error fallback
-  if (error) {
-    return (
-      <div className="text-red-500 text-center p-4">
-        Unable to fetch billing codes...!!
-      </div>
-    );
+  if(error){
+    return <LoadingCard />;
   }
 
   return (

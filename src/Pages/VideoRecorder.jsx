@@ -7,6 +7,7 @@ import { DOCTOR_PORTAL_URL } from "../constants";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import CallHistory from "./CallHistory"
 import { useToast } from "../hooks/use-toast";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 const VideoCallPage = () => {
   const [room, setRoom] = useState("");
@@ -158,6 +159,8 @@ const VideoCallPage = () => {
   })
 
   return (
+    <>
+    <PageNavigation showBackButton={true} hideTitle={true} />
     <div className="bg-gray-50 flex flex-col items-center min-h-screen p-4">
       <div className="rounded-lg border bg-white shadow-sm w-full">
         <div className="flex flex-col space-y-1.5 p-6">
@@ -430,6 +433,7 @@ const VideoCallPage = () => {
         )}
       </div>
     </div >
+    </>
   );
 };
 

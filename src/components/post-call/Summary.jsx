@@ -42,9 +42,9 @@ const Summary = ({appointmentId}) => {
     return <LoadingCard message="Summary’s stitching up… hang tight." />;
   }
 
-  // Handle error state
+  // Error state handled in loadingCard.jsx
   if(error){
-    return <div>Unable to fetch Summary....!!</div>
+    return <LoadingCard />;
   }
 
   return (

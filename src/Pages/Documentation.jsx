@@ -5,6 +5,7 @@ import {
   Link as LinkIcon, Video, FileText, Users
 } from "lucide-react";
 import { Link } from "wouter";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 const tabs = [
   "Introduction",
@@ -69,7 +70,12 @@ function GettingStartedTab() {
     },
   ];
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-3xl mx-auto px-4">
+      <PageNavigation 
+        title="Documentation"
+        subtitle="Getting started guides and help resources"
+        showBackButton={false}
+      />
       <h2 className="text-2xl font-bold mb-1">Getting Started</h2>
       <p className="mb-6 text-neutral-600">This guide will help you set up your account, navigate the dashboard, and configure your profile so you're ready to start delivering care with ease.</p>
       <div className="space-y-2 mb-6">
@@ -578,6 +584,10 @@ const Documentation = () => {
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
+      <PageNavigation 
+        showBackButton={true}
+        hideTitle={true}
+      />
       <h1 className="text-3xl font-bold text-blue-700 mb-6">Seismic Application Documentation</h1>
       <div className="flex flex-wrap gap-3 mb-8">
         {tabs.map(tab => (

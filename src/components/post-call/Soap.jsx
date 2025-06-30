@@ -59,8 +59,13 @@ if (isLoading) {
     setIsEditing(false);
   };
 
-  if (isLoading) return <p>Loading SOAP notes...</p>;
-  if (error) return <p>Unable to fetch the SOAP notes.</p>;
+  if (isLoading) {
+    return <LoadingCard message="Your SOAP’s lathering... please hold." />;
+  }
+  
+  if(error){
+    return <LoadingCard />;
+  }
 
   return (
     <div className="space-y-4">

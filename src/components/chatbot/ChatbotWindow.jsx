@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { CHATBOT_URL } from "../../constants";
+import { useLocation } from "wouter";
 
 
 
@@ -8,6 +9,9 @@ const ChatbotWindow = () => {
     const [minimized, setMinimized] = useState(false);
     const [iframeKey, setIframeKey] = useState(Date.now()); // for reload/close
     const iframeRef = useRef();
+    const [location] = useLocation();
+    const isMeetingPage = location.startsWith("/meeting-room/");
+    const SIDEBAR_WIDTH = 256;
 
     // Open button (always visible)
     const openButton = (
@@ -20,7 +24,9 @@ const ChatbotWindow = () => {
             style={{
                 position: "fixed",
                 bottom: 24,
-                right: 24,
+                left: isMeetingPage ? SIDEBAR_WIDTH + 24 : "auto",
+                right: isMeetingPage ? "auto" : 24,
+                transition: "left 0.3s ease, right 0.3s ease",
                 zIndex: 101,
                 background: "#2563eb",
                 color: "#fff",
@@ -47,7 +53,8 @@ const ChatbotWindow = () => {
             style={{
                 position: "fixed",
                 bottom: 24,
-                right: 24,
+                left: isMeetingPage ? SIDEBAR_WIDTH + 24 : "auto",
+                right: isMeetingPage ? "auto" : 24,
                 zIndex: 100,
                 resize: minimized ? undefined : "both",
                 overflow: "auto",

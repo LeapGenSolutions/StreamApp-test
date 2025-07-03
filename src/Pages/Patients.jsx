@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "../components/ui/table";
 import {
-  Plus,
   Phone,
   Mail,
   Calendar,
@@ -181,10 +180,6 @@ function Patients() {
       />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Patient
-        </Button>
       </div>
 
       <Card>

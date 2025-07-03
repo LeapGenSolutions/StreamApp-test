@@ -63,12 +63,12 @@ const AppointmentStatus = ({ date }) => {
   useEffect(() => {
     setIsLoading(true);
     const todayAppointments = appointments.filter((app) => {
-          let appDate = app.date;
+          let appDate = app.appointment_date;
           if (typeof appDate === 'string') {
             try {
               appDate = format(parseISO(appDate), 'yyyy-MM-dd');
             } catch {
-              appDate = app.date;
+              appDate = app.appointment_date;
             }
           }
           return (

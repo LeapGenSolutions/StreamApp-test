@@ -400,15 +400,6 @@ const StreamVideoCoreV3 = () => {
             meetingStartTime={meetingStartTime}
             isVideoCall={true}
           />
-
-          {/* Bottom bar indicator when notepad is open */}
-          {/*
-          {isNotepadOpen && (
-            <div className="fixed bottom-0 left-0 right-0 bg-green-600 text-white text-center py-2 text-sm font-medium z-30">
-              🟢 Notes Active - {patientName ? `Patient: ${patientName}` : 'Quick Notes'}
-            </div>
-          )}
-          */}
         </>
       )}
     </>

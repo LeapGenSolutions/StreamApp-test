@@ -1,10 +1,9 @@
 import { useState } from "react";
 import {
-  UserPlus, LayoutDashboard, User, PlayCircle, Wrench, MessageCircle,
+  LayoutDashboard, User, MessageCircle,
   UserCog, RefreshCcw, Lock, Newspaper, Bot, Calendar, BarChart2, Star,
   Link as LinkIcon, Video, FileText, Users
 } from "lucide-react";
-import { Link } from "wouter";
 import { PageNavigation } from "../components/ui/page-navigation";
 
 const tabs = [
@@ -21,50 +20,45 @@ function GettingStartedTab() {
   const [openStep, setOpenStep] = useState(1);
   const steps = [
     {
-      icon: <UserPlus className="w-6 h-6 text-blue-500" />, title: "Sign Up or Log In", num: 1, details: (
+      icon: <Lock className="w-6 h-6 text-blue-500" />,
+      title: "Sign In or Continue as Guest",
+      num: 1, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
-          <li>Visit <span className="underline">seismicconnect.com/login</span></li>
-          <li>Enter your registered email and password</li>
-          <li>Forgot your password? Click "Forgot Password" to reset it securely</li>
-          <li>New user? Select "Sign Up" and follow the onboarding prompts</li>
+          <li>Click <b>Sign in</b> to log in securely with your Microsoft account. You will be redirected to the Microsoft login page to authenticate.</li>
+          <li>Or, click <b>Continue as Guest</b> for limited access without signing in.</li>
         </ul>
       )
     },
     {
       icon: <LayoutDashboard className="w-6 h-6 text-blue-500" />,
-      title: "Explore the Dashboard",
-      num: 2,
-      details: (
+      title: "Explore the Dashboard & Features",
+      num: 2, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
-          <li>View upcoming appointments and video call links</li>
-          <li>Access recent transcripts and summaries</li>
-          <li>Navigate to Patients, Reports, Chat, or Settings from the sidebar</li>
-          <li>View system announcements and quick tips</li>
+          <li>After signing in, you'll be taken to the dashboard.</li>
+          <li>View upcoming appointments, transcripts, and summaries.</li>
+          <li>Navigate to Patients, Reports, Chat, or Settings from the sidebar.</li>
+          <li>Access clinical documentation, patient management, and video call features.</li>
         </ul>
       )
     },
     {
-      icon: <User className="w-6 h-6 text-blue-500" />,
-      title: "Personalize Your Profile",
-      num: 3,
-      details: (
+      icon: <UserCog className="w-6 h-6 text-blue-500" />,
+      title: "View Your Profile (Optional)",
+      num: 3, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
-          <li>Click your avatar at the top right</li>
-          <li>Go to Settings {'>'} Profile</li>
-          <li>Update your name, specialty, timezone, and notification preferences</li>
-          <li>Set availability for appointments (optional)</li>
+          <li>Click your avatar at the top right to view your profile information.</li>
+          <li>Profile editing options (such as name, specialty, timezone, and notifications) may be limited or coming soon in the Settings page.</li>
         </ul>
       )
     },
     {
-      icon: <PlayCircle className="w-6 h-6 text-blue-500" />,
-      title: "Test Key Features (Optional)",
-      num: 4,
-      details: (
+      icon: <BarChart2 className="w-6 h-6 text-blue-500" />,
+      title: "Get Help and Support",
+      num: 4, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
-          <li>Try the "Video Call" section to test your webcam and mic</li>
-          <li>Use Pulse, the AI Chat Assistant, to ask questions</li>
-          <li>Submit a test support ticket to familiarize yourself with the process</li>
+          <li>Use the in-app AI Chat Assistant (Pulse) by clicking the chat icon for real-time help and guidance.</li>
+          <li>For further support, go to the <b>Contact Us</b> page from the sidebar to submit a support ticket or send an email to the support team.</li>
+          <li>For urgent issues, refer to emergency support instructions in the Connect or Support sections.</li>
         </ul>
       )
     },
@@ -77,7 +71,7 @@ function GettingStartedTab() {
         showBackButton={false}
       />
       <h2 className="text-2xl font-bold mb-1">Getting Started</h2>
-      <p className="mb-6 text-neutral-600">This guide will help you set up your account, navigate the dashboard, and configure your profile so you're ready to start delivering care with ease.</p>
+      <p className="mb-6 text-neutral-600">Follow these steps to get started as a user of the Seismic application. For best results, use the latest version of Chrome or Firefox.</p>
       <div className="space-y-2 mb-6">
         {steps.map((step) => (
           <div
@@ -101,17 +95,6 @@ function GettingStartedTab() {
           </div>
         ))}
       </div>
-      {/* Need Help Section */}
-      <div className="flex items-start bg-blue-50 rounded-xl p-4 mt-6">
-        <div className="mt-1 mr-3"><Wrench className="w-6 h-6 text-blue-500" /></div>
-        <div>
-          <span className="font-semibold text-blue-700">Need Help?</span>
-          <ul className="text-sm text-neutral-700 list-disc list-inside ml-0 mt-1">
-            <li>Go to <Link href="/contact" className="underline text-blue-700 hover:text-blue-900">Contact Us</Link> to submit a ticket or start a live chat</li>
-            <li>Use Pulse, the AI assistant, for step-by-step guidance</li>
-          </ul>
-        </div>
-      </div>
     </div>
   );
 }
@@ -123,11 +106,60 @@ function NavigationGuideAccordion() {
       icon: <LayoutDashboard className="w-7 h-7 text-blue-500" />,
       title: "Dashboard",
       details: (
-        <ul className="list-disc ml-5 mt-1">
-          <li>Review upcoming appointments</li>
-          <li>Access quick links to recent transcripts and notes</li>
-          <li>View system alerts, updates, and to-do items</li>
-        </ul>
+        <>
+          {/* Subtle, professional Dashboard walkthrough section with smaller font and neutral colors */}
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Subtle feature list with smaller font */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>
+                  <span className="font-semibold text-neutral-900">Today's Schedule:</span>
+                  <span className="ml-2 text-neutral-700">See your total appointments for the day</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Status Overview:</span>
+                  <span className="ml-2 text-neutral-700">Track Completed, In Progress, Waiting, and No-Show appointments</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Quick Actions:</span>
+                  <span className="ml-2 text-neutral-700">Join video calls, view appointment details, and more</span>
+                </li>
+              </ul>
+              <button
+                id="explore-dashboard-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/'}
+              >
+                Explore your Dashboard
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Dashboard Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">A quick tour of your homepage features</div>
+              <video
+                src="/dashboard.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-dashboard-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
       ),
       description: "Your homepage provides an at-a-glance view of your daily activity. From here, you can:"
     },
@@ -135,12 +167,60 @@ function NavigationGuideAccordion() {
       icon: <Calendar className="w-7 h-7 text-blue-500" />,
       title: "Appointments",
       details: (
-        <ul className="list-disc ml-5 mt-1">
-          <li>View upcoming and past appointments</li>
-          <li>Reschedule or cancel visits</li>
-          <li>Launch video calls directly from the appointment card</li>
-          <li>Sync with your calendar (if enabled)</li>
-        </ul>
+        <>
+          {/* Subtle, professional Appointments walkthrough section with video */}
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Appointments feature list */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>
+                  <span className="font-semibold text-neutral-900">View Upcoming & Past Appointments:</span>
+                  <span className="ml-2 text-neutral-700">See your full schedule and appointment history</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Manage Appointments:</span>
+                  <span className="ml-2 text-neutral-700">Reschedule, cancel, or join video calls directly</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Sync with Calendar:</span>
+                  <span className="ml-2 text-neutral-700">(If enabled) Keep your appointments in sync with your calendar</span>
+                </li>
+              </ul>
+              <button
+                id="explore-appointments-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/appointments'}
+              >
+                Explore your Appointments
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Appointments Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">A quick tour of your appointments features</div>
+              <video
+                src="/appointments.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-appointments-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
       ),
       description: "This section helps you manage your clinical schedule with ease:"
     },
@@ -148,12 +228,53 @@ function NavigationGuideAccordion() {
       icon: <User className="w-7 h-7 text-blue-500" />,
       title: "Patients",
       details: (
-        <ul className="list-disc ml-5 mt-1">
-          <li>Search for patients by name, ID, or status</li>
-          <li>View visit history, documents, and notes</li>
-          <li>Add, update, or archive patient profiles</li>
-          <li>Link EMR data for contextual insights</li>
-        </ul>
+        <>
+          {/* Subtle, professional Patients walkthrough section with video */}
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Patients feature list (key highlights) */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>Search patients by name or advanced filters.</li>
+                <li>Filter by doctor or appointment date range</li>
+                <li>View patient list with contact, last visit, and assigned doctor</li>
+                <li>Click a patient for clinical summary and appointment history</li>
+                <li>Access Post-Call Documentation: SOAP, Transcript, Billing, Recommendations</li>
+              </ul>
+              <button
+                id="explore-patients-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/patients'}
+              >
+                Explore your Patients
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Patients Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">Key Highlights</div>
+              <video
+                src="/patients.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-patients-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
       ),
       description: "Access and manage your patient records securely:"
     },
@@ -161,11 +282,12 @@ function NavigationGuideAccordion() {
       icon: <BarChart2 className="w-7 h-7 text-blue-500" />,
       title: "Reports",
       details: (
-        <ul className="list-disc ml-5 mt-1">
-          <li>View consultation summaries</li>
-          <li>Track engagement and usage metrics</li>
-          <li>Export reports for billing or compliance</li>
-          <li>Filter by date, type, or provider</li>
+        <ul className="space-y-4 text-base text-neutral-800 font-normal">
+          <li>View a summary of services used by each doctor, including total sessions conducted.</li>
+          <li>Access billing breakdowns showing charges incurred based on usage (e.g., per session or per minute).</li>
+          <li>Understand how Seismic calculates charges for telehealth services provided through the platform.</li>
+          <li>Identify trends in provider activity, appointment volume, and usage patterns.</li>
+          <li>Export report data for billing, audits, or performance review in CSV or other formats.</li>
         </ul>
       ),
       description: "Generate actionable insights and export data:"
@@ -186,12 +308,51 @@ function NavigationGuideAccordion() {
       icon: <LinkIcon className="w-7 h-7 text-blue-500" />,
       title: "Connect",
       details: (
-        <ul className="list-disc ml-5 mt-1">
-          <li>The latest Seismic feature releases and product news</li>
-          <li>Platform improvement logs</li>
-          <li>New tools and beta previews</li>
-          <li>Emergency contact features and alerts</li>
-        </ul>
+        <>
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Connect feature list */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>View the latest Seismic feature releases and product news</li>
+                <li>Access platform improvement logs and new tool previews</li>
+                <li>Stay updated with emergency contact features and alerts</li>
+                <li>Read announcements and changelogs</li>
+              </ul>
+              <button
+                id="explore-connect-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/connect'}
+              >
+                Explore Connect
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Connect Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">A quick tour of the Connect page features</div>
+              <video
+                src="/connectwalkthrough.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-connect-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
       ),
       description: "Stay informed and updated with:"
     },
@@ -199,11 +360,50 @@ function NavigationGuideAccordion() {
       icon: <MessageCircle className="w-7 h-7 text-blue-500" />,
       title: "Contact Us",
       details: (
-        <ul className="list-disc ml-5 mt-1">
-          <li>Submit a ticket to our support team</li>
-          <li>Start a live chat with Pulse, your AI assistant</li>
-          <li>Find our support email and emergency line</li>
-        </ul>
+        <>
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Contact Us feature list */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>Submit a ticket to our support team</li>
+                <li>Start a live chat with Pulse, your AI assistant</li>
+                <li>Find our support email and emergency line</li>
+              </ul>
+              <button
+                id="explore-contactus-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/contact'}
+              >
+                Explore Contact Us
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Contact Us Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">A quick tour of the Contact Us page features</div>
+              <video
+                src="/contactus.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-contactus-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
       ),
       description: "Need assistance? Head here to:"
     },

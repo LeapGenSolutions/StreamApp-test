@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { fetchDoctorNotesByAppointment, updateDoctorNotesByAppointment } from "../../api/doctorNotes";
-import { useSelector } from "react-redux";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
-const DoctorNotes = ({ appointmentId }) => {
-    const username = useSelector((state) => state.me.me.email);
+const DoctorNotes = ({ appointmentId, username }) => {
     const [notes, setNotes] = useState(null);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({

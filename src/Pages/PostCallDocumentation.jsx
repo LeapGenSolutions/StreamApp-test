@@ -10,6 +10,8 @@ import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
 import { navigate } from "wouter/use-browser-location";
+import { useSearchParams } from "wouter";
+
 
 const PostCallDocumentation = ({
   onSave,
@@ -34,6 +36,10 @@ const PostCallDocumentation = ({
     }
   }
 
+  const searchParams = useSearchParams()[0];
+  const username = searchParams.get("username");
+
+
   return (
     <>
     {prevPage !== "video-call" && <div className="mb-4">
@@ -50,7 +56,7 @@ const PostCallDocumentation = ({
       </CardHeader>
       <CardContent>
         <div className="flex space-x-2 mb-6 justify-center">
-          {['summary', 'transcript', 'soap', 'recommendations', 'billing', 'clusters', 'doctor notes'].map(tab => (
+          {['summary', 'transcript', 'SOAP', 'recommendations', 'billing', 'clusters', 'doctor notes'].map(tab => (
             <button
               key={tab}
               className={`px-4 py-2 rounded font-medium ${docTab === tab ? 'bg-blue-600 text-white' : 'bg-white text-neutral-800 border border-b-0'} transition`}
@@ -62,27 +68,29 @@ const PostCallDocumentation = ({
         </div>
 
         {docTab === 'summary' && (
-          <Summary appointmentId={callId} />
+          <Summary username={username} appointmentId={callId} />
         )}
 
         {docTab === 'transcript' && (
-          <Transcript appointmentId={callId} />
+          <Transcript username={username} appointmentId={callId} />
         )}
-        {docTab === 'soap' && (
-          <Soap appointmentId={callId} />
+        {docTab === 'SOAP' && (
+          <Soap username={username} appointmentId={callId} />
         )}
 
         {docTab === 'recommendations' && (
-          <Reccomendations appointmentId={callId} />
+          <Reccomendations username={username} appointmentId={callId} />
         )}
         {docTab === 'billing' && (
-          <Billing appointmentId={callId} />
+          <Billing username={username} appointmentId={callId} />
         )}
+
         {docTab === 'clusters' && (
-          <Clusters appointmentId={callId} />
+          <Clusters username={username} appointmentId={callId} />
         )}
+
         {docTab === 'doctor notes' && (
-          <DoctorNotes appointmentId={callId} />
+          <DoctorNotes username={username} appointmentId={callId} />
         )}
 
         <div className="flex justify-end mt-8">

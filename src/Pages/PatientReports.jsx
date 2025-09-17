@@ -79,6 +79,14 @@ const PatientReports = () => {
           { href: `/patients/${patient.id}/reports`, label: "Reports", icon: null, isLast: true }
         ]}
       />
+      <div className="mb-4">
+        {/*<button
+          onClick={() => navigate("/patients")}
+          className="text-sm text-blue-600 border border-blue-600 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition"
+        >
+          Back
+        </button>*/}
+      </div>
 
       <h1 className="text-3xl font-bold mb-4 text-gray-800 text-left">Patient Reports</h1>
 

@@ -1,14 +1,12 @@
 import { fetchBillingByAppointment, updateBillingByAppointment } from "../../api/billingcodes";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
 
 import ReactMarkdown from "react-markdown";
 import LoadingCard from "./LoadingCard"; 
 
-const Billing = ({ appointmentId }) => {
-  const username = useSelector((state) => state.me.me.email);
-  const queryKey = ["billing-codes", appointmentId];
+const Billing = ({ appointmentId, username }) => {
+  const queryKey = ["billing-codes", appointmentId, username];
   const [isEditing, setIsEditing] = useState(false);
   const [billingCodes, setBillingCodes] = useState("");
 

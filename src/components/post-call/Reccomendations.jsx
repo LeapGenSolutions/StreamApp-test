@@ -1,14 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchRecommendationByAppointment } from "../../api/recommendations";
 import ReactMarkdown from "react-markdown";
-import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import LoadingCard from "./LoadingCard";
 
-const Reccomendations = ({ appointmentId }) => {
-  const username = useSelector((state) => state.me.me.email);
+const Reccomendations = ({ appointmentId, username }) => {
   const { data: reccomendations , isLoading, error } = useQuery({
-    queryKey: "recommendations",
+    queryKey: ["recommendations", appointmentId, username],
     queryFn: () =>
       fetchRecommendationByAppointment(
         `${username}_${appointmentId}_recommendations`,

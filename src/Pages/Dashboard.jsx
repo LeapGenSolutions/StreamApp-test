@@ -6,7 +6,6 @@ import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation } from "wouter";
-import ChatbotWindow from "../components/chatbot/ChatbotWindow";
 
 function Dashboard() {
   const dispatch = useDispatch();
@@ -36,7 +35,6 @@ function Dashboard() {
         </div>
         <ProviderWorkload date={new Date().toISOString().split('T')[0]} />
       </div>
-      <ChatbotWindow />
     </div>
   );
 }

@@ -50,7 +50,7 @@ const CallHistoryCard = ({ entry }) => (
     </div>
     <div className="flex-shrink-0 mt-2 md:mt-0">
       <button
-        onClick={() => navigate(`/post-call/${entry.appointmentID}`)}
+        onClick={() => navigate(`/post-call/${entry.appointmentID}?username=${entry.userID}`)}
         className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
       >
         <ExternalLink className="w-4 h-4" />

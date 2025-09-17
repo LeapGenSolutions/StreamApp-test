@@ -2,32 +2,30 @@ import { Copy, Download } from "lucide-react"
 import { Button } from "../ui/button"
 import { fetchTranscriptByAppointment } from "../../api/transcript";
 import { useQuery } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
 import LoadingCard from "./LoadingCard";
 
-const Transcript = ({ appointmentId }) => {
+const Transcript = ({ appointmentId, username }) => {
 
-  const username = useSelector((state) => state.me.me.email)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: 'transcript',
+    queryKey: ['transcript', appointmentId, username],
     queryFn: () => fetchTranscriptByAppointment(`${username}_${appointmentId}_transcription`, username)
   });
 
   let full_conversation = ""
   if (!isLoading && data) {
     full_conversation = data.data.full_conversation.split("\n").map((convo, index) => {
-        const speaker = convo.split(":")[0]
-        const conversation = convo.split(":")[1]
-        return (
-          <span key={index}>
-            <strong>{speaker}:</strong>
-            {conversation}
-            <br />
-          </span>
-        )
-      })
-    }
+      const speaker = convo.split(":")[0]
+      const conversation = convo.split(":")[1]
+      return (
+        <span key={index}>
+          <strong>{speaker}:</strong>
+          {conversation}
+          <br />
+        </span>
+      )
+    })
+  }
 
   if (isLoading) {
     return <LoadingCard message="Processing clinical chatter… stay with us." />;

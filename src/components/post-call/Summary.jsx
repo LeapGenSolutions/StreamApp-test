@@ -6,16 +6,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
 import LoadingCard from "./LoadingCard";
 
-const Summary = ({appointmentId}) => {
+const Summary = ({ appointmentId, username }) => {
 
   const [selectedAppointment, setSelectedAppointment] = useState({})
   const dispatch = useDispatch()
-  const userEmail = useSelector((state)=>state.me.me.email)
   const appointments = useSelector((state) => state.appointments.appointments)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: "summary",
-    queryFn: () => fetchSummaryByAppointment(`${userEmail}_${appointmentId}_summary`, userEmail)
+    queryKey: ["summary", appointmentId, username],
+    queryFn: () => fetchSummaryByAppointment(`${username}_${appointmentId}_summary`, username),
   })
 
 
@@ -28,10 +27,10 @@ const Summary = ({appointmentId}) => {
   }, [data, isLoading])
 
   useEffect(() => {
-    if(appointments.length === 0 && userEmail){
-      dispatch(fetchAppointmentDetails(userEmail))
+    if (appointments.length === 0 && username) {
+      dispatch(fetchAppointmentDetails(username))
     }
-  }, [dispatch, userEmail, appointments])
+  }, [dispatch, username, appointments])
 
   useEffect(() => {
     setSelectedAppointment(appointments.find((appointment) => appointment.id === appointmentId) || {})

@@ -17,17 +17,16 @@ const WelcomeCard = () => {
       <div className="bg-blue-600 text-white p-6">
         <h1 className="text-2xl font-semibold">Welcome to Seismic Connect</h1>
         <p className="text-blue-100 mt-2">
-          Hello, {firstName}! Manage your telehealth practice with our
-          integrated platform.
+          Hello, {firstName}! Manage your Healthcare practice with our integrated platform
         </p>
       </div>
       <CardContent className="p-6">
         <div className="prose max-w-none">
           <p className="text-neutral-700 text-lg">
-            Seismic Connect helps medical professionals like you deliver quality
-            care through telehealth. Our platform streamlines appointment
-            management, video consultations, and patient documentation in one
-            place.
+            Seismic Connect helps medical professionals like you focus on 
+            what you do best,Healthcare!Our platform optimizes the clinical
+            experience by automating patient intake and clinical documentation,
+            and gives you making real time decision making support.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-4">

@@ -24,7 +24,7 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
 
     const handlePostCallClick = () => {
         setSelectedAppointment(null);
-        navigate(`/post-call/${selectedAppointment.id}`);
+        navigate(`/post-call/${selectedAppointment.id}?username=${selectedAppointment.doctor_email}`);
     };
 
     const copyToClipboard = () => {

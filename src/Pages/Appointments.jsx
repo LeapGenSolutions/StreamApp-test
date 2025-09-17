@@ -3,7 +3,6 @@ import AppointmentCalendar from "../components/appointments/AppointmentCalendar"
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { PageNavigation } from "../components/ui/page-navigation";
-
 function Appointments() {
   useEffect(() => {
     document.title = "Appointments - Seismic Connect";
@@ -23,6 +22,7 @@ function Appointments() {
     <div className="space-y-6">
       <PageNavigation
         title="Appointments"
+        //subtitle="Schedule and manage your appointments"
         showBackButton={true}
       />
       <div className="grid grid-cols-1">

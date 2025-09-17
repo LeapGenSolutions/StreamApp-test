@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query"
 import { fetchClustersByAppointment } from "../../api/clusters";
-import { useSelector } from "react-redux";
 import {
   Accordion,
   AccordionItem,
@@ -13,15 +12,14 @@ import LoadingCard from "./LoadingCard";
 //  Original clustered data (not deeply nested, still simple)
 
 
-const Clusters = ({appointmentId}) => {
-  const username = useSelector((state) => state.me.me.email);
+const Clusters = ({ appointmentId, username }) => {
 
   const {
     data,
     isLoading,
     error,
   } = useQuery({
-    queryKey: "clusters",
+    queryKey: ["clusters", appointmentId, username],
     queryFn: ()=>fetchClustersByAppointment(`${username}_${appointmentId}_clusters`, username),
   })
   const [clusteredData, setClusterData] = useState([])

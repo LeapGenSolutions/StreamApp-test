@@ -1,99 +1,146 @@
 import { Textarea } from "../../ui/textarea";
 
-const AssessmentPlanSection = ({ isEditing, soapNotes, setSoapNotes, patientLine, reasonLine }) => {
+const AssessmentPlanSection = ({
+  isEditing,
+  soapNotes,
+  setSoapNotes,
+  patientLine,
+  reasonLine,
+}) => {
   if (isEditing) {
     return (
-      <>
+      <div className="space-y-2">
         <Textarea
           value={soapNotes.Assessment}
-          onChange={(e) => setSoapNotes({ ...soapNotes, Assessment: e.target.value })}
-          rows={4}
+          onChange={(e) =>
+            setSoapNotes({ ...soapNotes, Assessment: e.target.value })
+          }
+          rows={5}
+          placeholder="Assessment..."
         />
         <Textarea
           value={soapNotes.Plan}
-          onChange={(e) => setSoapNotes({ ...soapNotes, Plan: e.target.value })}
-          rows={4}
+          onChange={(e) =>
+            setSoapNotes({ ...soapNotes, Plan: e.target.value })
+          }
+          rows={5}
+          placeholder="Plan..."
         />
-      </>
+      </div>
     );
   }
 
-  // --- Combine and parse ---
-  const combined = `${soapNotes.Assessment}\n${soapNotes.Plan}`.trim();
-  const lines = combined.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const assessmentText = soapNotes.Assessment || "";
+  const planText = soapNotes.Plan || "";
 
-  const sections = new Map();
-  let currentHeading = null;
+  // --- Parse Assessment ---
+  const assessmentProblems = {};
+  const assessmentMatches = assessmentText.split(/\n?\d+\.\s*/).filter(Boolean);
 
-  lines.forEach((line) => {
-    const headingMatch = line.match(/^\[?([A-Za-z][\w\s\-()]+)\]?:$/i);
-    const inlineHeaderMatch = line.match(/^\[?([A-Za-z][\w\s\-()]+)\]?:\s*(.+)/i);
-    const numberedHeadingMatch = line.match(/^(\d+\.\s*)([A-Za-z][\w\s\-()]+):\s*(.+)?$/i);
-
-    if (/^Assessment\s+Plan[:]?$/i.test(line)) {
-      currentHeading = "Assessment & Plan";
-      if (!sections.has(currentHeading)) sections.set(currentHeading, []);
-      return;
-    }
-
-    if (headingMatch && !inlineHeaderMatch) {
-      currentHeading = headingMatch[1].trim();
-      if (!sections.has(currentHeading)) sections.set(currentHeading, []);
-    } else if (inlineHeaderMatch) {
-      const heading = inlineHeaderMatch[1].trim();
-      const content = inlineHeaderMatch[2].trim();
-      if (!sections.has(heading)) sections.set(heading, []);
-      sections.get(heading).push(content);
-      currentHeading = heading;
-    } else if (numberedHeadingMatch) {
-      const heading = numberedHeadingMatch[2].trim();
-      const content = numberedHeadingMatch[3]?.trim() || "";
-      currentHeading = heading;
-      if (!sections.has(currentHeading)) sections.set(currentHeading, []);
-      if (content) sections.get(currentHeading).push(content);
-    } else if (currentHeading) {
-      sections.get(currentHeading).push(line.replace(/^[•/-]\s*/, ""));
-    } else {
-      if (!sections.has("Notes")) sections.set("Notes", []);
-      sections.get("Notes").push(line);
+  assessmentMatches.forEach((block, idx) => {
+    const parts = block.split(":");
+    if (parts.length > 1) {
+      const title = parts[0].trim();
+      const desc = parts.slice(1).join(":").trim();
+      assessmentProblems[idx + 1] = { title, assessment: desc, plan: [] };
     }
   });
 
+  // --- Parse Plan ---
+  const planBlocks = planText.split(/\n?\d+\.\s*/).filter(Boolean);
+  const followUpBlocks = []; // to store all follow-ups separately
+
+  planBlocks.forEach((block, idx) => {
+    if (/^Follow[-\s]?up[:/-]?/i.test(block)) {
+      const cleaned = block
+        .replace(/^Follow[-\s]?up[:/-]?\s*/i, "")
+        .trim()
+        .split(/\n|-\s+/)
+        .map((l) => l.trim())
+        .filter((x) => x);
+      followUpBlocks.push(...cleaned);
+      return;
+    }
+
+    const parts = block.split(":");
+    if (parts.length > 1) {
+      const title = parts[0].trim();
+      const planLines = parts
+        .slice(1)
+        .join(":")
+        .split(/\n|-\s+/)
+        .map((l) => l.trim())
+        .filter((x) => x);
+      if (assessmentProblems[idx + 1]) {
+        assessmentProblems[idx + 1].plan = planLines;
+      } else {
+        assessmentProblems[idx + 1] = { title, assessment: "", plan: planLines };
+      }
+    }
+  });
+
+  const problems = Object.values(assessmentProblems);
+
   return (
-    <div className="space-y-4">
+    <div className="text-[15px] leading-relaxed text-gray-900 space-y-2">
+      {/* Heading */}
+      <p className="font-semibold text-blue-700 text-lg">Assessment & Plan</p>
+
+      {/* Patient Summary */}
       {patientLine && reasonLine && (
-        <p className="font-semibold">
+        <p className="text-base text-gray-900">
           {(() => {
-            const match = patientLine.match(/(.*?),\s*(\d+)\s*years old,\s*(F|M)/i);
+            const match = patientLine.match(
+              /(.*?),\s*(\d+)\s*years old,\s*(F|M)/i
+            );
             if (match) {
-              const name = match[1];
-              const age = match[2];
-              const gender = match[3];
+              const [,name, age, gender] = match;
               const cleanedReason = reasonLine
-                .replace(/^Patient presents with\s*/i, "")
-                .replace(/^Patient reports\s*/i, "")
-                .trim();
-              return `${name} is a ${age}-year-old ${gender} with a chief complaint of ${cleanedReason}`;
-            }
-            const cleanedReason = reasonLine
-              .replace(/^Patient presents with\s*/i, "")
-              .replace(/^Patient reports\s*/i, "")
+              .replace(/^(The\s*)?(Patient|Pt)\s*(presents|reports)\s*(with\s*)?/i, "")
               .trim();
-            return `${patientLine} with a chief complaint of ${cleanedReason}`;
+              return `${name} is a ${age}-year-old ${gender} with a chief complaint of ${cleanedReason}.`;
+            }
+            return `${patientLine} with a chief complaint of ${reasonLine
+            .replace(/^(The\s*)?(Patient|Pt)\s*(presents|reports)\s*(with\s*)?/i, "")
+            .trim()}.`;
           })()}
         </p>
       )}
 
-      {[...sections.entries()].map(([heading, bullets], idx) => (
-        <div key={idx} className="space-y-1">
-          <p className="font-semibold text-black">{heading}:</p>
-          <ul className="list-disc ml-5 text-sm space-y-1">
-            {bullets.map((b, i) => (
-              <li key={i}>{b}</li>
+      {/* Problems */}
+      {problems.map((p, idx) => (
+        <div key={idx} className="space-y-0.5">
+          <p className="font-semibold text-black">
+            Problem #{idx + 1}: {p.title}
+          </p>
+          <p className="ml-1 text-gray-800">
+            <span className="text-black">Assessment:</span>{" "}
+            {p.assessment || "—"}
+          </p>
+          <p className="ml-1 text-gray-800">
+            <span className="text-black">Plan:</span>
+          </p>
+          {p.plan.length > 0 && (
+            <ul className="list-disc ml-6 space-y-[1px] text-gray-800">
+              {p.plan.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+
+      {/* Separate Follow-up section (bottom) */}
+      {followUpBlocks.length > 0 && (
+        <div className="space-y-0.5">
+          <p className="text-black">Follow-up:</p>
+          <ul className="list-disc ml-6 space-y-[1px] text-gray-800">
+            {followUpBlocks.map((line, idx) => (
+              <li key={idx}>{line}</li>
             ))}
           </ul>
         </div>
-      ))}
+      )}
     </div>
   );
 };

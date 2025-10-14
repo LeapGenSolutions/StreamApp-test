@@ -39,17 +39,30 @@ const Soap = ({ appointmentId, username }) => {
       const subjRaw = (subjectiveMatch?.[1] || "").trim();
       const { hpi, ros } = parseSubjective(subjRaw);
 
-      setPatientLine(patientMatch?.[0]?.replace("Patient: ", "").trim() || "");
-      setReasonLine(reasonMatch?.[0]?.replace("Reason for Visit -", "").trim() || "");
+      const reasonText = (reasonMatch?.[0]?.replace("Reason for Visit -", "").trim() || "")
+        .replace(/^Patient presents with\s*/i, "")
+        .replace(/^Patient reports\s*/i, "")
+        .trim();
+
+      let objectiveText = (objectiveMatch?.[1] || "").trim();
+      let objectiveJson = "{}";
+      try {
+        const jsonPart = objectiveText.match(/{[\s\S]*}/);
+        if (jsonPart) objectiveJson = jsonPart[0];
+      } catch {
+        objectiveJson = "{}";
+      }
 
       const parsed = {
         HPI: hpi,
         ROS: ros,
-        Objective: (objectiveMatch?.[1] || "").trim(),
+        Objective: objectiveJson,
         Assessment: (assessmentMatch?.[1] || "").trim(),
         Plan: (planMatch?.[1] || "").trim(),
       };
 
+      setPatientLine(patientMatch?.[0]?.replace("Patient: ", "").trim() || "");
+      setReasonLine(reasonText);
       setSoapNotes(parsed);
       setInitialNotes(parsed);
     }
@@ -80,8 +93,8 @@ const Soap = ({ appointmentId, username }) => {
   if (error) return <LoadingCard />;
 
   return (
-    <div className="space-y-6">
-      <h3 className="font-medium text-lg">SOAP Notes</h3>
+    <div className="space-y-6 text-gray-900 leading-snug">
+      <h3 className="font-semibold text-black text-lg">SOAP Notes</h3>
 
       {/* Subjective */}
       <SubjectiveSection
@@ -95,29 +108,23 @@ const Soap = ({ appointmentId, username }) => {
       />
 
       {/* Objective */}
-      <div className="bg-gray-100 rounded-md p-4">
-        <h4 className="text-blue-700 font-semibold text-lg">Objective</h4>
-        <ObjectiveSection
-          isEditing={isEditing}
-          soapNotes={soapNotes}
-          setSoapNotes={setSoapNotes}
-        />
-      </div>
+      <ObjectiveSection
+        isEditing={isEditing}
+        soapNotes={soapNotes}
+        setSoapNotes={setSoapNotes}
+      />
 
       {/* Assessment & Plan */}
-      <div className="bg-gray-100 rounded-md p-4">
-        <h4 className="text-blue-700 font-semibold text-lg">Assessment & Plan</h4>
-        <AssessmentPlanSection
-          isEditing={isEditing}
-          soapNotes={soapNotes}
-          setSoapNotes={setSoapNotes}
-          patientLine={patientLine}
-          reasonLine={reasonLine}
-        />
-      </div>
+      <AssessmentPlanSection
+        isEditing={isEditing}
+        soapNotes={soapNotes}
+        setSoapNotes={setSoapNotes}
+        patientLine={patientLine}
+        reasonLine={reasonLine}
+      />
 
-      {/* Buttons */}
-      <div className="flex justify-end gap-3">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
         {!isEditing ? (
           <Button
             onClick={() => setIsEditing(true)}

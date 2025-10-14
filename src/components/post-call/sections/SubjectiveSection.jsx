@@ -1,14 +1,33 @@
 import { Textarea } from "../../ui/textarea";
 import { formatROS } from "../utils/soapUtils";
 
-const SubjectiveSection = ({ isEditing, patientLine, reasonLine, soapNotes, setPatientLine, setReasonLine, setSoapNotes }) => {
+const SubjectiveSection = ({
+  isEditing,
+  patientLine,
+  reasonLine,
+  soapNotes,
+  setPatientLine,
+  setReasonLine,
+  setSoapNotes,
+}) => {
   return (
-    <div className="bg-gray-100 rounded-md p-4">
-      <h4 className="text-blue-700 font-semibold text-lg">Subjective</h4>
+    <div className="space-y-3">
+      <p className="font-semibold text-blue-700 text-lg">Subjective</p>
+
       {isEditing ? (
         <div className="space-y-2">
-          <Textarea value={patientLine} onChange={(e) => setPatientLine(e.target.value)} rows={2} />
-          <Textarea value={reasonLine} onChange={(e) => setReasonLine(e.target.value)} rows={2} />
+          <Textarea
+            value={patientLine}
+            onChange={(e) => setPatientLine(e.target.value)}
+            rows={2}
+            placeholder="Patient line..."
+          />
+          <Textarea
+            value={reasonLine}
+            onChange={(e) => setReasonLine(e.target.value)}
+            rows={2}
+            placeholder="Reason for visit..."
+          />
           <Textarea
             value={soapNotes.HPI}
             onChange={(e) => setSoapNotes({ ...soapNotes, HPI: e.target.value })}
@@ -23,23 +42,33 @@ const SubjectiveSection = ({ isEditing, patientLine, reasonLine, soapNotes, setP
           />
         </div>
       ) : (
-        <div className="space-y-3">
-          <p className="font-bold text-base">
-            {patientLine} with a chief complaint of {reasonLine}
-          </p>
+        <div className="space-y-2 text-base leading-relaxed text-gray-900">
+          {patientLine && reasonLine && (
+            <p className="font-medium">
+              {patientLine} with a chief complaint of{" "}
+             {reasonLine
+            .replace(/^(The\s*)?(Patient|Pt)\s*(presents|reports)\s*(with\s*)?/i, "")
+            .trim()}
+            </p>
+          )}
+
           {soapNotes.HPI && (
             <>
-              <p className="font-semibold">HPI:</p>
-              <p className="ml-4 text-base leading-relaxed">{soapNotes.HPI}</p>
+              <p className="text-base font-bold text-black">
+                History of Present Illness:
+              </p>
+              <p className="ml-4">{soapNotes.HPI}</p>
             </>
           )}
+
           {soapNotes.ROS && (
             <>
-              <p className="font-semibold">ROS:</p>
-              <div className="ml-4 text-base leading-relaxed space-y-1">
+              <p className="text-base font-bold text-black">Review of Symptoms:</p>
+              <div className="ml-4 space-y-1">
                 {formatROS(soapNotes.ROS).map((item, idx) => (
                   <p key={idx}>
-                    <span className="font-semibold">{item.system}:</span> {item.value}
+                    <span className="font-bold">{item.system}:</span>{" "}
+                    {item.value}
                   </p>
                 ))}
               </div>

@@ -11,7 +11,11 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
 
   const vitals = [];
   const physical = [];
-  const allEntries = [...(data.exams || []), ...(data.tests || [])];
+  const allEntries = [
+    ...(data.observations || []),
+    ...(data.exams || []),
+    ...(data.tests || []),
+  ];
 
   const vitalKeywords = [
     "bp", "blood pressure",
@@ -19,15 +23,13 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
     "temp", "temperature",
     "rr", "respiratory rate",
     "o2 sat", "oxygen saturation",
-    "bmi"
+    "bmi",
   ];
 
-  // --- Parsing vitals vs physical ---
   allEntries.forEach((entry) => {
     if (!entry) return;
 
     if (/^Vitals[:/-]/i.test(entry)) {
-      // Multiple vitals in one line
       const vitalsPart = entry.replace(/^Vitals[:/-]\s*/i, "");
       const vitalItems = vitalsPart.split(/[,;]\s*/);
 
@@ -35,7 +37,6 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
         let match =
           vital.match(/^(.+?)([:=/-])\s*(.+)$/) ||
           vital.match(/^([A-Za-z\s]+?)\s+([\d][\s\S]*)$/);
-
         if (match) {
           const rawLabel = match[1].trim();
           const value = match[3] || match[2];
@@ -44,7 +45,6 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
         }
       });
     } else {
-      // Single entry
       let match =
         entry.match(/^(.+?)([:=/-])\s*(.+)$/) ||
         entry.match(/^([A-Za-z\s]+?)\s+([\d][\s\S]*)$/);
@@ -65,36 +65,37 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
     }
   });
 
-  // --- Update helper ---
   const updateVitals = (updatedVitals) => {
     data.exams = [
       ...updatedVitals.map((v) => `${v.rawLabel || v.label}: ${v.value}`),
-      ...physical
+      ...physical,
     ];
     setSoapNotes({ ...soapNotes, Objective: JSON.stringify(data, null, 2) });
   };
 
   return (
-    <div className="space-y-4">
-      {/* Vitals */}
+    <div className="space-y-3">
+      <p className="font-semibold text-blue-700 text-lg">Objective</p>
+
+      {/* --- Vitals --- */}
       {vitals.length > 0 && (
-        <div>
-          <h4 className="text-blue-700 font-semibold text-lg">Vitals</h4>
-          <table className="w-full border border-gray-300 text-sm rounded">
-            <thead className="bg-gray-200">
+        <div className="text-base leading-relaxed text-gray-900">
+          <p className="text-base font-bold text-blue-700 mb-1">Vital Signs:</p>
+          <table className="w-auto border-collapse border border-gray-300 text-sm">
+            <thead className="bg-white">
               <tr>
-                <th className="p-2 text-left w-1/3">Vital</th>
-                <th className="p-2 text-left">Value</th>
-                {isEditing && <th className="p-2"></th>}
+                <th className="border border-gray-300 px-2 py-1 text-left font-bold">Measure</th>
+                <th className="border border-gray-300 px-2 py-1 text-left font-bold">Value</th>
+                {isEditing && <th className="border border-gray-300 px-2 py-1"></th>}
               </tr>
             </thead>
             <tbody>
               {vitals.map((v, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="p-2 font-medium w-1/3">
+                <tr key={idx} className="border border-gray-300">
+                  <td className="px-2 py-1 font-medium w-1/3">
                     {isEditing ? (
                       <input
-                        className="border p-1 rounded w-full"
+                        className="border p-1 rounded w-full text-sm"
                         value={v.rawLabel}
                         onChange={(e) => {
                           const updated = [...vitals];
@@ -107,10 +108,10 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
                       v.label
                     )}
                   </td>
-                  <td className="p-2">
+                  <td className="px-2 py-1">
                     {isEditing ? (
                       <input
-                        className="border p-1 rounded w-full"
+                        className="border p-1 rounded w-full text-sm"
                         value={v.value}
                         onChange={(e) => {
                           const updated = [...vitals];
@@ -123,9 +124,9 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
                     )}
                   </td>
                   {isEditing && (
-                    <td className="p-2 text-right">
+                    <td className="px-2 py-1 text-right">
                       <button
-                        className="text-red-600 text-sm"
+                        className="text-red-600 text-xs"
                         onClick={() => {
                           const updated = vitals.filter((_, i) => i !== idx);
                           updateVitals(updated);
@@ -142,10 +143,10 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
         </div>
       )}
 
-      {/* Physical Exam */}
+      {/* --- Physical Exam --- */}
       {physical.length > 0 && (
-        <div>
-          <h4 className="text-blue-700 font-semibold text-lg">Physical Exam</h4>
+        <div className="text-base leading-relaxed text-gray-900">
+          <p className="text-base font-bold text-blue-700 mb-1">Physical Exam:</p>
           {isEditing ? (
             <Textarea
               className="w-full border p-2 rounded"
@@ -158,13 +159,13 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
                   .filter(Boolean);
                 data.exams = [
                   ...vitals.map((v) => `${v.rawLabel}: ${v.value}`),
-                  ...updatedPhysical
+                  ...updatedPhysical,
                 ];
                 setSoapNotes({ ...soapNotes, Objective: JSON.stringify(data, null, 2) });
               }}
             />
           ) : (
-            <ul className="list-disc ml-5 space-y-1 text-sm">
+            <ul className="list-disc ml-5 space-y-1">
               {physical.map((line, idx) => {
                 const [head, ...rest] = line.split(":");
                 const label = head?.replace(/\s+(exam|sounds|check)$/i, "").trim();

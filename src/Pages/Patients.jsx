@@ -20,7 +20,6 @@ import {
   Mail,
   Calendar,
   ExternalLink,
-  FileText,
 } from "lucide-react";
 import AdvancedSearch from "../components/search/AdvancedSearch";
 import { format, parseISO } from "date-fns";
@@ -310,9 +309,6 @@ function Patients() {
                     <TableCell>{patient?.doctorName}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon">
-                          <FileText className="w-4 h-4" />
-                        </Button>
                         <Link href={`/patients/${patient?.patient_id}`}>
                           <Button variant="ghost" size="icon">
                             <ExternalLink className="w-4 h-4" />

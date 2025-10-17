@@ -356,32 +356,33 @@ const VideoCallPage = () => {
                     Start Video Call
                   </button>
                 </div>
-                {showShareLink && (
-                  <div className="mt-6 w-full flex justify-center">
-                    <div className="bg-gray-100 rounded-lg px-6 py-4 w-full max-w-xl shadow-sm">
-                      <h3 className="font-medium text-gray-800 text-sm mb-2">
-                        Invite others to join
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-700 mr-4">
-                          Patient's link for the appointment
+                 {/* ✅ Show only if appointmentType === "online" */}
+                  {showShareLink && appointmentType === "online" && (
+                    <div className="mt-6 w-full flex justify-center">
+                      <div className="bg-gray-100 rounded-lg px-6 py-4 w-full max-w-xl shadow-sm">
+                        <h3 className="font-medium text-gray-800 text-sm mb-2">
+                          Invite others to join
+                        </h3>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-700 mr-4">
+                            Patient's link for the appointment
+                          </p>
+                          <button
+                            onClick={copyToClipboard}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded"
+                          >
+                            <FaCopy className="w-4 h-4" />
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          Click copy to share this appointment link
                         </p>
-                        <button
-                          onClick={copyToClipboard}
-                          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded"
-                        >
-                          <FaCopy className="w-4 h-4" />
-                          Copy
-                        </button>
                       </div>
-                      <p className="text-sm text-gray-600 mt-2">
-                        Click copy to share this appointment link
-                      </p>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
 
             {activeTab === "join" && (
               <div className="space-y-4">

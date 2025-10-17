@@ -1,35 +1,62 @@
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import {
-  UserRound,
   ChartBar,
   Plus
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useEffect, useRef, useState } from "react";
 import { Chart, registerables } from "chart.js";
+import { fetchDoctorsFromHistory } from "../../api/callHistory";
+import { getColorFromName } from "../../constants/colors";
+
 
 Chart.register(...registerables);
 
 function getInitials(name) {
   if (!name) return "?";
-  const parts = name.split(" ");
+  const parts = name
+    .replace(/^Dr\.?\s+/i, "") // remove "Dr." or "Dr " prefix if present
+    .trim()
+    .split(" ");
   return (parts[0]?.[0] || "") + (parts[1]?.[0] || "");
 }
 
 export default function ProviderWorkload() {
-  const providers = useSelector((state) => state.patients.patients || []);
-  const appointments = useSelector((state) => state.appointments.appointments || []);
+  //const providers = useSelector((state) => state.patients.patients || []);
+  //const appointments = useSelector((state) => state.appointments.appointments || []);
+  const [providers, setProviders] = useState([]);
+  const appointments = useSelector(
+    (state) =>
+      state.appointment?.appointments ||
+      state.appointments?.appointments ||
+      []
+  );
   const workloadChartRef = useRef(null);
   const workloadChartInstance = useRef(null);
   const [showSpinner, setShowSpinner] = useState(false);
   const [showError, setShowError] = useState(false);
 
   // Debug logs
+  //useEffect(() => {
+    //console.log('Providers:', providers);
+    //console.log('Appointments:', appointments);
+    //console.log("Sample appointment:", appointments[0]);
+
+  //}, [providers, appointments]);
+
+  // Fetch doctors directly from backend since Redux cannot be changed
   useEffect(() => {
-    console.log('Providers:', providers);
-    console.log('Appointments:', appointments);
-  }, [providers, appointments]);
+    const loadProviders = async () => {
+      try {
+        const data = await fetchDoctorsFromHistory();
+        setProviders(data || []);
+      } catch (err) {
+        console.error("Failed to fetch doctors from history:", err);
+      }
+    };
+    loadProviders();
+  }, []);
 
   // Robust loading/error handling
   useEffect(() => {
@@ -42,18 +69,29 @@ export default function ProviderWorkload() {
   }, []);
 
   // Calculate workload data
-  const providerData = providers.map((provider, idx) => {
-    const count = appointments.filter(
-      (appt) => appt.doctorId === provider.id || appt.providerId === provider.id
-    ).length;
-    return {
-      id: provider.id,
-      name: provider.full_name || provider.name || "Unknown",
-      initials: getInitials(provider.full_name || provider.name),
-      specialty: provider.specialty || "-",
-      count,
-    };
-  }).filter((p) => p.count > 0);
+  // New logic: derive workload directly from appointment data
+  const workloadMap = {};
+
+  appointments.forEach((appt) => {
+    const doctorKey = appt.doctor_email || appt.doctor_id || appt.doctor_name;
+    if (!doctorKey) return;
+
+    if (!workloadMap[doctorKey]) {
+      const doctorColor = getColorFromName(doctorKey); // Consistent color with DoctorMultiSelect
+
+      workloadMap[doctorKey] = {
+        id: appt.doctor_id || doctorKey,
+        name: appt.doctor_name || "Unknown",
+        initials: getInitials(appt.doctor_name || ""),
+        specialty: appt.specialization || "-",
+        color: doctorColor, // Add color field
+        count: 0,
+      };
+    }
+    workloadMap[doctorKey].count += 1;
+  });
+
+  const providerData = Object.values(workloadMap);
 
   useEffect(() => {
     if (!providerData.length) return;
@@ -87,11 +125,25 @@ export default function ProviderWorkload() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { display: false }
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `Appointments: ${context.parsed.y}`;
+                  }
+                }
+              }
             },
             scales: {
-              y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.1)" } },
-              x: { grid: { display: false } }
+              y: {
+                beginAtZero: true,
+                grid: { color: "rgba(0,0,0,0.05)" },
+                ticks: { color: "#4b5563" }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: "#4b5563", font: { size: 12 } }
+              }
             }
           }
         });
@@ -152,9 +204,9 @@ export default function ProviderWorkload() {
       <CardContent className="p-6">
         <div className="provider-workload-header">
           <h3 className="text-lg font-semibold text-gray-900">Provider Workload</h3>
-          <div className="icon-container bg-purple-100">
+          {/*<div className="icon-container bg-purple-100">
             <UserRound className="text-purple-600 w-5 h-5" />
-          </div>
+          </div>*/}
         </div>
 
         {!providerData.length ? (
@@ -173,30 +225,38 @@ export default function ProviderWorkload() {
           <>
             <div className="provider-list">
               {providerData.map((provider, index) => (
-                <div key={provider.id} className="provider-item">
+                //<div key={provider.id} className="provider-item">
+                <div key={provider.id || provider.email || index} className="provider-item">
                   <div className="provider-info">
-                    <div className="provider-avatar">
-                      <span className="provider-initials">
-                        {provider.initials}
-                      </span>
+                    <div
+                      className="provider-avatar w-10 h-10 flex items-center justify-center rounded-full text-white font-semibold text-sm"
+                      style={{ backgroundColor: provider.color || "#6B7280" }}
+                    >
+                      {provider.initials}
                     </div>
                     <div className="provider-details">
                       <p className="provider-name">{provider.name}</p>
-                      <p className="provider-specialty">{provider.specialty}</p>
+                      <p className="text-gray-900 text-base mt-1">
+                        Specialty: <span className="text-blue-700">{provider.specialty || "N/A"}</span>
+                      </p>
                     </div>
                   </div>
                   <div className="provider-stats">
-                    <p className="appointment-count">{provider.count}</p>
-                    <p className="appointment-label">appointments</p>
+                    <p className="text-gray-900 text-base mt-1">
+                      Total Appointments with SEISMIC: <span className="text-blue-700">{provider.count}</span>
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="workload-chart-container">
+            <div className="workload-chart-container mt-4">
               <div className="chart-wrapper">
                 <canvas ref={workloadChartRef} className="workload-chart"></canvas>
               </div>
+              <p className="w-full text-center text-gray-600 text-sm mt-3">
+                Appointments per provider
+              </p>
             </div>
           </>
         )}

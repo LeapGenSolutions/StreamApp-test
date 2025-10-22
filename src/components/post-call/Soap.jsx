@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "../ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchSoapNotes, updateSoapNotes } from "../../api/soap";
@@ -6,20 +6,17 @@ import LoadingCard from "./LoadingCard";
 import SubjectiveSection from "./sections/SubjectiveSection";
 import ObjectiveSection from "./sections/ObjectiveSection";
 import AssessmentPlanSection from "./sections/AssessmentPlanSection";
-import { parseSubjective } from "./utils/soapUtils";
 
 const Soap = ({ appointmentId, username }) => {
   const [soapNotes, setSoapNotes] = useState({
-    HPI: "",
-    ROS: "",
-    Objective: "",
-    Assessment: "",
-    Plan: "",
+    patient: "",
+    subjective: {},
+    objective: {},
+    assessmentAndPlan: {},
   });
-  const [initialNotes, setInitialNotes] = useState(null);
-  const [patientLine, setPatientLine] = useState("");
-  const [reasonLine, setReasonLine] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
+
+  const [isEditing, setIsEditing] = useState(false); //  added edit mode toggle
+  const [, setRawFromServer] = useState("");
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["soap-notes", appointmentId, username],
@@ -27,47 +24,80 @@ const Soap = ({ appointmentId, username }) => {
   });
 
   useEffect(() => {
-    if (data && !isLoading) {
-      const raw = data?.data?.soap_notes || "";
-      const patientMatch = raw.match(/Patient:.*?\n/);
-      const reasonMatch = raw.match(/Reason for Visit -.*?\n/);
-      const subjectiveMatch = raw.match(/Subjective -([\s\S]*?)(?=\n\nObjective -)/);
-      const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment -)/);
-      const assessmentMatch = raw.match(/Assessment -([\s\S]*?)(?=\n\nPlan -)/);
-      const planMatch = raw.match(/Plan -([\s\S]*)$/);
+    if (data?.data?.soap_notes && !isLoading) {
+      const raw = data.data.soap_notes;
+      setRawFromServer(raw);
 
-      const subjRaw = (subjectiveMatch?.[1] || "").trim();
-      const { hpi, ros } = parseSubjective(subjRaw);
+      // --- Extract text sections ---
+      const patientMatch = raw.match(/Patient:\s*(.*?)\n/);
+      const reasonMatch = raw.match(/Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/);
+      const subjectiveMatch = raw.match(/Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/);
+      const familyHistoryMatch = raw.match(/Family history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/);
+      const rosMatch = raw.match(/Review of Systems:\s*([\s\S]*?)(?=\n\nObjective -)/);
+      const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/);
+      const assessmentPlanMatch = raw.match(/Assessment and Plan -([\s\S]*)$/);
 
-      const reasonText = (reasonMatch?.[0]?.replace("Reason for Visit -", "").trim() || "")
-        .replace(/^Patient presents with\s*/i, "")
-        .replace(/^Patient reports\s*/i, "")
-        .trim();
-
-      let objectiveText = (objectiveMatch?.[1] || "").trim();
-      let objectiveJson = "{}";
+      // --- Parse JSON sections ---
+      let objectiveJSON = {};
+      let assessmentPlanJSON = {};
       try {
-        const jsonPart = objectiveText.match(/{[\s\S]*}/);
-        if (jsonPart) objectiveJson = jsonPart[0];
-      } catch {
-        objectiveJson = "{}";
+        const objJsonPart = objectiveMatch?.[1].match(/{[\s\S]*}/);
+        if (objJsonPart) objectiveJSON = JSON.parse(objJsonPart[0]);
+      } catch (err) {
+        console.error("Objective JSON parse error:", err);
       }
 
-      const parsed = {
-        HPI: hpi,
-        ROS: ros,
-        Objective: objectiveJson,
-        Assessment: (assessmentMatch?.[1] || "").trim(),
-        Plan: (planMatch?.[1] || "").trim(),
-      };
+      try {
+        const apJsonPart = assessmentPlanMatch?.[1].match(/{[\s\S]*}/);
+        if (apJsonPart) assessmentPlanJSON = JSON.parse(apJsonPart[0]);
+      } catch (err) {
+        console.error("Assessment & Plan JSON parse error:", err);
+      }
 
-      setPatientLine(patientMatch?.[0]?.replace("Patient: ", "").trim() || "");
-      setReasonLine(reasonText);
-      setSoapNotes(parsed);
-      setInitialNotes(parsed);
+      // --- Clean chief complaint ---
+      const rawReason = (reasonMatch?.[1] || "").trim();
+      const cleanedComplaint = rawReason
+        .replace(/^(The\s*)?(Patient|Pt)\s*(presents|reports)\s*(with\s*)?/i, "")
+        .trim();
+      const formattedComplaint = cleanedComplaint
+        ? cleanedComplaint.charAt(0).toUpperCase() + cleanedComplaint.slice(1)
+        : "";
+
+      // --- Format patient info ---
+      const rawPatient = patientMatch?.[1]?.trim() || "";
+      let formattedPatient = rawPatient;
+      try {
+        const match = rawPatient.match(/(.*?),\s*(\d+)\s*years old,\s*(F|M)/i);
+        if (match) {
+          const [, name, age, gender] = match;
+          const genderFull =
+            gender.toUpperCase() === "F"
+              ? "Female"
+              : gender.toUpperCase() === "M"
+              ? "Male"
+              : "";
+          formattedPatient = `${name.trim()}, ${age.trim()}-year-old ${genderFull}`;
+        }
+      } catch {
+        formattedPatient = rawPatient;
+      }
+
+      // --- Build final structured object ---
+      setSoapNotes({
+        patient: formattedPatient,
+        subjective: {
+          chief_complaint: formattedComplaint,
+          hpi: (subjectiveMatch?.[1] || "").trim(),
+          family_history: (familyHistoryMatch?.[1] || "").trim(),
+          ros: (rosMatch?.[1] || "").trim(),
+        },
+        objective: objectiveJSON,
+        assessmentAndPlan: assessmentPlanJSON,
+      });
     }
   }, [data, isLoading]);
 
+  // ✅ Save mutation logic
   const mutation = useMutation({
     mutationFn: (updatedNotes) =>
       updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
@@ -78,52 +108,95 @@ const Soap = ({ appointmentId, username }) => {
     onError: () => alert("Failed to save SOAP notes."),
   });
 
-  const handleSave = () => {
-    const subjectiveBlock = `${soapNotes.HPI}\n\nROS - ${soapNotes.ROS}`;
-    const combined = `Patient: ${patientLine}\n\nReason for Visit - ${reasonLine}\n\nSubjective - ${subjectiveBlock}\n\nObjective - ${soapNotes.Objective}\n\nAssessment - ${soapNotes.Assessment}\n\nPlan - ${soapNotes.Plan}`;
-    mutation.mutate(combined);
+  // ✅ Build raw text for backend
+  const buildRawSoap = useMemo(() => {
+    return (state) => {
+      const {
+        patient,
+        subjective: { chief_complaint, hpi, family_history, ros },
+        objective,
+        assessmentAndPlan,
+      } = state;
+
+      const patientLine = patient ? `Patient: ${patient}` : "";
+      const reasonLine = chief_complaint ? `Reason for Visit - ${chief_complaint}` : "";
+      const subjBlock = `Subjective - ${hpi || ""}`;
+      const famBlock = `Family history discussed in this appointment - ${
+        family_history || "Not discussed"
+      }`;
+      const rosBlock = ros ? `Review of Systems:\n${ros}` : "Review of Systems:\n";
+      const objectiveBlock = `Objective - ${JSON.stringify(objective || {}, null, 2)}`;
+      const apBlock = `Assessment and Plan - ${JSON.stringify(
+        assessmentAndPlan || {},
+        null,
+        2
+      )}`;
+
+      return [
+        patientLine,
+        "",
+        reasonLine,
+        "",
+        subjBlock,
+        "",
+        famBlock,
+        "",
+        rosBlock,
+        "",
+        objectiveBlock,
+        "",
+        apBlock,
+      ].join("\n");
+    };
+  }, []);
+
+  // ✅ Handlers for save/cancel
+  const handleSave = async () => {
+    const rawOut = buildRawSoap(soapNotes);
+    mutation.mutate(rawOut);
   };
 
   const handleCancel = () => {
-    setSoapNotes(initialNotes);
     setIsEditing(false);
+    refetch();
   };
 
   if (isLoading) return <LoadingCard message="Loading SOAP..." />;
   if (error) return <LoadingCard />;
 
+  // --- UI ---
   return (
     <div className="space-y-6 text-gray-900 leading-snug">
       <h3 className="font-semibold text-black text-lg">SOAP Notes</h3>
 
-      {/* Subjective */}
-      <SubjectiveSection
-        isEditing={isEditing}
-        patientLine={patientLine}
-        reasonLine={reasonLine}
-        soapNotes={soapNotes}
-        setPatientLine={setPatientLine}
-        setReasonLine={setReasonLine}
-        setSoapNotes={setSoapNotes}
-      />
+      {/* --- Sections with dividers --- */}
+      <div className="space-y-6 divide-y divide-gray-300">
+        {/* Patient Info Header */}
+        {soapNotes.patient && (
+          <div className="pb-2">
+            <p className="text-base font-medium text-gray-900">{soapNotes.patient}</p>
+          </div>
+        )}
 
-      {/* Objective */}
-      <ObjectiveSection
-        isEditing={isEditing}
-        soapNotes={soapNotes}
-        setSoapNotes={setSoapNotes}
-      />
+        {/* ✅ pass isEditing + setSoapNotes to children */}
+        <SubjectiveSection
+          soapNotes={soapNotes}
+          setSoapNotes={setSoapNotes}
+          isEditing={isEditing}
+        />
+        <ObjectiveSection
+          soapNotes={soapNotes}
+          setSoapNotes={setSoapNotes}
+          isEditing={isEditing}
+        />
+        <AssessmentPlanSection
+          soapNotes={soapNotes}
+          setSoapNotes={setSoapNotes}
+          isEditing={isEditing}
+        />
+      </div>
 
-      {/* Assessment & Plan */}
-      <AssessmentPlanSection
-        isEditing={isEditing}
-        soapNotes={soapNotes}
-        setSoapNotes={setSoapNotes}
-        patientLine={patientLine}
-        reasonLine={reasonLine}
-      />
-
-      {/* Action Buttons */}
+      {/* ✅ Action Buttons (replacing Refresh) */}
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
         {!isEditing ? (
           <Button

@@ -1,79 +1,101 @@
 import { Textarea } from "../../ui/textarea";
-import { formatROS } from "../utils/soapUtils";
 
-const SubjectiveSection = ({
-  isEditing,
-  patientLine,
-  reasonLine,
-  soapNotes,
-  setPatientLine,
-  setReasonLine,
-  setSoapNotes,
-}) => {
+const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
+  const subj = soapNotes.subjective || {};
+
+  const setField = (key, value) => {
+    setSoapNotes({
+      ...soapNotes,
+      subjective: { ...subj, [key]: value },
+    });
+  };
+
+  const quote = (cc) => {
+    if (!cc) return "";
+    const clean = cc.trim().replace(/^["']|["']$/g, "");
+    return `"${clean.charAt(0).toUpperCase() + clean.slice(1)}"`;
+  };
+
+  const renderROS = (rosText) => {
+    if (!rosText) return null;
+    return rosText
+      .split("\n")
+      .filter(Boolean)
+      .map((line, idx) => {
+        const [system, findings] = line.split(":").map((x) => x.trim());
+        return (
+          <p key={idx} className="ml-4 text-[15px] leading-relaxed">
+            <span className="font-semibold">{system}:</span> {findings}
+          </p>
+        );
+      });
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
       <p className="font-semibold text-blue-700 text-lg">Subjective</p>
 
-      {isEditing ? (
-        <div className="space-y-2">
-          <Textarea
-            value={patientLine}
-            onChange={(e) => setPatientLine(e.target.value)}
-            rows={2}
-            placeholder="Patient line..."
-          />
-          <Textarea
-            value={reasonLine}
-            onChange={(e) => setReasonLine(e.target.value)}
-            rows={2}
-            placeholder="Reason for visit..."
-          />
-          <Textarea
-            value={soapNotes.HPI}
-            onChange={(e) => setSoapNotes({ ...soapNotes, HPI: e.target.value })}
-            rows={4}
-            placeholder="HPI..."
-          />
-          <Textarea
-            value={soapNotes.ROS}
-            onChange={(e) => setSoapNotes({ ...soapNotes, ROS: e.target.value })}
-            rows={4}
-            placeholder="ROS..."
-          />
-        </div>
-      ) : (
-        <div className="space-y-2 text-base leading-relaxed text-gray-900">
-          {patientLine && reasonLine && (
-            <p className="font-medium">
-              {patientLine} with a chief complaint of{" "}
-             {reasonLine
-            .replace(/^(The\s*)?(Patient|Pt)\s*(presents|reports)\s*(with\s*)?/i, "")
-            .trim()}
+      {!isEditing ? (
+        <>
+          {subj.chief_complaint && (
+            <p className="text-base">
+              <b>Chief Complaint:</b> {quote(subj.chief_complaint)}
             </p>
           )}
 
-          {soapNotes.HPI && (
+          {subj.hpi && (
             <>
-              <p className="text-base font-bold text-black">
+              <p className="font-bold text-black mt-2">
                 History of Present Illness:
               </p>
-              <p className="ml-4">{soapNotes.HPI}</p>
+              <p className="ml-4 text-[15px] leading-relaxed">{subj.hpi}</p>
             </>
           )}
 
-          {soapNotes.ROS && (
+          {subj.family_history && (
             <>
-              <p className="text-base font-bold text-black">Review of Symptoms:</p>
-              <div className="ml-4 space-y-1">
-                {formatROS(soapNotes.ROS).map((item, idx) => (
-                  <p key={idx}>
-                    <span className="font-bold">{item.system}:</span>{" "}
-                    {item.value}
-                  </p>
-                ))}
-              </div>
+              <p className="font-bold text-black mt-3">
+                Family History Discussed:
+              </p>
+              <p className="ml-4 italic text-[15px]">
+                {subj.family_history || "Not discussed"}
+              </p>
             </>
           )}
+
+          {subj.ros && (
+            <>
+              <p className="font-bold text-black mt-3">Review of Systems:</p>
+              <div className="space-y-1">{renderROS(subj.ros)}</div>
+            </>
+          )}
+        </>
+      ) : (
+        <div className="space-y-2">
+          <Textarea
+            rows={2}
+            placeholder="Chief Complaint..."
+            value={subj.chief_complaint || ""}
+            onChange={(e) => setField("chief_complaint", e.target.value)}
+          />
+          <Textarea
+            rows={4}
+            placeholder="History of Present Illness..."
+            value={subj.hpi || ""}
+            onChange={(e) => setField("hpi", e.target.value)}
+          />
+          <Textarea
+            rows={2}
+            placeholder="Family History Discussed..."
+            value={subj.family_history || ""}
+            onChange={(e) => setField("family_history", e.target.value)}
+          />
+          <Textarea
+            rows={4}
+            placeholder="Review of Systems..."
+            value={subj.ros || ""}
+            onChange={(e) => setField("ros", e.target.value)}
+          />
         </div>
       )}
     </div>

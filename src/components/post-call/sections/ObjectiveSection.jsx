@@ -1,141 +1,46 @@
-import { Textarea } from "../../ui/textarea";
-import { normalizeVitalLabel } from "../utils/soapUtils";
+const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
+  const obj = soapNotes.objective || {};
 
-const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
-  let data;
-  try {
-    data = JSON.parse(soapNotes.Objective || "{}");
-  } catch {
-    data = { exams: [], observations: [], tests: [] };
-  }
+  const setObj = (next) => setSoapNotes({ ...soapNotes, objective: next });
 
-  const vitals = [];
-  const physical = [];
-  const allEntries = [
-    ...(data.observations || []),
-    ...(data.exams || []),
-    ...(data.tests || []),
-  ];
-
-  const vitalKeywords = [
-    "bp", "blood pressure",
-    "hr", "heart rate", "pulse",
-    "temp", "temperature",
-    "rr", "respiratory rate",
-    "o2 sat", "oxygen saturation",
-    "bmi",
-  ];
-
-  allEntries.forEach((entry) => {
-    if (!entry) return;
-
-    if (/^Vitals[:/-]/i.test(entry)) {
-      const vitalsPart = entry.replace(/^Vitals[:/-]\s*/i, "");
-      const vitalItems = vitalsPart.split(/[,;]\s*/);
-
-      vitalItems.forEach((vital) => {
-        let match =
-          vital.match(/^(.+?)([:=/-])\s*(.+)$/) ||
-          vital.match(/^([A-Za-z\s]+?)\s+([\d][\s\S]*)$/);
-        if (match) {
-          const rawLabel = match[1].trim();
-          const value = match[3] || match[2];
-          const norm = normalizeVitalLabel(rawLabel);
-          vitals.push({ rawLabel, label: norm, value: value.trim() });
-        }
-      });
-    } else {
-      let match =
-        entry.match(/^(.+?)([:=/-])\s*(.+)$/) ||
-        entry.match(/^([A-Za-z\s]+?)\s+([\d][\s\S]*)$/);
-
-      if (match) {
-        const rawLabel = match[1].trim();
-        const value = match[3] || match[2];
-        const norm = normalizeVitalLabel(rawLabel);
-
-        if (vitalKeywords.some((v) => norm.toLowerCase().includes(v))) {
-          vitals.push({ rawLabel, label: norm, value: value.trim() });
-        } else {
-          physical.push(`${rawLabel}: ${value.trim()}`);
-        }
-      } else {
-        physical.push(entry);
-      }
-    }
-  });
-
-  const updateVitals = (updatedVitals) => {
-    data.exams = [
-      ...updatedVitals.map((v) => `${v.rawLabel || v.label}: ${v.value}`),
-      ...physical,
-    ];
-    setSoapNotes({ ...soapNotes, Objective: JSON.stringify(data, null, 2) });
+  const handleVitalChange = (k, v) => {
+    setObj({ ...obj, vital_signs: { ...(obj.vital_signs || {}), [k]: v } });
   };
 
   return (
-    <div className="space-y-3">
+    <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
       <p className="font-semibold text-blue-700 text-lg">Objective</p>
 
-      {/* --- Vitals --- */}
-      {vitals.length > 0 && (
-        <div className="text-base leading-relaxed text-gray-900">
-          <p className="text-base font-bold text-blue-700 mb-1">Vital Signs:</p>
-          <table className="w-auto border-collapse border border-gray-300 text-sm">
-            <thead className="bg-white">
+      {/* --- Vital Signs --- */}
+      {obj.vital_signs && (
+        <div>
+          <p className="font-bold text-black mt-1">Vital Signs:</p>
+          <table className="border border-gray-300 mt-1 text-sm">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="border border-gray-300 px-2 py-1 text-left font-bold">Measure</th>
-                <th className="border border-gray-300 px-2 py-1 text-left font-bold">Value</th>
-                {isEditing && <th className="border border-gray-300 px-2 py-1"></th>}
+                <th className="border px-3 py-1 text-left font-bold text-black-800">
+                  Measure
+                </th>
+                <th className="border px-3 py-1 text-left font-bold text-black-800">
+                  Value
+                </th>
               </tr>
             </thead>
             <tbody>
-              {vitals.map((v, idx) => (
-                <tr key={idx} className="border border-gray-300">
-                  <td className="px-2 py-1 font-medium w-1/3">
-                    {isEditing ? (
-                      <input
-                        className="border p-1 rounded w-full text-sm"
-                        value={v.rawLabel}
-                        onChange={(e) => {
-                          const updated = [...vitals];
-                          updated[idx].rawLabel = e.target.value;
-                          updated[idx].label = normalizeVitalLabel(e.target.value);
-                          updateVitals(updated);
-                        }}
-                      />
+              {Object.entries(obj.vital_signs).map(([k, v]) => (
+                <tr key={k}>
+                  <td className="border px-3 py-1 font-medium w-48">{k}</td>
+                  <td className="border px-3 py-1">
+                    {!isEditing ? (
+                      v
                     ) : (
-                      v.label
+                      <input
+                        className="border rounded px-2 py-1 text-sm w-full"
+                        value={v}
+                        onChange={(e) => handleVitalChange(k, e.target.value)}
+                      />
                     )}
                   </td>
-                  <td className="px-2 py-1">
-                    {isEditing ? (
-                      <input
-                        className="border p-1 rounded w-full text-sm"
-                        value={v.value}
-                        onChange={(e) => {
-                          const updated = [...vitals];
-                          updated[idx].value = e.target.value;
-                          updateVitals(updated);
-                        }}
-                      />
-                    ) : (
-                      v.value
-                    )}
-                  </td>
-                  {isEditing && (
-                    <td className="px-2 py-1 text-right">
-                      <button
-                        className="text-red-600 text-xs"
-                        onClick={() => {
-                          const updated = vitals.filter((_, i) => i !== idx);
-                          updateVitals(updated);
-                        }}
-                      >
-                        🗑 Delete
-                      </button>
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -144,40 +49,57 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
       )}
 
       {/* --- Physical Exam --- */}
-      {physical.length > 0 && (
-        <div className="text-base leading-relaxed text-gray-900">
-          <p className="text-base font-bold text-blue-700 mb-1">Physical Exam:</p>
-          {isEditing ? (
-            <Textarea
-              className="w-full border p-2 rounded"
-              rows={6}
-              value={physical.join("\n")}
-              onChange={(e) => {
-                const updatedPhysical = e.target.value
-                  .split("\n")
-                  .map((line) => line.trim())
-                  .filter(Boolean);
-                data.exams = [
-                  ...vitals.map((v) => `${v.rawLabel}: ${v.value}`),
-                  ...updatedPhysical,
-                ];
-                setSoapNotes({ ...soapNotes, Objective: JSON.stringify(data, null, 2) });
-              }}
-            />
-          ) : (
-            <ul className="list-disc ml-5 space-y-1">
-              {physical.map((line, idx) => {
-                const [head, ...rest] = line.split(":");
-                const label = head?.replace(/\s+(exam|sounds|check)$/i, "").trim();
-                const value = rest.join(":").trim();
-                return (
-                  <li key={idx}>
-                    <span className="font-semibold">{label}:</span> {value}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+      {obj.physical_exams && (
+        <div>
+          <p className="font-bold text-black mt-3">Physical Exam:</p>
+          <ul className="list-disc ml-6 text-[15px] leading-relaxed">
+            {Object.entries(obj.physical_exams).map(([k, v]) => (
+              <li key={k}>
+                <b>{k}:</b>{" "}
+                {!isEditing ? (
+                  v
+                ) : (
+                  <input
+                    className="border rounded px-2 py-1 text-sm w-full max-w-xl"
+                    value={v}
+                    onChange={(e) =>
+                      setObj({
+                        ...obj,
+                        physical_exams: {
+                          ...(obj.physical_exams || {}),
+                          [k]: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* --- Labs --- */}
+      {obj.laboratory_data?.length > 0 && (
+        <div>
+          <p className="font-bold text-black mt-3">Laboratory Data:</p>
+          <ul className="list-disc ml-6 text-[15px] leading-relaxed">
+            {obj.laboratory_data.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* --- Imaging --- */}
+      {obj.imaging_studies?.length > 0 && (
+        <div>
+          <p className="font-bold text-black mt-3">Imaging Studies:</p>
+          <ul className="list-disc ml-6 text-[15px] leading-relaxed">
+            {obj.imaging_studies.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

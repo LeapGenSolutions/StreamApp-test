@@ -15,8 +15,12 @@ const Soap = ({ appointmentId, username }) => {
     assessmentAndPlan: {},
   });
 
-  const [isEditing, setIsEditing] = useState(false); //  added edit mode toggle
+  const [isEditing, setIsEditing] = useState(false);
   const [, setRawFromServer] = useState("");
+
+  //  Pre-memoized regex for control-char cleanup (ESLint-safe)
+  // eslint-disable-next-line 
+  const controlCharRegex = useMemo(() => new RegExp("[\\x00-\\x1F]+", "g"), []);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["soap-notes", appointmentId, username],
@@ -32,7 +36,9 @@ const Soap = ({ appointmentId, username }) => {
       const patientMatch = raw.match(/Patient:\s*(.*?)\n/);
       const reasonMatch = raw.match(/Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/);
       const subjectiveMatch = raw.match(/Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/);
-      const familyHistoryMatch = raw.match(/Family history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/);
+      const familyHistoryMatch = raw.match(
+        /Family history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/
+      );
       const rosMatch = raw.match(/Review of Systems:\s*([\s\S]*?)(?=\n\nObjective -)/);
       const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/);
       const assessmentPlanMatch = raw.match(/Assessment and Plan -([\s\S]*)$/);
@@ -40,18 +46,41 @@ const Soap = ({ appointmentId, username }) => {
       // --- Parse JSON sections ---
       let objectiveJSON = {};
       let assessmentPlanJSON = {};
+
+      // Safe parsing for Objective
       try {
-        const objJsonPart = objectiveMatch?.[1].match(/{[\s\S]*}/);
-        if (objJsonPart) objectiveJSON = JSON.parse(objJsonPart[0]);
+        const objRaw = objectiveMatch?.[1]?.trim();
+        if (objRaw && objRaw.includes("{") && objRaw.includes("}")) {
+          const startIdx = objRaw.indexOf("{");
+          const endIdx = objRaw.lastIndexOf("}");
+          const jsonString = objRaw
+            .slice(startIdx, endIdx + 1)
+            .replace(controlCharRegex, "")
+            .replace(/\\n/g, "\\n");
+          objectiveJSON = JSON.parse(jsonString);
+        }
       } catch (err) {
-        console.error("Objective JSON parse error:", err);
+        console.warn("Objective JSON parse error:", err.message);
+        objectiveJSON = {};
       }
 
+      // Safe parsing for Assessment & Plan
       try {
-        const apJsonPart = assessmentPlanMatch?.[1].match(/{[\s\S]*}/);
-        if (apJsonPart) assessmentPlanJSON = JSON.parse(apJsonPart[0]);
+        const apRaw = assessmentPlanMatch?.[1]?.trim();
+        if (apRaw && apRaw.includes("{") && apRaw.includes("}")) {
+          const startIdx = apRaw.indexOf("{");
+          const endIdx = apRaw.lastIndexOf("}");
+          const jsonString = apRaw
+            .slice(startIdx, endIdx + 1)
+            .replace(controlCharRegex, "")
+            .replace(/\\n/g, "\\n");
+          assessmentPlanJSON = JSON.parse(jsonString);
+        } else {
+          console.warn("Assessment & Plan section missing JSON structure.");
+        }
       } catch (err) {
-        console.error("Assessment & Plan JSON parse error:", err);
+        console.warn("Assessment & Plan JSON parse error:", err.message);
+        assessmentPlanJSON = {};
       }
 
       // --- Clean chief complaint ---
@@ -95,9 +124,9 @@ const Soap = ({ appointmentId, username }) => {
         assessmentAndPlan: assessmentPlanJSON,
       });
     }
-  }, [data, isLoading]);
+  }, [data, isLoading, controlCharRegex]);
 
-  // ✅ Save mutation logic
+  //  Save mutation logic
   const mutation = useMutation({
     mutationFn: (updatedNotes) =>
       updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
@@ -108,7 +137,7 @@ const Soap = ({ appointmentId, username }) => {
     onError: () => alert("Failed to save SOAP notes."),
   });
 
-  // ✅ Build raw text for backend
+  //  Build raw text for backend
   const buildRawSoap = useMemo(() => {
     return (state) => {
       const {
@@ -150,7 +179,7 @@ const Soap = ({ appointmentId, username }) => {
     };
   }, []);
 
-  // ✅ Handlers for save/cancel
+  // Handlers for save/cancel
   const handleSave = async () => {
     const rawOut = buildRawSoap(soapNotes);
     mutation.mutate(rawOut);
@@ -171,14 +200,12 @@ const Soap = ({ appointmentId, username }) => {
 
       {/* --- Sections with dividers --- */}
       <div className="space-y-6 divide-y divide-gray-300">
-        {/* Patient Info Header */}
         {soapNotes.patient && (
           <div className="pb-2">
             <p className="text-base font-medium text-gray-900">{soapNotes.patient}</p>
           </div>
         )}
 
-        {/* ✅ pass isEditing + setSoapNotes to children */}
         <SubjectiveSection
           soapNotes={soapNotes}
           setSoapNotes={setSoapNotes}
@@ -196,7 +223,7 @@ const Soap = ({ appointmentId, username }) => {
         />
       </div>
 
-      {/* ✅ Action Buttons (replacing Refresh) */}
+      {/* Action Buttons */}
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
         {!isEditing ? (
           <Button

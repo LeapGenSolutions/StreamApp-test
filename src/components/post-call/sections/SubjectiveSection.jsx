@@ -45,20 +45,34 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
 
           {subj.hpi && (
             <>
-              <p className="font-bold text-black mt-2">
-                History of Present Illness:
-              </p>
+              <p className="font-bold text-black mt-2">History of Present Illness:</p>
               <p className="ml-4 text-[15px] leading-relaxed">{subj.hpi}</p>
             </>
           )}
 
           {subj.family_history && (
             <>
-              <p className="font-bold text-black mt-3">
-                Family History Discussed:
-              </p>
+              <p className="font-bold text-black mt-3">Family History Discussed:</p>
               <p className="ml-4 italic text-[15px]">
                 {subj.family_history || "Not discussed"}
+              </p>
+            </>
+          )}
+
+          {subj.surgical_history && (
+            <>
+              <p className="font-bold text-black mt-3">Surgical History Discussed:</p>
+              <p className="ml-4 italic text-[15px]">
+                {subj.surgical_history || "Not discussed"}
+              </p>
+            </>
+          )}
+
+          {subj.social_history && (
+            <>
+              <p className="font-bold text-black mt-3">Social History Discussed:</p>
+              <p className="ml-4 italic text-[15px]">
+                {subj.social_history || "Not discussed"}
               </p>
             </>
           )}
@@ -89,6 +103,18 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
             placeholder="Family History Discussed..."
             value={subj.family_history || ""}
             onChange={(e) => setField("family_history", e.target.value)}
+          />
+          <Textarea
+            rows={2}
+            placeholder="Surgical History Discussed..."
+            value={subj.surgical_history || ""}
+            onChange={(e) => setField("surgical_history", e.target.value)}
+          />
+          <Textarea
+            rows={2}
+            placeholder="Social History Discussed..."
+            value={subj.social_history || ""}
+            onChange={(e) => setField("social_history", e.target.value)}
           />
           <Textarea
             rows={4}

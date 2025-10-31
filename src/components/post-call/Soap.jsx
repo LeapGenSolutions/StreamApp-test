@@ -18,7 +18,6 @@ const Soap = ({ appointmentId, username }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [, setRawFromServer] = useState("");
 
-  //  Pre-memoized regex for control-char cleanup (ESLint-safe)
   // eslint-disable-next-line 
   const controlCharRegex = useMemo(() => new RegExp("[\\x00-\\x1F]+", "g"), []);
 
@@ -36,9 +35,9 @@ const Soap = ({ appointmentId, username }) => {
       const patientMatch = raw.match(/Patient:\s*(.*?)\n/);
       const reasonMatch = raw.match(/Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/);
       const subjectiveMatch = raw.match(/Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/);
-      const familyHistoryMatch = raw.match(
-        /Family history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/
-      );
+      const familyHistoryMatch = raw.match(/Family history discussed in this appointment -([\s\S]*?)(?=\n\nSurgical history discussed)/);
+      const surgicalHistoryMatch = raw.match(/Surgical history discussed in this appointment -([\s\S]*?)(?=\n\nSocial history discussed)/);
+      const socialHistoryMatch = raw.match(/Social history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/);
       const rosMatch = raw.match(/Review of Systems:\s*([\s\S]*?)(?=\n\nObjective -)/);
       const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/);
       const assessmentPlanMatch = raw.match(/Assessment and Plan -([\s\S]*)$/);
@@ -47,7 +46,6 @@ const Soap = ({ appointmentId, username }) => {
       let objectiveJSON = {};
       let assessmentPlanJSON = {};
 
-      // Safe parsing for Objective
       try {
         const objRaw = objectiveMatch?.[1]?.trim();
         if (objRaw && objRaw.includes("{") && objRaw.includes("}")) {
@@ -64,7 +62,6 @@ const Soap = ({ appointmentId, username }) => {
         objectiveJSON = {};
       }
 
-      // Safe parsing for Assessment & Plan
       try {
         const apRaw = assessmentPlanMatch?.[1]?.trim();
         if (apRaw && apRaw.includes("{") && apRaw.includes("}")) {
@@ -118,6 +115,8 @@ const Soap = ({ appointmentId, username }) => {
           chief_complaint: formattedComplaint,
           hpi: (subjectiveMatch?.[1] || "").trim(),
           family_history: (familyHistoryMatch?.[1] || "").trim(),
+          surgical_history: (surgicalHistoryMatch?.[1] || "").trim(),
+          social_history: (socialHistoryMatch?.[1] || "").trim(),
           ros: (rosMatch?.[1] || "").trim(),
         },
         objective: objectiveJSON,
@@ -126,7 +125,7 @@ const Soap = ({ appointmentId, username }) => {
     }
   }, [data, isLoading, controlCharRegex]);
 
-  //  Save mutation logic
+  //  Save mutation logic remains same
   const mutation = useMutation({
     mutationFn: (updatedNotes) =>
       updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
@@ -137,12 +136,11 @@ const Soap = ({ appointmentId, username }) => {
     onError: () => alert("Failed to save SOAP notes."),
   });
 
-  //  Build raw text for backend
   const buildRawSoap = useMemo(() => {
     return (state) => {
       const {
         patient,
-        subjective: { chief_complaint, hpi, family_history, ros },
+        subjective: { chief_complaint, hpi, family_history, surgical_history, social_history, ros },
         objective,
         assessmentAndPlan,
       } = state;
@@ -152,6 +150,12 @@ const Soap = ({ appointmentId, username }) => {
       const subjBlock = `Subjective - ${hpi || ""}`;
       const famBlock = `Family history discussed in this appointment - ${
         family_history || "Not discussed"
+      }`;
+      const surgBlock = `Surgical history discussed in this appointment - ${
+        surgical_history || "Not discussed"
+      }`;
+      const socialBlock = `Social history discussed in this appointment - ${
+        social_history || "Not discussed"
       }`;
       const rosBlock = ros ? `Review of Systems:\n${ros}` : "Review of Systems:\n";
       const objectiveBlock = `Objective - ${JSON.stringify(objective || {}, null, 2)}`;
@@ -170,6 +174,10 @@ const Soap = ({ appointmentId, username }) => {
         "",
         famBlock,
         "",
+        surgBlock,
+        "",
+        socialBlock,
+        "",
         rosBlock,
         "",
         objectiveBlock,
@@ -179,7 +187,6 @@ const Soap = ({ appointmentId, username }) => {
     };
   }, []);
 
-  // Handlers for save/cancel
   const handleSave = async () => {
     const rawOut = buildRawSoap(soapNotes);
     mutation.mutate(rawOut);
@@ -193,12 +200,10 @@ const Soap = ({ appointmentId, username }) => {
   if (isLoading) return <LoadingCard message="Loading SOAP..." />;
   if (error) return <LoadingCard />;
 
-  // --- UI ---
   return (
     <div className="space-y-6 text-gray-900 leading-snug">
       <h3 className="font-semibold text-black text-lg">SOAP Notes</h3>
 
-      {/* --- Sections with dividers --- */}
       <div className="space-y-6 divide-y divide-gray-300">
         {soapNotes.patient && (
           <div className="pb-2">
@@ -223,7 +228,6 @@ const Soap = ({ appointmentId, username }) => {
         />
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
         {!isEditing ? (
           <Button

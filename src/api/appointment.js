@@ -1,16 +1,35 @@
 import { BACKEND_URL } from "../constants";
 
-export const createAppointment = async (userID, appointmentData) => {
-
-    const response = await fetch(`${BACKEND_URL}api/appointments/${userID}/custom/appointment`, {
+/**
+ * Create a new appointment for a given doctor
+ * @param {string} doctorEmail - the email of the logged-in doctor
+ * @param {Object} appointmentData - appointment details payload
+ */
+export const createAppointment = async (doctorEmail, appointmentData) => {
+  try {
+    const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
+    const response = await fetch(
+      `${BACKEND_URL}api/appointments/${encodedEmail}/custom/appointment`,
+      {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(appointmentData)
-    });
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(appointmentData),
+      }
+    );
+
     if (!response.ok) {
-        throw new Error("Failed to create appointment");
+      const errText = await response.text();
+      console.error("Failed to create appointment:", errText);
+      throw new Error(
+        `Appointment creation failed: ${response.status} ${response.statusText}`
+      );
     }
-    return response.json();
+
+    const result = await response.json();
+    console.log("Appointment created successfully:", result);
+    return result;
+  } catch (error) {
+    console.error("Network or server error while creating appointment:", error);
+    throw error;
+  }
 };

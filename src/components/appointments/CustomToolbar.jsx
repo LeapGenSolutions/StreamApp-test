@@ -10,6 +10,7 @@ const CustomToolbar = ({
   onDoctorUpdate,
   isDropdownOpen,
   setDropdownOpen,
+  onAddAppointment, //  new prop for Add button
 }) => {
   const handleSelect = (ids, enrichedList, options = {}) => {
     onDoctorUpdate(ids, enrichedList);
@@ -20,7 +21,7 @@ const CustomToolbar = ({
 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 mb-2">
-      {/* Navigation */}
+      {/* Navigation buttons */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => onNavigate("TODAY")}
@@ -55,7 +56,7 @@ const CustomToolbar = ({
         </div>
       </div>
 
-      {/* View Switch */}
+      {/* Right-side controls: View switch + Add button */}
       <div className="flex items-center gap-2">
         {["day", "week", "agenda"].map((v) => (
           <button
@@ -68,9 +69,17 @@ const CustomToolbar = ({
             {v.charAt(0).toUpperCase() + v.slice(1)}
           </button>
         ))}
+
+        {/*  Add Appointment button */}
+        <button
+          onClick={onAddAppointment}
+          className="ml-2 bg-blue-600 text-white text-sm px-3 py-1.5 rounded hover:bg-blue-700 shadow-sm"
+        >
+          + Add
+        </button>
       </div>
     </div>
   );
 };
 
-export default CustomToolbar;
+export default CustomToolbar

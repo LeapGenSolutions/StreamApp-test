@@ -8,6 +8,8 @@ import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import CallHistory from "./CallHistory"
 import { useToast } from "../hooks/use-toast";
 import { PageNavigation } from "../components/ui/page-navigation";
+import CreateAppointmentModal from "../components/appointments/CreateAppointmentModal";
+
 
 const VideoCallPage = () => {
   const [room, setRoom] = useState("");
@@ -24,6 +26,7 @@ const VideoCallPage = () => {
   const userEmail = useSelector((state) => state.me.me.email);
   const appointments = useSelector((state) => state.appointments.appointments);
   const { toast } = useToast();
+
 
   const today = format(new Date(), 'yyyy-MM-dd');
   useEffect(() => {
@@ -55,6 +58,7 @@ const VideoCallPage = () => {
   const [invalidMeetingId, setInvalidMeetingId] = useState(false);
   const setAppointmentDetails = useState(null)[1];
 
+   const [showCreateModal, setShowCreateModal] = useState(false);
   // Initialize and handle URL parameters
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
@@ -163,15 +167,24 @@ const VideoCallPage = () => {
     <PageNavigation showBackButton={true} hideTitle={true} />
     <div className="bg-gray-50 flex flex-col items-center min-h-screen p-4">
       <div className="rounded-lg border bg-white shadow-sm w-full">
-        <div className="flex flex-col space-y-1.5 p-6">
-          <h3 className="text-2xl font-semibold leading-none tracking-tight">
-            Seismic Video Call
-          </h3>
-          <p className="text-sm text-gray-500">
-            Connect with patients through secure video consultations
-          </p>
-        </div>
+        <div className="flex justify-between items-center p-6 w-full">
+  <div>
+    <h3 className="text-2xl font-semibold leading-none tracking-tight">
+      Seismic Video Call
+    </h3>
+    <p className="text-sm text-gray-500">
+      Connect with patients through secure video consultations
+    </p>
+  </div>
 
+  {/* ✅ Add Appointment Button (Right-Aligned) */}
+  <button
+    onClick={() => setShowCreateModal(true)}
+    className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 shadow-sm"
+  >
+    + Add
+  </button>
+</div>
         <div className="p-6 pt-0">
           <div className="space-y-4">
             <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500 mb-4">
@@ -434,8 +447,25 @@ const VideoCallPage = () => {
         )}
       </div>
     </div >
-    </>
-  );
-};
+     {/*  Create Appointment Modal */}
+  {showCreateModal && (
+    <CreateAppointmentModal
+      username={userEmail}
+      doctorName={userName}
+      doctorSpecialization=""
+      onClose={() => setShowCreateModal(false)}
+      onSuccess={(newAppointment) => {
+        setShowCreateModal(false);
+        toast({
+          title: "Appointment Added",
+          description: `${newAppointment.full_name} appointment added successfully.`,
+        });
+        dispatch(fetchAppointmentDetails(userEmail)); // refreshes dropdown + calendar
+      }}
+    />
+  )}
+  </>
+);
+}
 
-export default VideoCallPage;
+export default VideoCallPage

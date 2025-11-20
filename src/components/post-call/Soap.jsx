@@ -38,7 +38,7 @@ const Soap = ({ appointmentId, username }) => {
       const familyHistoryMatch = raw.match(/Family history discussed in this appointment -([\s\S]*?)(?=\n\nSurgical history discussed)/);
       const surgicalHistoryMatch = raw.match(/Surgical history discussed in this appointment -([\s\S]*?)(?=\n\nSocial history discussed)/);
       const socialHistoryMatch = raw.match(/Social history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/);
-      const rosMatch = raw.match(/Review of Systems:\s*([\s\S]*?)(?=\n\nObjective -)/);
+      const rosMatch = raw.match(/Review of Systems(?:\s*\(ROS\))?:\s*([\s\S]*?)(?=\n\nObjective -)/);
       const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/);
       const assessmentPlanMatch = raw.match(/Assessment and Plan -([\s\S]*)$/);
 

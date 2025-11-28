@@ -1,13 +1,10 @@
 import { BACKEND_URL } from "../constants";
 
-/**
- * Create a new appointment for a given doctor
- * @param {string} doctorEmail - the email of the logged-in doctor
- * @param {Object} appointmentData - appointment details payload
- */
+/* CREATE */
 export const createAppointment = async (doctorEmail, appointmentData) => {
   try {
     const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
+
     const response = await fetch(
       `${BACKEND_URL}api/appointments/${encodedEmail}/custom/appointment`,
       {
@@ -18,18 +15,67 @@ export const createAppointment = async (doctorEmail, appointmentData) => {
     );
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error("Failed to create appointment:", errText);
-      throw new Error(
-        `Appointment creation failed: ${response.status} ${response.statusText}`
-      );
+      const err = await response.text();
+      throw new Error(`Failed to create: ${err}`);
     }
 
-    const result = await response.json();
-    console.log("Appointment created successfully:", result);
-    return result;
+    return await response.json();
   } catch (error) {
-    console.error("Network or server error while creating appointment:", error);
+    console.error("Create appointment error:", error);
+    throw error;
+  }
+};
+
+/* UPDATE */
+export const updateAppointment = async (doctorEmail, id, appointmentData) => {
+  try {
+    const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
+
+    const response = await fetch(
+      `${BACKEND_URL}api/appointments/${encodedEmail}/appointment/${id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(appointmentData),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to update: ${errText}`);
+    }
+
+    try {
+      return await response.json();
+    } catch {
+      return { success: true };
+    }
+  } catch (error) {
+    console.error("Update appointment error:", error);
+    throw error;
+  }
+};
+
+/* DELETE */
+export const deleteAppointment = async (doctorEmail, id) => {
+  try {
+    const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
+
+    const response = await fetch(
+      `${BACKEND_URL}api/appointments/${encodedEmail}/appointment/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to delete: ${errText}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Delete appointment error:", error);
     throw error;
   }
 };

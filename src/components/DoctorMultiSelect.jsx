@@ -42,19 +42,22 @@ const DoctorMultiSelect = ({
     const loadDoctors = async () => {
       try {
         const enriched = rawDoctors
-          .filter((doc) => doc.fullName && doc.userID)
-          .map((doc) => {
-            const emailKey = (doc.userID || "").trim().toLowerCase();
-            const color = getColorFromName(emailKey);
-            doctorColorMap[emailKey] = color;
+        .filter((doc) => doc.doctor_name && doc.doctor_email)
+        .map((doc) => {
+          const emailKey = doc.doctor_email.trim().toLowerCase();
+          const fullName = doc.doctor_name;
+          const color = getColorFromName(emailKey);
+          doctorColorMap[emailKey] = color;
 
-            return {
-              email: emailKey,
-              fullName: doc.fullName,
-              initials: getInitials(doc.fullName),
-              color,
-            };
-          });
+          return {
+            email: emailKey,
+            fullName,
+            initials: getInitials(fullName),
+            color,
+            doctor_id: doc.doctor_id,
+            specialization: doc.specialization,
+          };
+        });
 
         setDoctorOptions(enriched);
 

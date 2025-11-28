@@ -21,6 +21,7 @@ const StreamVideoCoreV3 = () => {
   const { callId } = useParams();
   const searchParams = useSearchParams()[0]
   const patientName = searchParams.get("patient")
+  const type = searchParams.get("type") || "online";
 
   const role = 'doctor'
   const userName = me.given_name + " " + me.family_name
@@ -72,6 +73,12 @@ const StreamVideoCoreV3 = () => {
   };
 
   useEffect(() => {
+    if (type === "inperson") {
+      setPatientApproved(true);
+    }
+  }, [type, patientApproved]);
+
+  useEffect(() => {
     if (!callRef.current || !patientApproved) return;
 
     const timer = setTimeout(() => {
@@ -97,7 +104,7 @@ const StreamVideoCoreV3 = () => {
       clearTimeout(timer);
       callRef.current?.off("recording_started", handleRecordingStarted);
     };
-  }, [patientApproved]);
+  }, [showCall, type, patientApproved]);
 
   useEffect(() => {
     let isMounted = true;

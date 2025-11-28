@@ -6,7 +6,6 @@ import { fetchPatientsDetails } from "../../redux/patient-actions";
 import { useToast } from "../../hooks/use-toast";
 import UnsavedChangesModal from "../UnsavedChangesModal";
 import { Calendar, User2, Clock, ChevronDown, Search } from "lucide-react";
-import { v5 as uuidv5 } from "uuid";
 
 const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const { toast } = useToast();
@@ -17,20 +16,15 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   }, [dispatch]);
 
   const loggedInDoctor = useSelector((state) => state.me.me);
+  console.log("LOGGED IN DOCTOR FROM REDUX:", loggedInDoctor);
   const patientsList = useSelector((state) => state.patients.patients);
   const [existingPatient, setExistingPatient] = useState(null);
 
-  const resolvedDoctorName = loggedInDoctor?.name || "Dr. Unknown";
+  const resolvedDoctorName = loggedInDoctor?.doctor_name;
   const resolvedDoctorEmail =
-    loggedInDoctor?.email?.toLowerCase() || username?.toLowerCase() || "";
-  const resolvedSpecialization =
-    loggedInDoctor?.specialization?.trim() || "General Medicine";
-  const resolvedDoctorId =
-    loggedInDoctor?.oid?.replace(/-/g, "") ||
-    uuidv5(
-      resolvedDoctorName,
-      "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-    ).replace(/-/g, "");
+  loggedInDoctor?.doctor_email || loggedInDoctor?.email;
+  const resolvedSpecialization = loggedInDoctor?.specialization;
+  const resolvedDoctorId = loggedInDoctor?.doctor_id;
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -130,7 +124,8 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     if (!formData.last_name.trim()) newErrors.last_name = "Required";
     if (!formData.dob.trim()) newErrors.dob = "Required";
     if (!formData.mrn.trim()) newErrors.mrn = "Required";
-    if (!formData.appointment_date.trim()) newErrors.appointment_date = "Required";
+    if (!formData.appointment_date.trim())
+      newErrors.appointment_date = "Required";
     if (!formData.time) newErrors.time = "Required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -191,12 +186,15 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         practice_id = saved?.chatbotPatient?.practiceID || d?.practice_id;
       }
 
-      const fullName = [formData.first_name, formData.middle_name, formData.last_name]
+      const fullName = [
+        formData.first_name,
+        formData.middle_name,
+        formData.last_name,
+      ]
         .filter(Boolean)
         .join(" ");
 
       const appointmentData = {
-        id: Math.random().toString(36).slice(2, 26),
         type: "appointment",
         first_name: formData.first_name,
         middle_name: formData.middle_name,
@@ -206,9 +204,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         gender: formData.gender,
         mrn: formData.mrn,
         ehr: formData.ehr,
-        doctor_name: resolvedDoctorName.startsWith("Dr.")
-          ? resolvedDoctorName
-          : `Dr. ${resolvedDoctorName}`,
+        doctor_name: resolvedDoctorName,
         doctor_id: resolvedDoctorId,
         doctor_email: resolvedDoctorEmail,
         specialization: resolvedSpecialization,
@@ -224,7 +220,13 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         insurance_verified: false,
       };
 
-      await createAppointment(resolvedDoctorEmail, appointmentData);
+      const createdItem = await createAppointment(
+        resolvedDoctorEmail,
+        appointmentData
+      );
+
+      const savedAppointment =
+        createdItem?.data?.[createdItem.data.length - 1];
 
       toast({
         title: "Success",
@@ -234,7 +236,8 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
           "border-l-4 border-blue-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
       });
 
-      onSuccess(appointmentData);
+      onSuccess(savedAppointment);
+
       onClose();
     } catch (err) {
       toast({
@@ -329,7 +332,9 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                   </button>
                 </div>
 
-                {errors.mrn && <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>}
+                {errors.mrn && (
+                  <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>
+                )}
               </div>
             </div>
           </section>
@@ -340,24 +345,77 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
             </h3>
 
             <div className="grid grid-cols-2 gap-3">
-              <Input label="First Name *" name="first_name" value={formData.first_name} onChange={handleChange} error={errors.first_name} />
-              <Input label="Middle Name" name="middle_name" value={formData.middle_name} onChange={handleChange} />
-              <Input label="Last Name *" name="last_name" value={formData.last_name} onChange={handleChange} error={errors.last_name} />
-              <Input type="date" label="Date of Birth *" name="dob" value={formData.dob} onChange={handleChange} error={errors.dob} />
+              <Input
+                label="First Name *"
+                name="first_name"
+                value={formData.first_name}
+                onChange={handleChange}
+                error={errors.first_name}
+              />
+              <Input
+                label="Middle Name"
+                name="middle_name"
+                value={formData.middle_name}
+                onChange={handleChange}
+              />
+              <Input
+                label="Last Name *"
+                name="last_name"
+                value={formData.last_name}
+                onChange={handleChange}
+                error={errors.last_name}
+              />
+              <Input
+                type="date"
+                label="Date of Birth *"
+                name="dob"
+                value={formData.dob}
+                onChange={handleChange}
+                error={errors.dob}
+              />
 
-              <Select label="Gender" name="gender" value={formData.gender} onChange={handleChange} options={["Male", "Female", "Other"]} />
+              <Select
+                label="Gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                options={["Male", "Female", "Other"]}
+              />
 
-              <Input label="Email" name="email" value={formData.email} onChange={handleChange} />
-              <Input label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
-              <Input label="EHR" name="ehr" value={formData.ehr} onChange={handleChange} />
+              <Input
+                label="Email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+              />
+              <Input
+                label="Phone Number"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+              <Input
+                label="EHR"
+                name="ehr"
+                value={formData.ehr}
+                onChange={handleChange}
+              />
             </div>
           </section>
 
           <div className="flex justify-end gap-3 pt-3 border-t">
-            <button type="button" onClick={onClose} className="bg-gray-400 text-white px-4 py-2 rounded-lg">
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-400 text-white px-4 py-2 rounded-lg"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
               {isSubmitting ? "Saving..." : "Save Appointment"}
             </button>
           </div>
@@ -377,9 +435,22 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   );
 };
 
-const Input = ({ label, type = "text", name, value, onChange, error, placeholder, readOnly, className = "" }) => (
+
+const Input = ({
+  label,
+  type = "text",
+  name,
+  value,
+  onChange,
+  error,
+  placeholder,
+  readOnly,
+  className = "",
+}) => (
   <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+    <label className="block text-xs font-semibold text-gray-600 mb-1">
+      {label}
+    </label>
     <input
       type={type}
       name={name}
@@ -397,8 +468,15 @@ const Input = ({ label, type = "text", name, value, onChange, error, placeholder
 
 const Select = ({ label, name, value, onChange, options }) => (
   <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
-    <select name={name} value={value} onChange={onChange} className="border border-gray-300 rounded-md w-full p-2 text-sm bg-white">
+    <label className="block text-xs font-semibold text-gray-600 mb-1">
+      {label}
+    </label>
+    <select
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="border border-gray-300 rounded-md w-full p-2 text-sm bg-white"
+    >
       <option value="">Select</option>
       {options.map((opt) => (
         <option key={opt}>{opt}</option>
@@ -407,7 +485,13 @@ const Select = ({ label, name, value, onChange, options }) => (
   </div>
 );
 
-const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
+const ScrollableTimeDropdown = ({
+  label,
+  name,
+  value,
+  onChange,
+  error,
+}) => {
   const [open, setOpen] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [manualValue, setManualValue] = useState("");
@@ -434,7 +518,9 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
 
   return (
     <div className="relative">
-      <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">
+        {label}
+      </label>
 
       <button
         type="button"
@@ -470,7 +556,11 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
               />
 
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setManualMode(false)} className="px-3 py-1 text-sm bg-gray-300 rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setManualMode(false)}
+                  className="px-3 py-1 text-sm bg-gray-300 rounded-md"
+                >
                   Cancel
                 </button>
 

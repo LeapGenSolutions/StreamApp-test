@@ -19,6 +19,8 @@ const AppointmentModal = ({
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSSN, setShowSSN] = useState(false);
+
 
 
   useEffect(() => {
@@ -158,8 +160,29 @@ const AppointmentModal = ({
               {selectedAppointment.status}
             </p>
 
-            <p>
-              <span className="font-semibold">SSN:</span> {maskedSSN}
+           <p className="flex items-center gap-2">
+              <span className="font-semibold">SSN:</span>
+              {showSSN ? (
+                <>
+                  <span>{maskedSSN}</span>
+                  <button
+                    onClick={() => setShowSSN(false)}
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    Hide SSN
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>Hidden</span>
+                  <button
+                    onClick={() => setShowSSN(true)}
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    Show SSN
+                  </button>
+                </>
+              )}
             </p>
 
             <p>

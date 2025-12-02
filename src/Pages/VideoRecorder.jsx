@@ -177,13 +177,15 @@ const VideoCallPage = () => {
     </p>
   </div>
 
-  {/* ✅ Add Appointment Button (Right-Aligned) */}
+{/* ✅ Add Appointment Button (Right-Aligned) */}
+{activeTab === "upcoming" && (
   <button
     onClick={() => setShowCreateModal(true)}
     className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 shadow-sm"
   >
     + Add
   </button>
+)}
 </div>
         <div className="p-6 pt-0">
           <div className="space-y-4">

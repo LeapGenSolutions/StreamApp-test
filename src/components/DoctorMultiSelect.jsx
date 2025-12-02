@@ -29,10 +29,10 @@ const DoctorMultiSelect = ({
   const dropdownRef = useRef(null);
   const hasPreselected = useRef(false);
   const rawDoctors = useSelector((state) => state.doctors?.doctors || []);
-  const dispatch  = useDispatch();
+  const dispatch = useDispatch();
 
   useEffect(() => {
-    if(rawDoctors.length === 0){
+    if (rawDoctors.length === 0) {
       dispatch(fetchDoctors());
     }
     // eslint-disable-next-line
@@ -42,22 +42,22 @@ const DoctorMultiSelect = ({
     const loadDoctors = async () => {
       try {
         const enriched = rawDoctors
-        .filter((doc) => doc.doctor_name && doc.doctor_email)
-        .map((doc) => {
-          const emailKey = doc.doctor_email.trim().toLowerCase();
-          const fullName = doc.doctor_name;
-          const color = getColorFromName(emailKey);
-          doctorColorMap[emailKey] = color;
+          .filter((doc) => doc.doctor_name && doc.doctor_email)
+          .map((doc) => {
+            const emailKey = doc.doctor_email.trim().toLowerCase();
+            const fullName = doc.doctor_name;
+            const color = getColorFromName(emailKey);
+            doctorColorMap[emailKey] = color;
 
-          return {
-            email: emailKey,
-            fullName,
-            initials: getInitials(fullName),
-            color,
-            doctor_id: doc.doctor_id,
-            specialization: doc.specialization,
-          };
-        });
+            return {
+              email: emailKey,
+              fullName,
+              initials: getInitials(fullName),
+              color,
+              doctor_id: doc.doctor_id,
+              specialization: doc.specialization,
+            };
+          });
 
         setDoctorOptions(enriched);
 
@@ -161,6 +161,8 @@ const DoctorMultiSelect = ({
 
       {isDropdownOpen && (
         <div className="absolute mt-2 w-64 border rounded-md bg-white shadow-lg max-h-96 overflow-y-auto z-50">
+
+         
           <div className="p-2 sticky top-0 bg-white z-10">
             <input
               value={searchTerm}
@@ -170,13 +172,32 @@ const DoctorMultiSelect = ({
             />
           </div>
 
-          <div
-            className="px-3 py-2 border-b text-sm hover:bg-gray-100 cursor-pointer select-none"
-            onClick={handleSelectAll}
-          >
-            {allSelected ? "Unselect All" : "Select All"}
+       
+          <div className="px-3 py-2 flex items-center justify-between border-b bg-white sticky top-[44px] z-10">
+
+          
+            <label className="flex items-center cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleSelectAll}
+                className="mr-2 accent-blue-600"
+              />
+              <span className="text-sm">
+                {allSelected ? "Unselect All" : "Select All"}
+              </span>
+            </label>
+
+        
+            <button
+              onClick={handleApply}
+              className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+            >
+              Apply
+            </button>
           </div>
 
+         
           {[...selectedDocs, ...unselectedDocs].map((doc) => (
             <div
               key={doc.email}
@@ -199,24 +220,20 @@ const DoctorMultiSelect = ({
             </div>
           ))}
 
-          <div className="sticky bottom-0 bg-white border-t px-3 py-2 flex justify-between">
+          
+          <div className="sticky bottom-0 bg-white border-t px-3 py-2 flex justify-start">
             <button
               onClick={(e) => handleUndo(e)}
               className="px-3 py-1 bg-gray-300 text-sm rounded hover:bg-gray-400 select-none"
             >
               Undo
             </button>
-            <button
-              onClick={handleApply}
-              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 select-none"
-            >
-              Apply
-            </button>
           </div>
+
         </div>
       )}
     </div>
   );
 };
 
-export default DoctorMultiSelect;
+export default DoctorMultiSelect

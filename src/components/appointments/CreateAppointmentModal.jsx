@@ -22,7 +22,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
 
   const resolvedDoctorName = loggedInDoctor?.doctor_name;
   const resolvedDoctorEmail =
-  loggedInDoctor?.doctor_email || loggedInDoctor?.email;
+    loggedInDoctor?.doctor_email || loggedInDoctor?.email;
   const resolvedSpecialization = loggedInDoctor?.specialization;
   const resolvedDoctorId = loggedInDoctor?.doctor_id;
 
@@ -81,43 +81,59 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       (p) => extractMRN(p).toLowerCase().trim() === targetMRN
     );
 
-    if (!match) {
-      toast({
-        title: "Patient Not Found",
-        description: "Invalid MRN or patient does not exist.",
-        variant: "destructive",
-        className:
-          "border-l-4 border-red-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
-      });
-      setExistingPatient(null);
-      return;
-    }
+            if (!match) {
+          toast({
+            title: "Patient Not Found",
+            description: "Invalid MRN or patient does not exist.",
+            variant: "destructive",
+            className:
+              "border-l-4 border-red-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+          });
 
-    setExistingPatient(match);
-    const d = extractDetails(match);
+          setExistingPatient(null);
 
-    setFormData((prev) => ({
-      ...prev,
-      first_name: d.first_name || "",
-      middle_name: d.middle_name || "",
-      last_name: d.last_name || "",
-      dob: d.dob || "",
-      gender: d.gender || "",
-      email: d.email || "",
-      phone: d.phone || "",
-      ehr: d.ehr || "",
-      mrn: d.mrn || "",
-    }));
+          // RESET ALL PATIENT FIELDS WHEN MRN IS INVALID
+          setFormData((prev) => ({
+            ...prev,
+            first_name: "",
+            middle_name: "",
+            last_name: "",
+            dob: "",
+            gender: "",
+            email: "",
+            phone: "",
+            ehr: "",
+            // Keep the MRN input as-is so user can correct it
+            mrn: prev.mrn,
+          }));
 
-    toast({
-      title: "Patient Record Matched",
-      description: "You may proceed to schedule the appointment.",
-      variant: "success",
-      className:
-        "border-l-4 border-green-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
-    });
-  };
+          return;
+        }
 
+        setExistingPatient(match);
+        const d = extractDetails(match);
+
+        setFormData((prev) => ({
+          ...prev,
+          first_name: d.first_name || "",
+          middle_name: d.middle_name || "",
+          last_name: d.last_name || "",
+          dob: d.dob || "",
+          gender: d.gender || "",
+          email: d.email || "",
+          phone: d.phone || "",
+          ehr: d.ehr || "",
+          mrn: d.mrn || "",
+        }));
+
+        toast({
+          title: "Patient Record Matched",
+          description: "You may proceed to schedule the appointment.",
+          variant: "success",
+          className:
+            "border-l-4 border-green-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+        });
+          };
   const validateForm = () => {
     const newErrors = {};
     if (!formData.first_name.trim()) newErrors.first_name = "Required";
@@ -127,6 +143,21 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     if (!formData.appointment_date.trim())
       newErrors.appointment_date = "Required";
     if (!formData.time) newErrors.time = "Required";
+
+    if (formData.appointment_date) {
+  // Safe parsing for YYYY-MM-DD
+  const [year, month, day] = formData.appointment_date.split("-");
+  const selected = new Date(year, month - 1, day);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selected < today) {
+    newErrors.appointment_date = "Cannot select a past date";
+  }
+}
+
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -237,7 +268,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       });
 
       onSuccess(savedAppointment);
-
       onClose();
     } catch (err) {
       toast({
@@ -434,7 +464,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     </div>
   );
 };
-
 
 const Input = ({
   label,

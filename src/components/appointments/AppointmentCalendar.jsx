@@ -7,7 +7,8 @@ import AppointmentModal from "./AppointmentModal";
 import CustomToolbar from "./CustomToolbar";
 import { fetchAppointmentsByDoctorEmails, checkAppointments } from "../../api/callHistory";
 import CreateAppointmentModal from "./CreateAppointmentModal";
-import { useSelector } from "react-redux";
+import { useSelector } from "react-redux"; 
+import CreateBulkAppointments from "./createBulkAppointments";
 
 const locales = { "en-US": enUS };
 
@@ -26,6 +27,8 @@ const AppointmentCalendar = () => {
   const [doctorColorMap, setDoctorColorMap] = useState({});
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
+  
 
   const loggedInDoctor = useSelector((state) => state.me.me);
 
@@ -162,6 +165,7 @@ const AppointmentCalendar = () => {
               isDropdownOpen={isDropdownOpen}
               setDropdownOpen={setDropdownOpen}
               onAddAppointment={() => setShowCreateModal(true)}
+              onAddBulkAppointment={() => setShowBulkCreateModal(true)}
             />
           ),
         }}
@@ -213,6 +217,12 @@ const AppointmentCalendar = () => {
           }}
         />
       )}
+
+      {/* New Bulk Create Appointment Modal */}
+      {showBulkCreateModal && (
+        <CreateBulkAppointments onClose={() => setShowBulkCreateModal(false)} />
+      )}
+        
     </div>
   );
 };

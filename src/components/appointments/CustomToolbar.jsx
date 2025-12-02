@@ -11,6 +11,7 @@ const CustomToolbar = ({
   isDropdownOpen,
   setDropdownOpen,
   onAddAppointment, //  new prop for Add button
+  onAddBulkAppointment,
 }) => {
   const handleSelect = (ids, enrichedList, options = {}) => {
     onDoctorUpdate(ids, enrichedList);
@@ -76,6 +77,14 @@ const CustomToolbar = ({
           className="ml-2 bg-blue-600 text-white text-sm px-3 py-1.5 rounded hover:bg-blue-700 shadow-sm"
         >
           + Add
+        </button>
+        
+        {/*  Add bulk Appointment button */}
+        <button
+          onClick={onAddBulkAppointment}
+          className="ml-2 bg-blue-600 text-white text-sm px-3 py-1.5 rounded hover:bg-blue-700 shadow-sm"
+        >
+          + Add Appointments
         </button>
       </div>
     </div>

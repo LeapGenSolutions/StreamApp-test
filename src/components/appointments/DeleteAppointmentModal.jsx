@@ -6,34 +6,39 @@ const DeleteAppointmentModal = ({ appointment, onClose, onDeleted }) => {
   const { toast } = useToast();
 
   const handleDelete = async () => {
-  if (appointment.seismified) {
-    toast({
-      title: "Cannot Delete",
-      description: "This appointment is already Seismified and cannot be deleted.",
-      variant: "destructive",
-    });
-    return;
-  }
+    if (appointment.seismified) {
+      toast({
+        title: "Unable to delete",
+        description:
+          "This appointment has already been Seismified and cannot be removed.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  try {
-    await deleteAppointment(appointment.doctor_email, appointment.id);
+    try {
+      await deleteAppointment(
+        appointment.doctor_email,
+        appointment.id,
+        appointment.appointment_date 
+      );
 
-    toast({
-      title: "Appointment Deleted",
-      description: "The appointment was removed successfully.",
-      variant: "success",
-    });
+      toast({
+        title: "Appointment deleted",
+        description: "The appointment has been successfully removed.",
+        variant: "success",
+      });
 
-    if (onDeleted) onDeleted();
-    onClose();
-  } catch (err) {
-    toast({
-      title: "Error",
-      description: err.message,
-      variant: "destructive",
-    });
-  }
-};
+      if (onDeleted) onDeleted();
+      onClose();
+    } catch (err) {
+      toast({
+        title: "Deletion failed",
+        description: "Unable to delete this appointment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[2000]">

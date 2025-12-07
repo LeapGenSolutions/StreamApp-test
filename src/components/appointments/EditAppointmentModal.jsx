@@ -11,16 +11,15 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   });
 
   const [clickedInside, setClickedInside] = useState(false);
-
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const cleanPayload = {
+      original_appointment_date: appointment.appointment_date,
       appointment_date: formData.appointment_date,
       time: formData.time,
       first_name: formData.first_name,
@@ -33,6 +32,10 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       mrn: formData.mrn,
       specialization: formData.specialization,
     };
+
+    cleanPayload.appointment_date = new Date(cleanPayload.appointment_date)
+      .toISOString()
+      .slice(0, 10);
 
     try {
       const apiResult = await updateAppointment(
@@ -69,7 +72,8 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       JSON.stringify(appointment) !== JSON.stringify(formData);
 
     if (changed) {
-      if (window.confirm("Discard changes?")) onClose();
+      // ⭐ ADDED: Use custom modal instead of browser confirm
+      setShowConfirmClose(true);
     } else {
       onClose();
     }
@@ -211,6 +215,36 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </div>
         </form>
       </div>
+
+      {/* ⭐ ADDED CUSTOM CONFIRMATION MODAL */}
+      {showConfirmClose && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-80 text-center">
+            <p className="text-gray-800 text-sm mb-4">
+              You have unsaved changes. Discard changes?
+            </p>
+
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => setShowConfirmClose(false)}
+                className="px-4 py-2 rounded-md bg-gray-300 text-gray-800"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowConfirmClose(false);
+                  onClose();
+                }}
+                className="px-4 py-2 rounded-md bg-blue-600 text-white"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -239,4 +273,4 @@ const Input = ({
   </div>
 );
 
-export default EditAppointmentModal;
+export default EditAppointmentModal

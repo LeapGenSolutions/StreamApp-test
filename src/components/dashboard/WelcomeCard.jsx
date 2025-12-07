@@ -1,34 +1,41 @@
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { useQuery } from "@tanstack/react-query";
 import { Video, Calendar } from "lucide-react";
 import { Link } from "wouter";
+import { useSelector } from "react-redux";
 
 const WelcomeCard = () => {
-  const { data: user } = useQuery({
-    queryKey: ["/api/users/1"],
-  });
+  // Use the same user source as Header
+  const user = useSelector((state) => state.me.me);
 
-  const doctorName = user?.fullName || "Doctor";
-  const firstName = doctorName.split(" ")[0];
+  const doctorName =
+    user?.fullName ||
+    user?.name ||
+    `${user?.given_name || ""} ${user?.family_name || ""}`.trim() ||
+    user?.given_name ||
+    user?.email?.split("@")[0] ||
+    "Doctor";
 
   return (
     <Card className="mb-6 overflow-hidden">
+      {/* Header Section */}
       <div className="bg-blue-600 text-white p-6">
-        <h1 className="text-2xl font-semibold">Welcome to Seismic Connect</h1>
+        <h1 className="text-2xl font-semibold">Welcome to SEISMIC Connect!</h1>
         <p className="text-blue-100 mt-2">
-          Hello, {firstName}! Manage your Healthcare practice with our integrated platform
+          Hello {doctorName}, we are here to support the way you practice care
         </p>
       </div>
+
+      {/* Body Section */}
       <CardContent className="p-6">
         <div className="prose max-w-none">
-          <p className="text-neutral-700 text-lg">
-            Seismic Connect helps medical professionals like you focus on 
-            what you do best,Healthcare!Our platform optimizes the clinical
-            experience by automating patient intake and clinical documentation,
-            and gives you making real time decision making support.
+          <p className="text-neutral-700 text-lg leading-relaxed">
+            SEISMIC Connect helps you focus on what truly matters: your patients. Your time is meant for patients, not paperwork. With automated intake, reduced documentation burden, real-time clinical decision support, and tools that elevate emotional connection, SEISMIC ensures you spend less time clicking and more time caring.
           </p>
 
+          
+
+          {/* Buttons */}
           <div className="mt-6 flex flex-wrap gap-4">
             <Link href="/appointments">
               <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
@@ -54,4 +61,3 @@ const WelcomeCard = () => {
 };
 
 export default WelcomeCard;
-

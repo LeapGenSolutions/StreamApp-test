@@ -7,7 +7,7 @@ import AppointmentModal from "./AppointmentModal";
 import CustomToolbar from "./CustomToolbar";
 import { fetchAppointmentsByDoctorEmails, checkAppointments } from "../../api/callHistory";
 import CreateAppointmentModal from "./CreateAppointmentModal";
-import { useSelector } from "react-redux"; 
+import { useSelector } from "react-redux";
 import CreateBulkAppointments from "./createBulkAppointments";
 
 const locales = { "en-US": enUS };
@@ -20,27 +20,43 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-const AppointmentCalendar = () => {
+const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [doctorColorMap, setDoctorColorMap] = useState({});
   const [isDropdownOpen, setDropdownOpen] = useState(false);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
-  
 
   const loggedInDoctor = useSelector((state) => state.me.me);
 
+  useEffect(() => {
+    if (onAdd) onAdd(() => setShowCreateModal(true));
+    if (onAddBulk) onAddBulk(() => setShowBulkCreateModal(true));
+  }, [onAdd, onAddBulk]);
+
   const applySeismified = async (list) => {
-    const ids = (Array.isArray(list) ? list : []).map((a) => a?.id).filter(Boolean);
+    const ids = (Array.isArray(list) ? list : [])
+      .map((a) => a?.id)
+      .filter(Boolean);
+
     if (ids.length === 0) return list || [];
+
     try {
       const result = await checkAppointments(ids);
       const found = result?.found || [];
-      return (list || []).map((a) => ({ ...a, seismified: found.includes(a.id) }));
-    } catch (e) {
-      return (list || []).map((a) => ({ ...a, seismified: false }));
+
+      return (list || []).map((a) => ({
+        ...a,
+        seismified: found.includes(a.id),
+      }));
+    } catch {
+      return (list || []).map((a) => ({
+        ...a,
+        seismified: false,
+      }));
     }
   };
 
@@ -50,16 +66,19 @@ const AppointmentCalendar = () => {
         setAppointments([]);
         return;
       }
+
       const data = await fetchAppointmentsByDoctorEmails(selectedDoctors);
       const merged = await applySeismified(data);
       setAppointments(merged);
     };
+
     fetchData();
   }, [selectedDoctors]);
 
   const events = appointments.map((appt) => {
     const doctorKey = (appt.doctor_email || "").trim().toLowerCase();
     const color = doctorColorMap[doctorKey];
+
     const [hours, minutes] = appt.time.split(":").map(Number);
 
     const start = new Date(`${appt.appointment_date}T00:00:00`);
@@ -115,22 +134,46 @@ const AppointmentCalendar = () => {
 
   const handleDoctorUpdate = (ids, doctorList) => {
     setSelectedDoctors(ids);
+
     const colorMap = {};
     doctorList.forEach((doc) => {
-      if (doc.email) colorMap[doc.email.toLowerCase()] = doc.color;
+      if (doc.email) {
+        colorMap[doc.email.toLowerCase()] = doc.color;
+      }
     });
+
     setDoctorColorMap(colorMap);
   };
 
+
   const handleAppointmentUpdated = (updated) => {
+    const [hours, minutes] = updated.time.split(":").map(Number);
+
+    const start = new Date(`${updated.appointment_date}T00:00:00`);
+    start.setHours(hours, minutes, 0);
+
+    const end = new Date(start.getTime() + 30 * 60000);
+
     setAppointments((prev) =>
-      prev.map((a) => (a.id === updated.id ? { ...updated, animate: "success" } : a))
+      prev.map((a) =>
+        a.id === updated.id
+          ? {
+              ...a,
+              ...updated,
+              start,
+              end,
+              animate: "success",
+            }
+          : a
+      )
     );
   };
 
   const handleAppointmentDeleted = (deleted) => {
     setAppointments((prev) =>
-      prev.map((a) => (a.id === deleted.id ? { ...a, animate: "fade" } : a))
+      prev.map((a) =>
+        a.id === deleted.id ? { ...a, animate: "fade" } : a
+      )
     );
 
     setTimeout(() => {
@@ -139,15 +182,15 @@ const AppointmentCalendar = () => {
   };
 
   return (
-    <div style={{ height: "600px", margin: "20px" }}>
+    <div style={{ height: "650px", margin: "20px" }}>
       <Calendar
         localizer={localizer}
         events={events}
-        defaultView="day"
-        views={["day", "week", "agenda"]}
+        defaultView="week"
+        views={["day", "week", "month", "agenda"]}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 500 }}
+        style={{ height: "100%" }}
         onSelectEvent={(event) => setSelectedAppointment(event)}
         eventPropGetter={eventPropGetter}
         formats={{
@@ -190,7 +233,6 @@ const AppointmentCalendar = () => {
             setShowCreateModal(false);
 
             if (newAppointment) {
-             
               const [updated] = await applySeismified([newAppointment]);
 
               const [hours, minutes] = updated.time.split(":").map(Number);
@@ -218,14 +260,13 @@ const AppointmentCalendar = () => {
         />
       )}
 
-      {/* New Bulk Create Appointment Modal */}
       {showBulkCreateModal && (
-        <CreateBulkAppointments onClose={() => setShowBulkCreateModal(false)} />
+        <CreateBulkAppointments
+          onClose={() => setShowBulkCreateModal(false)}
+        />
       )}
-        
     </div>
   );
 };
 
 export default AppointmentCalendar
-

@@ -81,8 +81,10 @@ const StreamVideoCoreV3 = () => {
   useEffect(() => {
     if (!callRef.current || !patientApproved) return;
 
+    const call = callRef.current;
+
     const timer = setTimeout(() => {
-      if (!callRef.current.state.recording?.status || callRef.current.state.recording.status !== "started") {
+      if (!call.state.recording?.status || call.state.recording.status !== "started") {
         setRecordingReminderVisible(true);
         if (Notification.permission === "granted") {
           new Notification("Recording not started!", {
@@ -94,15 +96,16 @@ const StreamVideoCoreV3 = () => {
     }, 15000);
 
     const handleRecordingStarted = () => {
+      console.log(">>> call.recording_started fired at", new Date().toISOString());
       clearTimeout(timer);
       setRecordingReminderVisible(false);
     };
 
-    callRef.current.on("recording_started", handleRecordingStarted);
+    call.on("call.recording_started", handleRecordingStarted);
 
     return () => {
       clearTimeout(timer);
-      callRef.current?.off("recording_started", handleRecordingStarted);
+      call.off("call.recording_started", handleRecordingStarted);
     };
   }, [showCall, type, patientApproved]);
 
@@ -420,7 +423,10 @@ const StreamVideoCoreV3 = () => {
       {!loading && showCall && client && call && (
         <StreamVideo client={client}>
           <StreamCall call={call}>
-            <StreamVideoLayoutV4 callId={callId} />
+            <StreamVideoLayoutV4
+              callId={callId}
+              onRecordingStarted={() => setRecordingReminderVisible(false)}
+            />
           </StreamCall>
         </StreamVideo>
       )}

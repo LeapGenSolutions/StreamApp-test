@@ -1,6 +1,5 @@
 import { BACKEND_URL } from "../constants";
 
-/* CREATE */
 export const createAppointment = async (doctorEmail, appointmentData) => {
   try {
     const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
@@ -26,7 +25,6 @@ export const createAppointment = async (doctorEmail, appointmentData) => {
   }
 };
 
-/* UPDATE */
 export const updateAppointment = async (doctorEmail, id, appointmentData) => {
   try {
     const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
@@ -56,7 +54,31 @@ export const updateAppointment = async (doctorEmail, id, appointmentData) => {
   }
 };
 
-/* DELETE */
+export const cancelAppointment = async (doctorEmail, id, payload = {}) => {
+  try {
+    const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
+
+    const response = await fetch(
+      `${BACKEND_URL}api/appointments/${encodedEmail}/cancel/${id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to cancel: ${errText}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Cancel appointment error:", error);
+    throw error;
+  }
+};
+
 export const deleteAppointment = async (doctorEmail, id) => {
   try {
     const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());

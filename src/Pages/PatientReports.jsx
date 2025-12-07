@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ExternalLink,
-} from "lucide-react";
+import { Eye } from "lucide-react";
 import { useSelector } from "react-redux";
 import { navigate } from "wouter/use-browser-location";
 import { useParams } from "wouter";
@@ -11,148 +9,325 @@ import AppointmentModal from "../components/appointments/AppointmentModal";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSummaryofSummaries } from "../api/summaryOfSummaries";
 import { PageNavigation } from "../components/ui/page-navigation";
+import { format, isToday } from "date-fns";
+import { fetchCallHistory } from "../api/callHistory";
 
 const PatientReports = () => {
   const { patientId } = useParams();
+
   const patients = useSelector((state) => state.patients.patients);
   const appointments = useSelector((state) => state.appointments.appointments);
-  const patient = patients.find((p) => String(p.patient_id) === patientId);
+  const doctorEmail = useSelector(
+    (state) => state.me.me.email?.toLowerCase()
+  );
+
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
+  const [callHistory, setCallHistory] = useState([]);
 
+  // Patient always available for hooks
+  const patient = useMemo(
+    () => patients.find((p) => String(p.patient_id) === patientId),
+    [patients, patientId]
+  );
+
+  // Summary of summaries
   const { data: summaryData } = useQuery({
     queryKey: ["summaryOfSummaries", patientId],
-    queryFn: () => fetchSummaryofSummaries(patientId)
+    queryFn: () => fetchSummaryofSummaries(patientId),
+    enabled: !!patientId,
   });
 
   useEffect(() => {
-    if (summaryData) {
-      setSummaryOfSummariesData(summaryData);
-    }
+    if (summaryData) setSummaryOfSummariesData(summaryData);
   }, [summaryData]);
 
-  const filteredAppointments = useMemo(() => {
+  // Load call history (completed calls)
+  useEffect(() => {
+    if (doctorEmail) {
+      fetchCallHistory([doctorEmail])
+        .then((res) => setCallHistory(res || []))
+        .catch(() => setCallHistory([]));
+    }
+  }, [doctorEmail]);
+
+  const getUnifiedDate = (appt) =>
+    appt.appointment_date ||
+    appt.date ||
+    appt.timestamp ||
+    appt.created_at ||
+    null;
+
+  // Get all appointments
+  const sortedAppointments = useMemo(() => {
     return appointments
-      .filter((a) => String(patient?.patient_id) === String(a.patient_id))
+      .filter((a) => String(a.patient_id) === String(patientId))
       .sort(
         (a, b) =>
-          new Date(b.timestamp || b.date || b.created_at) -
-          new Date(a.timestamp || a.date || a.created_at)
+          new Date(getUnifiedDate(b)) - new Date(getUnifiedDate(a))
       );
-  }, [appointments, patient?.patient_id]);
+  }, [appointments, patientId]);
 
-  const now = new Date();
-  let nextAppointment = filteredAppointments
-    .filter((apt) => new Date(apt.date) > now)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+  // Merge appointments + call history
+  const mergedAppointments = useMemo(() => {
+    return sortedAppointments.map((appt) => {
+      const match = callHistory.find(
+        (h) => h.appointmentID === appt.id
+      );
 
-  if (!nextAppointment && filteredAppointments.length > 0) {
-    nextAppointment = filteredAppointments[0];
-  }
+      const apptDateStr = getUnifiedDate(appt);
+      const apptDateObj = apptDateStr ? new Date(apptDateStr) : null;
 
-  const handleJoinCall = () => {
-    setSelectedAppointment(nextAppointment);
-  };
+      const startTimeObj = match?.startTime
+        ? new Date(match.startTime)
+        : null;
+      const endTimeObj = match?.endTime ? new Date(match.endTime) : null;
 
-  if (!patient) {
-    navigate("/patients");
-    return;
-  }
+      let durationMinutes = null;
+      if (startTimeObj && endTimeObj) {
+        const diff = Math.round((endTimeObj - startTimeObj) / 60000);
+        if (!Number.isNaN(diff) && diff >= 0) durationMinutes = diff;
+      }
 
-  const [firstName, lastName] = [
-    patient?.firstname, patient?.lastname]
-    || ["", ""];
-  const maskedSSN = patient?.ssn ? `XXX-XX-${patient?.ssn.slice(-4)}` : "Not Available";
+      const isCompleted = !!match?.endTime;
 
-  const lastVisit = filteredAppointments.length > 0
-    ? new Date(filteredAppointments[0].date).toLocaleDateString()
+      return {
+        appt,
+        history: match || null,
+        apptDateObj,
+        startTimeObj,
+        endTimeObj,
+        durationMinutes,
+        isCompleted,
+      };
+    });
+  }, [sortedAppointments, callHistory]);
+
+  // Memoized now
+  const now = useMemo(() => new Date(), []);
+
+  // Upcoming appointment
+  const nextUpcoming = useMemo(() => {
+    return (
+      mergedAppointments
+        .map((m) => {
+          const dateStr = m.appt.appointment_date;
+          if (!dateStr) return null;
+
+          const timeStr = m.appt.time || "00:00";
+          const dt = new Date(`${dateStr}T${timeStr}:00`);
+
+          const status = (m.appt.status || "").toLowerCase();
+          const cancelled = status === "cancelled" || status === "canceled";
+
+          if (isNaN(dt.getTime())) return null;
+          if (cancelled || m.isCompleted) return null;
+          if (dt <= now) return null;
+
+          return { meta: m, dt };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.dt - b.dt)[0] || null
+    );
+  }, [mergedAppointments, now]);
+
+  // Can join?
+  const canJoin = useMemo(() => {
+    if (!nextUpcoming) return false;
+
+    const { meta, dt } = nextUpcoming;
+
+    const status = (meta.appt.status || "").toLowerCase();
+    const cancelled = status === "cancelled" || status === "canceled";
+
+    return isToday(dt) && dt > now && !cancelled && !meta.isCompleted;
+  }, [nextUpcoming, now]);
+
+  // Format patient info
+  const firstName = patient?.firstname || patient?.first_name || "";
+  const lastName = patient?.lastname || patient?.last_name || "";
+
+  const maskedPhone = patient?.phone
+    ? `XXX-XXX-${String(patient.phone).slice(-4)}`
     : "Not Available";
 
+  const maskedEmail = patient?.email
+    ? `${patient.email[0]}***@${patient.email.split("@")[1]}`
+    : "Not Available";
+
+  const insuranceProvider = patient?.insurance_provider || "N/A";
+  const insuranceId = patient?.insurance_id || "N/A";
+
+  // Last visit
+  const lastVisit = useMemo(() => {
+    const completed = mergedAppointments
+      .filter((m) => m.isCompleted && m.apptDateObj)
+      .sort((a, b) => b.apptDateObj - a.apptDateObj);
+
+    if (completed.length > 0)
+      return format(completed[0].apptDateObj, "MMM dd, yyyy");
+
+    if (mergedAppointments.length > 0 && mergedAppointments[0].apptDateObj)
+      return format(mergedAppointments[0].apptDateObj, "MMM dd, yyyy");
+
+    return "Not Available";
+  }, [mergedAppointments]);
+
+  // DOB formatting
+  const rawDOB =
+    patient?.dob ||
+    patient?.date_of_birth ||
+    patient?.birthDate ||
+    patient?.details?.dob ||
+    patient?.original_json?.details?.dob ||
+    patient?.original_json?.original_json?.details?.dob;
+
+  let formattedDob = "Not Available";
+  if (rawDOB) {
+    const d = new Date(rawDOB);
+    if (!isNaN(d.getTime())) formattedDob = format(d, "MMM yyyy");
+  }
+
+  // --------------------------
+  // SAFEST PLACE TO REDIRECT (after all hooks)
+  // --------------------------
+  if (!patient) {
+    navigate("/patients");
+    return null;
+  }
+
   return (
-    <div className="p-6 w-full">
-      <PageNavigation 
+    <div className="p-6 w-full space-y-6">
+      <PageNavigation
         title="Patient Reports"
         subtitle={`${firstName} ${lastName}`}
         customTrail={[
-          { href: "/patients", label: "Patients", icon: null },
-          { href: `/patients/${patient.id}`, label: "Patient Details", icon: null },
-          { href: `/patients/${patient.id}/reports`, label: "Reports", icon: null, isLast: true }
+          { href: "/patients", label: "Patients" },
+          { href: `/patients/${patientId}`, label: "Patient Details" },
+          { href: `/patients/${patientId}/reports`, label: "Reports", isLast: true },
         ]}
       />
-      <div className="mb-4">
-        {/*<button
-          onClick={() => navigate("/patients")}
-          className="text-sm text-blue-600 border border-blue-600 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition"
-        >
-          Back
-        </button>*/}
-      </div>
 
-      <h1 className="text-3xl font-bold mb-4 text-gray-800 text-left">Patient Reports</h1>
-
-      <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
+      {/* Patient Info */}
+      <div className="bg-white border rounded-xl shadow p-6">
         <PatientInfoComponent
           firstName={firstName}
           lastName={lastName}
-          maskedSSN={maskedSSN}
-          patient={patient}
+          patientID={patientId}
+          phone={maskedPhone}
+          email={maskedEmail}
+          insuranceProvider={insuranceProvider}
+          insuranceId={insuranceId}
           lastVisit={lastVisit}
-          filteredAppointments={filteredAppointments}
+          totalAppointments={mergedAppointments.length}
+          dob={formattedDob}
         />
+
         <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
       </div>
 
-      {nextAppointment && (
-        <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Upcoming Appointment</h3>
-            <button
-              onClick={handleJoinCall}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
-            >
-              Join Call
-            </button>
+      {/* Upcoming Appointment */}
+      {nextUpcoming && (
+        <div className="bg-white border rounded-xl shadow p-6">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-xl font-semibold">Upcoming Appointment</h3>
+
+            {canJoin && (
+              <button
+                onClick={() =>
+                  setSelectedAppointment(nextUpcoming.meta.appt)
+                }
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+              >
+                Join Call
+              </button>
+            )}
           </div>
-          <div className="text-sm text-gray-700 space-y-1">
-            <p><strong>Patient Name:</strong> {nextAppointment.full_name}</p>
-            <p><strong>Date:</strong> {new Date(nextAppointment.date).toLocaleDateString()} at {nextAppointment.time}</p>
-            <p><strong>Status:</strong> <span className="inline-block px-2 py-0.5 rounded-full border border-gray-300 text-gray-800 text-xs bg-gray-100">{nextAppointment.status ?? "N/A"}</span></p>
+
+          <div className="text-sm text-gray-800 space-y-1">
+            <p>
+              <strong>Date:</strong>{" "}
+              {format(nextUpcoming.dt, "MMM dd, yyyy")}
+            </p>
+            <p>
+              <strong>Time:</strong>{" "}
+              {nextUpcoming.meta.appt.time ?? "N/A"}
+            </p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <span className="px-2 py-1 bg-gray-100 border rounded text-xs">
+                {nextUpcoming.meta.appt.status}
+              </span>
+            </p>
           </div>
         </div>
       )}
 
+      {/* Join Modal */}
       <AppointmentModal
         selectedAppointment={selectedAppointment}
         setSelectedAppointment={setSelectedAppointment}
       />
 
-      {filteredAppointments.map((appointment) => {
-        const appointmentId = appointment.id;
-        const appointmentTime = appointment.date
-          ? `${new Date(appointment.date).toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })} at ${appointment.time ?? "N/A"}`
-          : appointment.time ?? "Time not available";
+      {/* All Appointments */}
+      <div className="space-y-4">
+        {mergedAppointments.map((m) => {
+          const { appt, apptDateObj, isCompleted, durationMinutes } = m;
 
-        return (
-          <div
-            key={appointmentId}
-            className="bg-white border rounded-xl shadow-lg w-full mb-8"
-          >
-            <button
-              onClick={() => navigate(`/post-call/${appointmentId}`)}
-              className="w-full text-left px-6 py-4 flex justify-between items-center bg-white-100 rounded-t font-medium text-lg"
+          const dateLabel =
+            apptDateObj && !isNaN(apptDateObj.getTime())
+              ? format(apptDateObj, "MMM dd, yyyy")
+              : "N/A";
+
+          return (
+            <div
+              key={appt.id}
+              className="bg-white border rounded-xl shadow p-5 flex justify-between items-center"
             >
-              <span>Appointment: {appointmentTime}</span>
-              <ExternalLink className="h-5 w-5 text-blue-600" />
-            </button>
-          </div>
-        );
-      })}
+              <div>
+                <p className="font-medium">
+                  {dateLabel} at {appt.time ?? "N/A"}
+                </p>
+
+                <p className="text-sm text-gray-600">
+                  Doctor:{" "}
+                  <span className="font-medium">
+                    {appt.doctor_name ||
+                      appt.doctor_email?.split("@")[0]}
+                  </span>
+                </p>
+
+                {/* Completed Badge */}
+                {isCompleted && (
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
+                    Completed
+                  </span>
+                )}
+
+                {/* Duration */}
+                {durationMinutes != null && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Duration: {durationMinutes} min
+                  </p>
+                )}
+              </div>
+
+              {/* Eye Icon (Post-call Documentation) */}
+              {isCompleted && (
+                <button
+                  title="View Documentation"
+                  onClick={() => navigate(`/post-call/${appt.id}`)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <Eye className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
-export default PatientReports;
+export default PatientReports

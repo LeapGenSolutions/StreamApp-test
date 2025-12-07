@@ -3,6 +3,7 @@ import AppointmentCalendar from "../components/appointments/AppointmentCalendar"
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { PageNavigation } from "../components/ui/page-navigation";
+
 function Appointments() {
   useEffect(() => {
     document.title = "Appointments - Seismic Connect";
@@ -13,23 +14,25 @@ function Appointments() {
   const appointments = useSelector((state) => state.appointments.appointments);
 
   useEffect(() => {
-    if (appointments?.length === 0 && myEmail) {
+    if (!appointments?.length && myEmail) {
       dispatch(fetchAppointmentDetails(myEmail));
     }
   }, [dispatch, appointments, myEmail]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4">
+
+      {/* Centered Header */}
       <PageNavigation
         title="Appointments"
-        //subtitle="Schedule and manage your appointments"
+        subtitle="Manage all appointments and schedules"
         showBackButton={true}
       />
-      <div className="grid grid-cols-1">
-        <AppointmentCalendar />
-      </div>
+
+      {/* Calendar */}
+      <AppointmentCalendar />
     </div>
   );
 }
 
-export default Appointments;
+export default Appointments

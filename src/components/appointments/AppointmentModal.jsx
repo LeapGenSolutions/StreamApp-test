@@ -6,7 +6,8 @@ import { Link } from "wouter";
 
 import EditAppointmentModal from "./EditAppointmentModal";
 import DeleteAppointmentModal from "./DeleteAppointmentModal";
-import { Pencil, Trash2 } from "lucide-react";
+import CancelAppointmentModal from "./CancelAppointmentModal";
+import { Pencil, Trash2, XCircle } from "lucide-react";
 
 const AppointmentModal = ({
   selectedAppointment,
@@ -15,31 +16,78 @@ const AppointmentModal = ({
   onAppointmentDeleted,
 }) => {
   const [joinLink, setJoinLink] = useState("");
-  const [isOnline, setIsOnline] = useState(true);
-
+  const [isOnline, setIsOnline] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showSSN, setShowSSN] = useState(false);
-
-
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDOB, setShowDOB] = useState(false);
 
   useEffect(() => {
     if (selectedAppointment?.id) {
       const link = `${DOCTOR_PORTAL_URL}${selectedAppointment.id}`;
       setJoinLink(link);
-      setIsOnline(true);
+      setIsOnline(false);
     }
   }, [selectedAppointment]);
 
   if (!selectedAppointment) return null;
 
+ 
+  const rawDOB =
+    selectedAppointment?.dob ||
+    selectedAppointment?.date_of_birth ||
+    selectedAppointment?.birthDate ||
+    null;
 
-  const maskedSSN =
-    selectedAppointment?.ssn
-      ? `XXX-XX-${String(selectedAppointment.ssn).slice(-4)}`
-      : "Not Available";
+  const formattedDOB = rawDOB
+    ? new Date(rawDOB).toLocaleString("en-US", { month: "short", year: "numeric" })
+    : "—";
 
-  
+  const maskedDOB = "Hidden";
+
+
+  const now = new Date();
+  now.setSeconds(0, 0);
+
+  const rawDate =
+    selectedAppointment.appointment_date ||
+    selectedAppointment.date ||
+    selectedAppointment.appointmentDate;
+
+  let apptDate = null;
+
+  if (rawDate) {
+    const normalized = rawDate.split("T")[0];
+    apptDate = new Date(`${normalized}T00:00:00`);
+  }
+
+  let isFutureSlot = false;
+
+  if (apptDate) {
+    const apptDateTime = new Date(apptDate);
+
+    const [h, m] = selectedAppointment.time?.split(":") || [];
+    if (h && m) {
+      apptDateTime.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    }
+
+    if (apptDate.toDateString() === now.toDateString()) {
+      // Today: must check time
+      isFutureSlot = apptDateTime > now;
+    } else {
+      // Future date
+      isFutureSlot = apptDate > now;
+    }
+  }
+
+  const isNotSeismified = !selectedAppointment.seismified;
+  const isNotCancelled = selectedAppointment.status !== "cancelled";
+  const isNotCompleted = selectedAppointment.status !== "completed";
+
+  const canCancel =
+    isFutureSlot && isNotSeismified && isNotCancelled && isNotCompleted;
+
+
   const formatTime = () => {
     try {
       if (!selectedAppointment.time) return "N/A";
@@ -56,7 +104,6 @@ const AppointmentModal = ({
     }
   };
 
-
   const handleJoinClick = () => {
     const appt = selectedAppointment;
     setSelectedAppointment(null);
@@ -64,9 +111,7 @@ const AppointmentModal = ({
     const type = isOnline ? "online" : "inperson";
 
     navigate(
-      `/meeting-room/${appt.id}?patient=${encodeURIComponent(
-        appt.full_name
-      )}&type=${type}`
+      `/meeting-room/${appt.id}?patient=${encodeURIComponent(appt.full_name)}&type=${type}`
     );
   };
 
@@ -74,30 +119,23 @@ const AppointmentModal = ({
     const appt = selectedAppointment;
     setSelectedAppointment(null);
 
-    navigate(
-      `/post-call/${appt.id}?username=${appt.doctor_email}`
-    );
+    navigate(`/post-call/${appt.id}?username=${appt.doctor_email}`);
   };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(joinLink);
-    alert("Link copied to clipboard!");
   };
 
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md relative">
-          
+
         
           <div className="flex justify-between items-center border-b pb-2 mb-4">
-            <h1 className="text-2xl font-bold text-gray-800">
-              Appointment Details
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-800">Appointment Details</h1>
 
             <div className="flex gap-4">
-
-             
               <button
                 onClick={() => setShowEditModal(true)}
                 className="text-gray-700 hover:text-blue-600 transition"
@@ -106,7 +144,16 @@ const AppointmentModal = ({
                 <Pencil size={20} strokeWidth={1.8} />
               </button>
 
-       
+              {canCancel && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="text-yellow-600 hover:text-yellow-800 transition"
+                  title="Cancel Appointment"
+                >
+                  <XCircle size={20} strokeWidth={1.8} />
+                </button>
+              )}
+
               {!selectedAppointment.seismified && (
                 <button
                   onClick={() => setShowDeleteModal(true)}
@@ -118,13 +165,8 @@ const AppointmentModal = ({
               )}
             </div>
           </div>
-
-          
           <div className="space-y-2 text-gray-700">
-            <p>
-              <span className="font-semibold">Appointment ID:</span>{" "}
-              {selectedAppointment.id}
-            </p>
+            <p><span className="font-semibold">Appointment ID:</span> {selectedAppointment.id}</p>
 
             <p>
               <span className="font-semibold">Patient:</span>{" "}
@@ -137,95 +179,62 @@ const AppointmentModal = ({
               </Link>
             </p>
 
-            <p>
-              <span className="font-semibold">Time:</span>{" "}
-              {formatTime()}
-            </p>
+            <p><span className="font-semibold">Time:</span> {formatTime()}</p>
 
             <p>
               <span className="font-semibold">Seismic Status:</span>{" "}
               {selectedAppointment.seismified ? (
-                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                  Seismified
-                </span>
+                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Seismified</span>
               ) : (
-                <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
-                  Not Seismified
-                </span>
+                <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">Not Seismified</span>
               )}
             </p>
 
-            <p>
-              <span className="font-semibold">Status:</span>{" "}
-              {selectedAppointment.status}
-            </p>
-
-           <p className="flex items-center gap-2">
-              <span className="font-semibold">SSN:</span>
-              {showSSN ? (
+            <p><span className="font-semibold">Status:</span> {selectedAppointment.status}</p>
+            <p className="flex items-center gap-2">
+              <span className="font-semibold">DOB:</span>
+              {showDOB ? (
                 <>
-                  <span>{maskedSSN}</span>
+                  <span>{formattedDOB}</span>
                   <button
-                    onClick={() => setShowSSN(false)}
+                    onClick={() => setShowDOB(false)}
                     className="text-blue-600 hover:underline text-sm"
                   >
-                    Hide SSN
+                    Hide DOB
                   </button>
                 </>
               ) : (
                 <>
-                  <span>Hidden</span>
+                  <span>{maskedDOB}</span>
                   <button
-                    onClick={() => setShowSSN(true)}
+                    onClick={() => setShowDOB(true)}
                     className="text-blue-600 hover:underline text-sm"
                   >
-                    Show SSN
+                    Show DOB
                   </button>
                 </>
               )}
             </p>
 
-            <p>
-              <span className="font-semibold">Doctor:</span>{" "}
-              {selectedAppointment.doctor_name}
-            </p>
+            <p><span className="font-semibold">Doctor:</span> {selectedAppointment.doctor_name}</p>
 
-           
             <div className="flex space-x-4 mt-2">
               <label className="flex items-center space-x-1">
-                <input
-                  type="radio"
-                  checked={isOnline}
-                  onChange={() => setIsOnline(true)}
-                />
-                <span>Online</span>
+                <input type="radio" checked={!isOnline} onChange={() => setIsOnline(false)} />
+                <span>In-Person</span>
               </label>
 
               <label className="flex items-center space-x-1">
-                <input
-                  type="radio"
-                  checked={!isOnline}
-                  onChange={() => setIsOnline(false)}
-                />
-                <span>In-Person</span>
+                <input type="radio" checked={isOnline} onChange={() => setIsOnline(true)} />
+                <span>Online</span>
               </label>
             </div>
-
-           
             {isOnline && (
               <>
                 <p className="pt-2 font-semibold text-gray-700">Meeting Link:</p>
                 <div className="flex w-full">
-                  <input
-                    type="text"
-                    value={joinLink}
-                    readOnly
-                    className="flex-grow border border-gray-300 rounded-l-md px-4 py-2"
-                  />
-                  <button
-                    onClick={copyToClipboard}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-r-md"
-                  >
+                  <input type="text" value={joinLink} readOnly className="flex-grow border border-gray-300 rounded-l-md px-4 py-2" />
+                  <button onClick={copyToClipboard} className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-r-md">
                     <FaCopy />
                   </button>
                 </div>
@@ -233,14 +242,8 @@ const AppointmentModal = ({
             )}
           </div>
 
-
           <div className="mt-6 text-right space-x-1">
-            <button
-              onClick={handleJoinClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
-            >
-              Join
-            </button>
+            <button onClick={handleJoinClick} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">Join</button>
 
             <button
               onClick={handlePostCallClick}
@@ -264,7 +267,6 @@ const AppointmentModal = ({
         </div>
       </div>
 
-      
       {showEditModal && (
         <EditAppointmentModal
           appointment={selectedAppointment}
@@ -276,7 +278,19 @@ const AppointmentModal = ({
         />
       )}
 
-   
+      {showCancelModal && (
+        <CancelAppointmentModal
+          appointment={selectedAppointment}
+          onClose={() => setShowCancelModal(false)}
+          onCancelled={() => {
+            if (onAppointmentUpdated) {
+              onAppointmentUpdated({ ...selectedAppointment, status: "cancelled" });
+            }
+            setSelectedAppointment(null);
+          }}
+        />
+      )}
+
       {showDeleteModal && (
         <DeleteAppointmentModal
           appointment={selectedAppointment}

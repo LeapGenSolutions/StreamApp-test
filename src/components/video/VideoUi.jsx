@@ -282,20 +282,30 @@ function VideoUi({
         )}
         <button
           onClick={leaveCall}
-          className="bg-red-500 text-white rounded-lg py-2 px-4 hover:bg-red-600 focus:outline-none"
+          className="bg-red-500 text-white rounded-lg py-2 px-4 hover:bg-red-600 focus:outline-none mr-2"
         >
           <FaPhoneSlash className="inline-block mr-2" />
           End Call
         </button>
-        <button
-          onClick={toggleMute}
-          className={`px-4 py-2 rounded-lg mr-2 ${isAudioMuted
-            ? "bg-yellow-500 hover:bg-yellow-600"
-            : "bg-blue-500 hover:bg-blue-600"
-            } text-white`}
-        >
-          {isAudioMuted ? "Unmute" : "Mute"}
-        </button>
+
+        {/* 🎤 Bottom mute button with toast TO THE LEFT */}
+        <div className="inline-block relative mr-2 align-middle">
+          <button
+            onClick={toggleMute}
+            className={`px-4 py-2 rounded-lg ${isAudioMuted
+              ? "bg-yellow-500 hover:bg-yellow-600"
+              : "bg-blue-500 hover:bg-blue-600"
+              } text-white`}
+          >
+            {isAudioMuted ? "Unmute" : "Mute"}
+          </button>
+
+          {isAudioMuted && (
+            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap z-50">
+               your mic is muted. please unmute to continue.
+            </div>
+          )}
+        </div>
 
         <button
           onClick={toggleVideo}

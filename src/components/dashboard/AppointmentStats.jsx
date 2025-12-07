@@ -15,36 +15,83 @@ const AppointmentStats = ({ date: propDate }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // Logged-in doctor identifiers (used for filtering)
+  const DoctorEmail =
+    loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
+
+  const doctorUniqueId =
+    loggedInDoctor?.doctor_id ||
+    loggedInDoctor?.id ||
+    loggedInDoctor?.oid ||
+    null;
+
+  // Always fetch appointments for the logged-in doctor when dashboard loads
   useEffect(() => {
-    if (appointments?.length === 0 && loggedInDoctor?.email) {
-      dispatch(fetchAppointmentDetails(loggedInDoctor.email));
+    if (DoctorEmail) {
+      dispatch(fetchAppointmentDetails(DoctorEmail));
     }
-  }, [dispatch, appointments, loggedInDoctor]);
+  }, [dispatch, DoctorEmail]);
 
   // Get today's date in local timezone (yyyy-MM-dd)
-  const today = propDate || new Date().toLocaleDateString('en-CA');
-  const formattedDate = format(new Date(today), "MMMM d, yyyy");
+  const today = propDate || new Date().toLocaleDateString("en-CA");
 
+  // Safely build a local Date from yyyy-MM-dd for display
+  let formattedDate = "";
+  if (typeof today === "string") {
+    const [year, month, day] = today.split("-").map(Number);
+    const localDate = new Date(year, month - 1, day);
+    formattedDate = format(localDate, "MMMM d, yyyy");
+  } else {
+    formattedDate = format(today, "MMMM d, yyyy");
+  }
+
+  // Compute stats only for the logged-in doctor
   useEffect(() => {
     setIsLoading(true);
+
+    if (!Array.isArray(appointments) || (!DoctorEmail && !doctorUniqueId)) {
+      setStats({
+        totalAppointments: 0,
+        inPersonAppointments: 0,
+        virtualAppointments: 0,
+      });
+      setIsLoading(false);
+      return;
+    }
+
     const todayAppointments = appointments.filter((app) => {
+      // normalize date to yyyy-MM-dd
       let appDate = app.appointment_date;
       if (typeof appDate === 'string') {
         try {
           appDate = format(parseISO(appDate), 'yyyy-MM-dd');
         } catch {
-          appDate = app.appointment_date;
+          // leave as original if parse fails
         }
       }
-      return (
-        appDate === today &&
-        app.doctorId === loggedInDoctor?.id &&
-        app.status !== 'cancelled'
-      );
+
+      const isToday = appDate === today;
+
+      // robust doctor matching (same pattern as other components)
+      const isSameDoctor =
+        (doctorUniqueId &&
+          (app.doctorId === doctorUniqueId ||
+            app.doctor_id === doctorUniqueId)) ||
+        (DoctorEmail &&
+          (app.doctorEmail === DoctorEmail ||
+            app.doctor_email === DoctorEmail));
+
+      return isToday && isSameDoctor && app.status !== "cancelled";
     });
-    // Count by mode
-    const inPersonAppointments = todayAppointments.filter(app => app.type === 'in-person').length;
-    const virtualAppointments = todayAppointments.filter(app => app.type === 'virtual' || app.type === 'online').length;
+
+    const inPersonAppointments = todayAppointments.filter(
+      (app) => app.type === "in-person"
+    ).length;
+
+    const virtualAppointments = todayAppointments.filter(
+      (app) => app.type === "virtual" || app.type === "online"
+    ).length;
+
     const totalAppointments = todayAppointments.length;
     setStats({
       totalAppointments,
@@ -52,7 +99,7 @@ const AppointmentStats = ({ date: propDate }) => {
       virtualAppointments,
     });
     setIsLoading(false);
-  }, [appointments, today, loggedInDoctor?.id]);
+  }, [appointments, today, DoctorEmail, doctorUniqueId]);
 
   if (isLoading) {
     return (

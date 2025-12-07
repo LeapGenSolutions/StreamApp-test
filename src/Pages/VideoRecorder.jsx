@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { format, parse } from "date-fns";
 import { DOCTOR_PORTAL_URL } from "../constants";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
+import { checkAppointments } from "../api/callHistory";
 import CallHistory from "./CallHistory"
 import { useToast } from "../hooks/use-toast";
 import { PageNavigation } from "../components/ui/page-navigation";
@@ -19,7 +20,8 @@ const VideoCallPage = () => {
 
   const [activeTab, setActiveTab] = useState("upcoming");
   const [appointmentId, setAppointmentId] = useState("");
-  const [appointmentType, setAppointmentType] = useState("online");
+  const [appointmentType, setAppointmentType] = useState("in-person");
+  const [seismifiedIds, setSeismifiedIds] = useState([]);
   const isLoadingUpcoming = useState(false)[0];
   const dispatch = useDispatch();
   const userName = useSelector((state) => state.me.me.given_name);
@@ -38,12 +40,43 @@ const VideoCallPage = () => {
       dispatch(fetchAppointmentDetails(userEmail))
     }
   }, [dispatch, userEmail, appointments])
-  
 
-  // Mock data - replace with your actual data
-  const upcomingAppointments = appointments.filter(
-    (appt) => appt.appointment_date === today && appt.status !== 'cancelled'
-  );
+  // 🔹 Check which of today's appointments are Seismified (in call history)
+  useEffect(() => {
+    const todayAppointments = appointments.filter(
+      (appt) => appt.appointment_date === today && appt.status !== 'cancelled'
+    );
+    const ids = todayAppointments.map((appt) => appt.id).filter(Boolean);
+
+    if (!ids.length) {
+      setSeismifiedIds([]);
+      return;
+    }
+
+    const run = async () => {
+      try {
+        const result = await checkAppointments(ids); // { found: [...], notFound: [...] }
+        setSeismifiedIds(result?.found || []);
+      } catch (error) {
+        console.error("Failed to check seismified status:", error);
+        setSeismifiedIds([]);
+      }
+    };
+
+    run();
+  }, [appointments, today]);
+
+const now = new Date();
+const upcomingAppointments = appointments.filter((appt) => {
+  if (appt.appointment_date !== today) return false;
+  if (appt.status === "cancelled") return false;
+  if (seismifiedIds.includes(appt.id)) return false;
+  const apptDateTime = new Date(`${appt.appointment_date}T${appt.time}`);
+  if (apptDateTime < now) return false;
+
+  return true;
+});
+
 
   const sortedAppointments = [...upcomingAppointments]
     .sort((a, b) =>
@@ -177,7 +210,7 @@ const VideoCallPage = () => {
     </p>
   </div>
 
-{/* ✅ Add Appointment Button (Right-Aligned) */}
+{/* Add Appointment Button (Right-Aligned) */}
 {activeTab === "upcoming" && (
   <button
     onClick={() => setShowCreateModal(true)}
@@ -257,47 +290,52 @@ const VideoCallPage = () => {
                 </div>
 
                 {appointmentId && (
-                  <div className="mt-4">
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Appointment Type
-                    </label>
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id="online"
-                          name="appointmentType"
-                          value="online"
-                          checked={appointmentType === "online"}
-                          onChange={() => setAppointmentType("online")}
-                          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label
-                          htmlFor="online"
-                          className="text-sm font-medium text-gray-700 cursor-pointer"
-                        >
-                          Online
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id="in-person"
-                          name="appointmentType"
-                          value="in-person"
-                          checked={appointmentType === "in-person"}
-                          onChange={() => setAppointmentType("in-person")}
-                          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label
-                          htmlFor="in-person"
-                          className="text-sm font-medium text-gray-700 cursor-pointer"
-                        >
-                          In-Person
-                        </label>
-                      </div>
+                                  <div className="mt-4">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Appointment Type
+                  </label>
+
+                  <div className="flex space-x-4">
+
+                    {/* In-Person FIRST */}
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="in-person"
+                        name="appointmentType"
+                        value="in-person"
+                        checked={appointmentType === "in-person"}
+                        onChange={() => setAppointmentType("in-person")}
+                        className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label
+                        htmlFor="in-person"
+                        className="text-sm font-medium text-gray-700 cursor-pointer"
+                      >
+                        In-Person
+                      </label>
+                    </div>
+
+                    {/* Online SECOND */}
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="online"
+                        name="appointmentType"
+                        value="online"
+                        checked={appointmentType === "online"}
+                        onChange={() => setAppointmentType("online")}
+                        className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label
+                        htmlFor="online"
+                        className="text-sm font-medium text-gray-700 cursor-pointer"
+                      >
+                        Online
+                      </label>
                     </div>
                   </div>
+                </div>
                 )}
 
                 {appointmentId && selectedAppointment && (

@@ -40,11 +40,15 @@ const CancelAppointmentModal = ({ appointment, onClose, onCancelled }) => {
     try {
       setLoading(true);
 
-      await cancelAppointment(appointment.doctor_email, appointment.id, {
-        appointment_date: appointment.appointment_date,
-        reason,
-        notes: reason === "Other" ? otherText.trim() : "",
-      });
+      await cancelAppointment(
+        appointment.doctor_email?.toLowerCase(),   // ⭐ FIX ADDED
+        appointment.id,
+        {
+          appointment_date: appointment.appointment_date,
+          reason,
+          notes: reason === "Other" ? otherText.trim() : "",
+        }
+      );
 
       toast({
         title: "Appointment Cancelled",

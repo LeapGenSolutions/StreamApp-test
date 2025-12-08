@@ -12,12 +12,15 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
 
   const [clickedInside, setClickedInside] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const cleanPayload = {
       original_appointment_date: appointment.appointment_date,
       appointment_date: formData.appointment_date,
@@ -31,6 +34,8 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       email: formData.email,
       mrn: formData.mrn,
       specialization: formData.specialization,
+      id: appointment.id,
+      doctor_email: appointment.doctor_email,
     };
 
     cleanPayload.appointment_date = new Date(cleanPayload.appointment_date)
@@ -72,7 +77,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       JSON.stringify(appointment) !== JSON.stringify(formData);
 
     if (changed) {
-      // ⭐ ADDED: Use custom modal instead of browser confirm
       setShowConfirmClose(true);
     } else {
       onClose();
@@ -121,14 +125,12 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 value={formData.appointment_date}
                 onChange={handleChange}
               />
-
               <Input
                 label="Time"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
               />
-
               <Input
                 label="Specialization"
                 name="specialization"
@@ -140,62 +142,71 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </section>
 
           <section className="bg-white border rounded-xl p-4">
-            <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
-              <User2 size={16} /> Patient Information
-            </h3>
+              <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                <User2 size={16} /> Patient Information
+              </h3>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="First Name"
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleChange}
-              />
-              <Input
-                label="Middle Name"
-                name="middle_name"
-                value={formData.middle_name}
-                onChange={handleChange}
-              />
-              <Input
-                label="Last Name"
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleChange}
-              />
-              <Input
-                type="date"
-                label="DOB"
-                name="dob"
-                value={formData.dob}
-                onChange={handleChange}
-              />
-              <Input
-                label="Gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-              />
-              <Input
-                label="Phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-              <Input
-                label="Email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-              />
-              <Input
-                label="MRN"
-                name="mrn"
-                value={formData.mrn}
-                onChange={handleChange}
-              />
-            </div>
-          </section>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="First Name"
+                  name="first_name"
+                  value={formData.first_name}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Middle Name"
+                  name="middle_name"
+                  value={formData.middle_name}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Last Name"
+                  name="last_name"
+                  value={formData.last_name}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  type="date"
+                  label="DOB"
+                  name="dob"
+                  value={formData.dob}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Phone"
+                  name="phone"
+                  value={formData.phone}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Email"
+                  name="email"
+                  value={formData.email}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="MRN"
+                  name="mrn"
+                  value={formData.mrn}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </section>
+
 
           <div className="flex justify-end gap-3 pt-3 border-t">
             <button
@@ -216,7 +227,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         </form>
       </div>
 
-      {/* ⭐ ADDED CUSTOM CONFIRMATION MODAL */}
       {showConfirmClose && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-80 text-center">

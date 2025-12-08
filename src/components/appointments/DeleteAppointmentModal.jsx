@@ -18,7 +18,7 @@ const DeleteAppointmentModal = ({ appointment, onClose, onDeleted }) => {
 
     try {
       await deleteAppointment(
-        appointment.doctor_email,
+        appointment.doctor_email?.toLowerCase(),   // ⭐ FIX ADDED
         appointment.id,
         appointment.appointment_date 
       );

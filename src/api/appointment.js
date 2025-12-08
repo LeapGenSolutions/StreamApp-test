@@ -79,7 +79,7 @@ export const cancelAppointment = async (doctorEmail, id, payload = {}) => {
   }
 };
 
-export const deleteAppointment = async (doctorEmail, id) => {
+export const deleteAppointment = async (doctorEmail, id, appointment_date) => {
   try {
     const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
 
@@ -87,6 +87,8 @@ export const deleteAppointment = async (doctorEmail, id) => {
       `${BACKEND_URL}api/appointments/${encodedEmail}/appointment/${id}`,
       {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointment_date }),
       }
     );
 

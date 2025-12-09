@@ -14,7 +14,6 @@ import { ArrowLeft, User, Calendar as CalendarIcon, IdCard } from "lucide-react"
 import EmotionalConnect from "../components/post-call/EmotionalConnect";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-import PostCallFeedback from "../components/post-call/PostCallFeedback";
 
 const PostCallDocumentation = ({ onSave }) => {
   const [docTab, setDocTab] = useState("summary");
@@ -169,7 +168,6 @@ const dob = rawDob
               "clusters",
               "doctor notes",
               "emotional connect",
-              "doctor feedback",
             ].map((tab) => (
               <button
                 key={tab}
@@ -222,10 +220,6 @@ const dob = rawDob
                 selectedAppointment.patient_Id
               }
             />
-          )}
-
-          {docTab === "doctor feedback" && (
-            <PostCallFeedback username={username} appointmentId={callId} />
           )}
         </CardContent>
       </Card>

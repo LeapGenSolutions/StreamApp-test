@@ -13,13 +13,87 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [clickedInside, setClickedInside] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
+  // ✅ Inline error state
+  const [errors, setErrors] = useState({
+    appointment_date: "",
+    time: "",
+  });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // clear inline error when user edits field
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const newErrors = {
+      appointment_date: "",
+      time: "",
+    };
+
+    const today = new Date();
+    const now = new Date(); // current moment
+    today.setHours(0, 0, 0, 0);
+
+    let selectedDate = null;
+    if (formData.appointment_date) {
+      // normalize yyyy-mm-dd to local date
+      const [year, month, day] = formData.appointment_date.split("-").map(Number);
+      if (year && month && day) {
+        selectedDate = new Date(year, month - 1, day);
+        selectedDate.setHours(0, 0, 0, 0);
+      }
+    }
+
+    // 🛑 Missing or invalid date
+    if (!selectedDate || isNaN(selectedDate.getTime())) {
+      newErrors.appointment_date = "Appointment date is required.";
+    } else {
+      // 🛑 Past calendar day
+      if (selectedDate < today) {
+        newErrors.appointment_date = "Appointment date must be in the future.";
+      } else if (selectedDate.getTime() === today.getTime()) {
+        // Today -> check time
+        if (!formData.time) {
+          newErrors.time = "Appointment time must be in the future.";
+        } else {
+          const [hh, mm] = formData.time.split(":");
+          const selectedDateTime = new Date();
+          selectedDateTime.setHours(
+            parseInt(hh || "0", 10),
+            parseInt(mm || "0", 10),
+            0,
+            0
+          );
+
+          // 🛑 Past time today
+          if (selectedDateTime <= now) {
+            newErrors.time = "Appointment time must be in the future.";
+          }
+        }
+      }
+    }
+
+    // If any validation errors, show toast + inline red boxes and stop
+    if (newErrors.appointment_date || newErrors.time) {
+      setErrors(newErrors);
+
+      toast({
+        title: "Cannot update appointment",
+        description:
+          newErrors.time ||
+          newErrors.appointment_date ||
+          "Past appointments cannot be modified. Please schedule a future appointment.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const cleanPayload = {
       original_appointment_date: appointment.appointment_date,
@@ -38,7 +112,10 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       doctor_email: appointment.doctor_email,
     };
 
-    cleanPayload.appointment_date = new Date(cleanPayload.appointment_date)
+    // Normalize date to yyyy-mm-dd
+    cleanPayload.appointment_date = new Date(
+      cleanPayload.appointment_date
+    )
       .toISOString()
       .slice(0, 10);
 
@@ -124,12 +201,14 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 name="appointment_date"
                 value={formData.appointment_date}
                 onChange={handleChange}
+                error={errors.appointment_date}
               />
               <Input
                 label="Time"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
+                error={errors.time}
               />
               <Input
                 label="Specialization"
@@ -142,71 +221,70 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </section>
 
           <section className="bg-white border rounded-xl p-4">
-              <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                <User2 size={16} /> Patient Information
-              </h3>
+            <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
+              <User2 size={16} /> Patient Information
+            </h3>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="First Name"
-                  name="first_name"
-                  value={formData.first_name}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  label="Middle Name"
-                  name="middle_name"
-                  value={formData.middle_name}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  label="Last Name"
-                  name="last_name"
-                  value={formData.last_name}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  type="date"
-                  label="DOB"
-                  name="dob"
-                  value={formData.dob}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  label="Gender"
-                  name="gender"
-                  value={formData.gender}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  label="Phone"
-                  name="phone"
-                  value={formData.phone}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  label="Email"
-                  name="email"
-                  value={formData.email}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <Input
-                  label="MRN"
-                  name="mrn"
-                  value={formData.mrn}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-            </section>
-
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="First Name"
+                name="first_name"
+                value={formData.first_name}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                label="Middle Name"
+                name="middle_name"
+                value={formData.middle_name}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                label="Last Name"
+                name="last_name"
+                value={formData.last_name}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                type="date"
+                label="DOB"
+                name="dob"
+                value={formData.dob}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                label="Gender"
+                name="gender"
+                value={formData.gender}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                label="Phone"
+                name="phone"
+                value={formData.phone}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                label="Email"
+                name="email"
+                value={formData.email}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <Input
+                label="MRN"
+                name="mrn"
+                value={formData.mrn}
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+            </div>
+          </section>
 
           <div className="flex justify-end gap-3 pt-3 border-t">
             <button
@@ -231,7 +309,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-80 text-center">
             <p className="text-gray-800 text-sm mb-4">
-              You have unsaved changes. Discard changes?
+               You have some unsaved details. Do you want to leave without saving?
             </p>
 
             <div className="flex justify-between mt-4">
@@ -247,7 +325,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                   setShowConfirmClose(false);
                   onClose();
                 }}
-                className="px-4 py-2 rounded-md bg-blue-600 text-white"
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm"
               >
                 Discard
               </button>
@@ -266,21 +344,33 @@ const Input = ({
   value,
   onChange,
   readOnly,
-  className,
-}) => (
-  <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">
-      {label}
-    </label>
-    <input
-      type={type}
-      name={name}
-      value={value}
-      readOnly={readOnly}
-      onChange={onChange}
-      className={`border rounded-md w-full p-2 text-sm border-gray-300 ${className}`}
-    />
-  </div>
-);
+  className = "",
+  error,
+}) => {
+  const hasError = !!error;
 
-export default EditAppointmentModal
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">
+        {label}
+      </label>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        readOnly={readOnly}
+        onChange={onChange}
+        className={`
+          border rounded-md w-full p-2 text-sm 
+          ${hasError ? "border-red-500 bg-red-50" : "border-gray-300"} 
+          ${className}
+        `}
+      />
+      {hasError && (
+        <p className="text-red-600 text-xs mt-1">{error}</p>
+      )}
+    </div>
+  );
+};
+
+export default EditAppointmentModal;

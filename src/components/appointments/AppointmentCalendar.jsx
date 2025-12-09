@@ -30,6 +30,8 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
 
+  const [currentView, setCurrentView] = useState("day");
+
   const loggedInDoctor = useSelector((state) => state.me.me);
 
   useEffect(() => {
@@ -115,19 +117,47 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     };
   };
 
-  const EventCell = ({ event }) => {
-    const icon = event.seismified ? "◉" : "○";
-    const time = `${format(event.start, "h:mm")}–${format(event.end, "h:mm a")}`;
+  /* ------------------------------------------------------------------
+    UPDATED EVENT CELL WITH CLEAR TOOLTIP PER VIEW
+  ------------------------------------------------------------------ */
+  const EventCell = ({ event, currentView }) => {
+    const startTime = format(event.start, "h:mm a");
+    const endTime = format(event.end, "h:mm a");
+    const timeRange = `${startTime} – ${endTime}`;
+
+    const tooltip = `${event.full_name}\n${timeRange}`;
+
+    const seismiText = event.seismified ? "Seismified" : "Not Seismified";
+
+    if (currentView === "day") {
+      return (
+        <div title={tooltip}>
+          <b>{event.full_name}</b>
+          <span style={{ marginLeft: 6 }}>({seismiText})</span>
+          <div style={{ fontSize: "11px", opacity: 0.9 }}>{timeRange}</div>
+        </div>
+      );
+    }
+
+    if (currentView === "week") {
+      return (
+        <div title={tooltip}>
+          <b>{event.full_name}</b>
+        </div>
+      );
+    }
+
+    if (currentView === "month") {
+      return (
+        <div title={tooltip}>
+          {event.full_name}
+        </div>
+      );
+    }
 
     return (
-      <div title={`${event.full_name} • ${event.status}`}>
-        <span style={{ marginRight: 6 }}>{icon}</span>
-        <span style={{ marginRight: 8 }}>{time}</span>
-        <span>
-          {`${event.full_name} (${event.status} • ${
-            event.seismified ? "Seismified" : "Not Seismified"
-          })`}
-        </span>
+      <div title={tooltip}>
+        <b>{event.full_name}</b>
       </div>
     );
   };
@@ -144,7 +174,6 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
     setDoctorColorMap(colorMap);
   };
-
 
   const handleAppointmentUpdated = (updated) => {
     const [hours, minutes] = updated.time.split(":").map(Number);
@@ -186,7 +215,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       <Calendar
         localizer={localizer}
         events={events}
-        defaultView="week"
+        defaultView="day"
+        view={currentView}
+        onView={(v) => setCurrentView(v)}
         views={["day", "week", "month", "agenda"]}
         startAccessor="start"
         endAccessor="end"
@@ -199,7 +230,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           eventTimeRangeEndFormat: () => "",
         }}
         components={{
-          event: EventCell,
+          event: (props) => <EventCell {...props} currentView={currentView} />,
           toolbar: (props) => (
             <CustomToolbar
               {...props}

@@ -189,8 +189,64 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       });
       return;
     }
+    try {
+      const today = new Date();
+      today.setSeconds(0, 0);
 
-    // Duplicate MRN check for NEW patient only
+      // Parse selected date
+      const [Y, M, D] = formData.appointment_date.split("-").map(Number);
+      const selectedDate = new Date(Y, (M || 1) - 1, D || 1);
+      selectedDate.setHours(0, 0, 0, 0);
+
+      const todayAtMidnight = new Date();
+      todayAtMidnight.setHours(0, 0, 0, 0);
+
+      if (selectedDate < todayAtMidnight) {
+        toast({
+          title: "Cannot update appointment",
+          description: "Appointment Date must be in the future.",
+          variant: "destructive",
+        });
+
+        setErrors((prev) => ({
+          ...prev,
+          appointment_date: "Appointment Date must be in the future.",
+        }));
+        return;
+      }
+      if (selectedDate.getTime() === todayAtMidnight.getTime()) {
+        const timeStr = formData.time;
+        const parsedTime = new Date(`1970-01-01 ${timeStr}`);
+        if (!isNaN(parsedTime.getTime())) {
+          const selectedDateTime = new Date();
+          selectedDateTime.setHours(
+            parsedTime.getHours(),
+            parsedTime.getMinutes(),
+            0,
+            0
+          );
+
+          if (selectedDateTime <= today) {
+            toast({
+              title: "Invalid time",
+              description: (
+                <span style={{ color: "#b91c1c" }}> 
+                  Appointment Time must be in the future.
+                </span>
+              ),
+              variant: "destructive",
+            });
+
+            setErrors((prev) => ({
+              ...prev,
+              time: "Appointment Time must be in the future.",
+            }));
+            return;
+          }
+        }
+      }
+    } catch {
+    }
     if (!existingPatient && formData.mrn?.trim()) {
       const enteredMRN = formData.mrn.trim().toLowerCase();
 
@@ -213,7 +269,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         }));
         setTouched((prev) => ({ ...prev, mrn: true }));
 
-        return; // BLOCK creation
+        return; 
       }
     }
 
@@ -221,15 +277,11 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
 
     try {
       let patient_id, practice_id;
-
-      // Existing Patient
       if (existingPatient) {
         const d = extractDetails(existingPatient);
         patient_id = existingPatient.patient_id || d.patient_id;
         practice_id = existingPatient.practice_id || d.practice_id;
       }
-
-      // New Patient
       else {
         const res = await fetch(`${BACKEND_URL}api/patients/add`, {
           method: "POST",
@@ -347,16 +399,11 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
             ×
           </button>
         </div>
-
-        {/* SPLIT 2-COLUMN LAYOUT */}
         <div className="flex h-full">
-          {/* LEFT HALF — SEARCH PANEL */}
           <div className="w-[40%] border-r border-gray-200 p-4 overflow-y-auto">
             <h3 className="text-md font-semibold text-blue-700 mb-3">
               Find Existing Patient
             </h3>
-
-            {/* SEARCH INPUT */}
             <div className="mb-3">
               <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Search by Patient Name
@@ -368,8 +415,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 className="border rounded-md w-full p-2 text-sm border-gray-300"
               />
             </div>
-
-            {/* SEARCH RESULTS */}
             {nameMatches.length > 0 && (
               <div className="border rounded-md max-h-80 overflow-y-auto">
                 {nameMatches.map((p) => {
@@ -418,11 +463,8 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
               </div>
             )}
           </div>
-
-          {/* RIGHT HALF — APPOINTMENT + PATIENT FORM */}
           <div className="w-[60%] p-4 overflow-y-auto bg-gray-50">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* APPOINTMENT DETAILS */}
               <section className="bg-white border rounded-xl p-4">
                 <h3 className="text-md font-semibold text-blue-700 flex items-center gap-2 mb-3">
                   <Clock size={16} /> Appointment Details
@@ -461,8 +503,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                   />
                 </div>
               </section>
-
-              {/* PATIENT INFO */}
               <section className="bg-white border rounded-xl p-4">
                 <h3 className="text-md font-semibold text-blue-700 flex items-center gap-2 mb-3">
                   <User2 size={16} /> Patient Information
@@ -567,8 +607,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                   />
                 </div>
               </section>
-
-              {/* BUTTONS */}
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -592,7 +630,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
           </div>
         </div>
 
-        {showUnsavedConfirm &&
+        {showUnsavedConfirm && (
           <UnsavedChangesModal
             onConfirm={() => {
               setShowUnsavedConfirm(false);
@@ -600,13 +638,11 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
             }}
             onCancel={() => setShowUnsavedConfirm(false)}
           />
-        }
+        )}
       </div>
     </div>
   );
 };
-
-/* Input Component */
 const Input = ({
   label,
   type = "text",
@@ -647,8 +683,6 @@ const Input = ({
     </div>
   );
 };
-
-/* Select Component */
 const Select = ({
   label,
   name,
@@ -676,8 +710,6 @@ const Select = ({
     </select>
   </div>
 );
-
-/* Scrollable Time Dropdown Component */
 const ScrollableTimeDropdown = ({
   label,
   name,
@@ -777,6 +809,33 @@ const ScrollableTimeDropdown = ({
         variant: "destructive",
       });
       return;
+    }
+    if (appointmentDate) {
+      const [Y, M, D] = appointmentDate.split("-").map(Number);
+      const selectedDay = new Date(Y, M - 1, D);
+      const today = new Date();
+      const todayMidnight = new Date();
+      todayMidnight.setHours(0, 0, 0, 0);
+      selectedDay.setHours(0, 0, 0, 0);
+
+      if (selectedDay.getTime() === todayMidnight.getTime()) {
+        const selectedDateTime = new Date();
+        selectedDateTime.setHours(
+          parsed.getHours(),
+          parsed.getMinutes(),
+          0,
+          0
+        );
+
+        if (selectedDateTime <= today) {
+          toast?.({
+            title: "Invalid time",
+            description: "Appointment date must be in the future.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
     onChange({ target: { name, value: manualValue } });

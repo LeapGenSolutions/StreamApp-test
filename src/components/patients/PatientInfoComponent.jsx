@@ -11,7 +11,6 @@ import {
 const PatientInfoComponent = ({
   firstName,
   lastName,
-  patientID,
   phone,
   email,
   insuranceProvider,
@@ -37,11 +36,6 @@ const PatientInfoComponent = ({
         <p className="flex items-center gap-2">
           <User className="w-4 h-4 text-gray-500" />
           <strong>Last Name:</strong> {lastName}
-        </p>
-
-        <p className="flex items-center gap-2">
-          <IdCard className="w-4 h-4 text-gray-500" />
-          <strong>Patient ID:</strong> {patientID}
         </p>
 
         <p className="flex items-center gap-2">

@@ -25,13 +25,10 @@ const PatientReports = () => {
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
 
-  // Patient always available for hooks
   const patient = useMemo(
     () => patients.find((p) => String(p.patient_id) === patientId),
     [patients, patientId]
   );
-
-  // Summary of summaries
   const { data: summaryData } = useQuery({
     queryKey: ["summaryOfSummaries", patientId],
     queryFn: () => fetchSummaryofSummaries(patientId),
@@ -42,7 +39,6 @@ const PatientReports = () => {
     if (summaryData) setSummaryOfSummariesData(summaryData);
   }, [summaryData]);
 
-  // Load call history (completed calls)
   useEffect(() => {
     if (doctorEmail) {
       fetchCallHistory([doctorEmail])
@@ -58,7 +54,6 @@ const PatientReports = () => {
     appt.created_at ||
     null;
 
-  // Get all appointments
   const sortedAppointments = useMemo(() => {
     return appointments
       .filter((a) => String(a.patient_id) === String(patientId))
@@ -68,7 +63,6 @@ const PatientReports = () => {
       );
   }, [appointments, patientId]);
 
-  // Merge appointments + call history
   const mergedAppointments = useMemo(() => {
     return sortedAppointments.map((appt) => {
       const match = callHistory.find(
@@ -103,10 +97,8 @@ const PatientReports = () => {
     });
   }, [sortedAppointments, callHistory]);
 
-  // Memoized now
   const now = useMemo(() => new Date(), []);
 
-  // Upcoming appointment
   const nextUpcoming = useMemo(() => {
     return (
       mergedAppointments
@@ -131,7 +123,6 @@ const PatientReports = () => {
     );
   }, [mergedAppointments, now]);
 
-  // Can join?
   const canJoin = useMemo(() => {
     if (!nextUpcoming) return false;
 
@@ -143,22 +134,16 @@ const PatientReports = () => {
     return isToday(dt) && dt > now && !cancelled && !meta.isCompleted;
   }, [nextUpcoming, now]);
 
-  // Format patient info
   const firstName = patient?.firstname || patient?.first_name || "";
   const lastName = patient?.lastname || patient?.last_name || "";
-
   const maskedPhone = patient?.phone
     ? `XXX-XXX-${String(patient.phone).slice(-4)}`
     : "Not Available";
-
   const maskedEmail = patient?.email
     ? `${patient.email[0]}***@${patient.email.split("@")[1]}`
     : "Not Available";
-
   const insuranceProvider = patient?.insurance_provider || "N/A";
   const insuranceId = patient?.insurance_id || "N/A";
-
-  // Last visit
   const lastVisit = useMemo(() => {
     const completed = mergedAppointments
       .filter((m) => m.isCompleted && m.apptDateObj)
@@ -173,7 +158,6 @@ const PatientReports = () => {
     return "Not Available";
   }, [mergedAppointments]);
 
-  // DOB formatting
   const rawDOB =
     patient?.dob ||
     patient?.date_of_birth ||
@@ -187,10 +171,6 @@ const PatientReports = () => {
     const d = new Date(rawDOB);
     if (!isNaN(d.getTime())) formattedDob = format(d, "MMM yyyy");
   }
-
-  // --------------------------
-  // SAFEST PLACE TO REDIRECT (after all hooks)
-  // --------------------------
   if (!patient) {
     navigate("/patients");
     return null;
@@ -213,7 +193,6 @@ const PatientReports = () => {
         <PatientInfoComponent
           firstName={firstName}
           lastName={lastName}
-          patientID={patientId}
           phone={maskedPhone}
           email={maskedEmail}
           insuranceProvider={insuranceProvider}
@@ -226,7 +205,6 @@ const PatientReports = () => {
         <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
       </div>
 
-      {/* Upcoming Appointment */}
       {nextUpcoming && (
         <div className="bg-white border rounded-xl shadow p-6">
           <div className="flex justify-between items-center mb-3">
@@ -263,13 +241,11 @@ const PatientReports = () => {
         </div>
       )}
 
-      {/* Join Modal */}
       <AppointmentModal
         selectedAppointment={selectedAppointment}
         setSelectedAppointment={setSelectedAppointment}
       />
 
-      {/* All Appointments */}
       <div className="space-y-4">
         {mergedAppointments.map((m) => {
           const { appt, apptDateObj, isCompleted, durationMinutes } = m;
@@ -297,14 +273,12 @@ const PatientReports = () => {
                   </span>
                 </p>
 
-                {/* Completed Badge */}
+               
                 {isCompleted && (
                   <span className="inline-block mt-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
                     Completed
                   </span>
                 )}
-
-                {/* Duration */}
                 {durationMinutes != null && (
                   <p className="text-xs text-gray-500 mt-1">
                     Duration: {durationMinutes} min
@@ -312,7 +286,6 @@ const PatientReports = () => {
                 )}
               </div>
 
-              {/* Eye Icon (Post-call Documentation) */}
               {isCompleted && (
                 <button
                   title="View Documentation"

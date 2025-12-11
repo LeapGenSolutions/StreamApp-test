@@ -58,8 +58,13 @@ const CallHistoryCard = ({ entry }) => (
 
     <button
       onClick={() =>
-        navigate(`/post-call/${entry.appointmentID}?username=${entry.userID}`)
+        navigate(`/post-call/${entry.appointmentID}?username=${entry.userID}`, {
+      state: {
+        startTime: entry.startTime,
+        endTime: entry.endTime
       }
+    })
+  }
       title="View Post-Call Documentation"
       className="text-blue-600 hover:text-blue-800 ml-auto"
     >
@@ -79,33 +84,26 @@ function CallHistory() {
   const dispatch = useDispatch();
   const doctors = useSelector((state) => state.doctors?.doctors || []);
 
-  /* Logged-in provider email */
   const doctorEmail = useSelector(
     (state) => state.me.me.email?.toLowerCase()
   );
 
   const dropdownRef = useRef(null);
-
-  /* Load doctors list */
   useEffect(() => {
     if (doctors.length === 0) dispatch(fetchDoctors());
   }, [doctors.length, dispatch]);
 
-  /* Auto-select logged-in doctor */
   useEffect(() => {
     if (doctorEmail && selectedDoctors.length === 0) {
       setSelectedDoctors([doctorEmail]);
     }
   }, [doctorEmail, selectedDoctors.length]);
-
-  /* Fetch call history */
   const { data: callHistoryData = [], isLoading } = useQuery({
     queryKey: ["call-history", selectedDoctors],
     queryFn: () => fetchCallHistory(selectedDoctors),
     enabled: selectedDoctors.length > 0,
   });
 
-  /* Close doctor dropdown if clicking outside */
   useEffect(() => {
     const handler = (e) => {
       if (!dropdownRef.current?.contains(e.target)) {
@@ -116,7 +114,6 @@ function CallHistory() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* Filter logic */
   useEffect(() => {
     let data = [...callHistoryData];
 
@@ -144,11 +141,13 @@ function CallHistory() {
   }, [callHistoryData, selectedDoctors, startDate, endDate, patientSearch]);
 
   const resetFilters = () => {
-    setStartDate(null);
-    setEndDate(null);
-    setPatientSearch("");
-  };
-
+  setStartDate(null);
+  setEndDate(null);
+  setPatientSearch("");
+  if (doctorEmail) {
+    setSelectedDoctors([doctorEmail.toLowerCase()]);
+  }
+};
   return (
     <div className="space-y-6">
       {/* Title */}

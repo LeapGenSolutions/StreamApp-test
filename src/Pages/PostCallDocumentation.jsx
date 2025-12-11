@@ -20,21 +20,26 @@ const PostCallDocumentation = ({ onSave }) => {
   const { callId } = useParams();
   const [prevPage, setPrevPage] = useState(null);
   const dispatch = useDispatch();
-  const myEmail = useSelector((state) => state.me.me.email);
+  //const myEmail = useSelector((state) => state.me.me.email);
   const appointments = useSelector((state) => state.appointments.appointments);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const searchParams = useSearchParams()[0];
+  const username = searchParams.get("username");
 
   useEffect(() => {
-    if ((!appointments || appointments.length === 0) && myEmail) {
-      dispatch(fetchAppointmentDetails(myEmail));
-      return;
+    if (username) {
+      dispatch(fetchAppointmentDetails(username));
     }
+  }, [dispatch, username]);
 
-    if (appointments && appointments.length > 0) {
-      const found = appointments.find(app => String(app.id) === String(callId));
-      if (found) setSelectedAppointment(found);
+  useEffect(() => {
+    if (appointments?.length > 0) {
+      const found = appointments.find(
+        (app) => String(app.id) === String(callId)
+      );
+      setSelectedAppointment(found || null);
     }
-  }, [dispatch, appointments, myEmail, callId]);
+  }, [appointments, callId]);
 
   useEffect(() => {
     document.title = "PostCallDocumentation - Seismic Connect";
@@ -46,9 +51,6 @@ const PostCallDocumentation = ({ onSave }) => {
     if (window.history.length > 1) window.history.back();
     else navigate("/appointments");
   };
-
-  const searchParams = useSearchParams()[0];
-  const username = searchParams.get("username");
 
   const mrn = selectedAppointment
     ? selectedAppointment.mrn ??
@@ -70,8 +72,6 @@ const dob = rawDob
       year: "numeric",
     })
   : null;
-
-
 
   const firstName = selectedAppointment
     ? selectedAppointment.first_name ??
@@ -184,7 +184,17 @@ const dob = rawDob
           </div>
 
           {docTab === "summary" && (
-            <Summary username={username} appointmentId={callId} />
+            <Summary 
+              username={username} 
+              appointmentId={callId} 
+              patientId={
+                selectedAppointment?.patient_id ||
+                selectedAppointment?.patient_Id ||
+                selectedAppointment?.patientId ||
+                selectedAppointment?.mrn ||
+                selectedAppointment?.patient_mrn
+              }
+            />
           )}
 
           {docTab === "transcript" && (

@@ -7,9 +7,9 @@ import { fetchAppointmentDetails } from "../../redux/appointment-actions";
 import { fetchSoapNotes } from "../../api/soap";
 import { fetchSummaryofSummaries } from "../../api/summaryOfSummaries";
 import LoadingCard from "./LoadingCard";
-import SummaryOfPatient from "../patients/SummaryOfPatient"; //  imported here
+import SummaryOfPatient from "../patients/SummaryOfPatient";
+import { fetchCallHistory } from "../../api/callHistory"; // ✅ Added :contentReference[oaicite:0]{index=0}
 
-// Extract reason from SOAP notes
 const extractReasonFromSoap = (soapText) => {
   const match = soapText.match(/Reason for Visit\s*[-–—:]?\s*(.*?)(\n|$)/i);
   return match ? match[1].trim() : null;
@@ -18,7 +18,23 @@ const extractReasonFromSoap = (soapText) => {
 const Summary = ({ appointmentId, username, patientId }) => {
   const [selectedAppointment, setSelectedAppointment] = useState({});
   const dispatch = useDispatch();
+
   const appointments = useSelector((state) => state.appointments.appointments);
+
+  const {
+    data: callHistoryList = [],
+    isLoading: loadingCallHistory,
+  } = useQuery({
+    queryKey: ["call-history-summary", username],
+    queryFn: () => fetchCallHistory([username]),  // ← fetch all calls for this provider
+    enabled: !!username,
+  });
+
+  
+  const callHistoryEntry = callHistoryList.find(
+    (entry) => String(entry.appointmentID) === String(appointmentId)
+  );
+
 
   const {
     data: summaryData,
@@ -61,25 +77,22 @@ const Summary = ({ appointmentId, username, patientId }) => {
 
   useEffect(() => {
     setSelectedAppointment(
-      appointments.find((appointment) => appointment.id === appointmentId) || {}
+      appointments.find(
+        (appointment) => String(appointment.id) === String(appointmentId)
+      ) || {}
     );
   }, [appointmentId, appointments]);
 
-  if (isLoading) {
+  if (isLoading || loadingCallHistory) {
     return <LoadingCard message="Summary’s stitching up… hang tight." />;
   }
 
-  if (error) {
-    return <LoadingCard />;
-  }
+  if (error) return <LoadingCard />;
 
   const reasonForVisit =
     selectedAppointment?.reason ||
     extractReasonFromSoap(soapData?.data?.soap_notes || "") ||
     "Not specified";
-
-  console.log("🧠 Props →", { appointmentId, username, patientId });
-  console.log("📘 Longitudinal Data →", longitudinalData);
 
   return (
     <>
@@ -87,23 +100,40 @@ const Summary = ({ appointmentId, username, patientId }) => {
         <h3 className="font-medium text-blue-800 mb-2 flex items-center">
           <FileText className="w-5 h-5 mr-2" /> Call Summary
         </h3>
+
         <div className="text-sm text-neutral-700">
           <p className="mb-2">
             <span className="font-bold">Patient:</span>{" "}
             {selectedAppointment?.full_name}
           </p>
+
+          
+          <p className="mb-2 font-semibold text-gray-800">Call Time:</p>
+
+
           <p className="mb-2">
-            <span className="font-bold">Date & Time:</span>{" "}
-            {new Date().toLocaleString()}
+            <span className="font-bold">Start Time:</span>{" "}
+            {callHistoryEntry?.startTime
+              ? new Date(callHistoryEntry.startTime).toLocaleString()
+              : "—"}
           </p>
+
+
+          <p className="mb-2">
+            <span className="font-bold">End Time:</span>{" "}
+            {callHistoryEntry?.endTime
+              ? new Date(callHistoryEntry.endTime).toLocaleString()
+              : "—"}
+          </p>
+
+
           <p className="mb-2">
             <span className="font-bold">Reason for Visit:</span>{" "}
             {reasonForVisit}
           </p>
+
           <p className="mb-2">
-            <span className="font-bold">
-              Summary from AI:<br />
-            </span>{" "}
+            <span className="font-bold">Summary from AI:<br /></span>{" "}
             {summary}
           </p>
         </div>
@@ -113,15 +143,16 @@ const Summary = ({ appointmentId, username, patientId }) => {
         <h3 className="font-medium text-blue-800 mb-2 flex items-center">
           <FileText className="w-5 h-5 mr-2" /> Longitudinal Summary
         </h3>
-          {loadingLongitudinal ? (
-            <LoadingCard message="Fetching longitudinal summary…" />
-          ) : longitudinalData ? (
-            <SummaryOfPatient summaryDataProp={longitudinalData} />
-          ) : (
-            <div className="text-sm text-neutral-600">
-              No longitudinal summary available for this patient.
-            </div>
-          )}
+
+        {loadingLongitudinal ? (
+          <LoadingCard message="Fetching longitudinal summary…" />
+        ) : longitudinalData && longitudinalData.overall_summary ? (
+          <SummaryOfPatient summaryDataProp={longitudinalData} />
+        ) : (
+          <div className="text-sm text-neutral-600">
+            No longitudinal summary available for this patient.
+          </div>
+        )}
       </div>
     </>
   );

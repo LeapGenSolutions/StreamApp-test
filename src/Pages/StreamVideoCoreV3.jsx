@@ -22,6 +22,8 @@ const StreamVideoCoreV3 = () => {
   const searchParams = useSearchParams()[0]
   const patientName = searchParams.get("patient")
   const type = searchParams.get("type") || "online";
+  const normalizedType = type.toLowerCase().replace(/[\s_-]/g, '');
+  const isInPerson = normalizedType === "inperson";
 
   const role = 'doctor'
   const userName = me.given_name + " " + me.family_name
@@ -73,13 +75,13 @@ const StreamVideoCoreV3 = () => {
   };
 
   useEffect(() => {
-    if (type === "inperson") {
+    if (isInPerson) {
       setPatientApproved(true);
     }
-  }, [type, patientApproved]);
+  }, [isInPerson]);
 
   useEffect(() => {
-    if (!callRef.current || !patientApproved) return;
+    if (!callRef.current || !showCall || !patientApproved) return;
 
     const call = callRef.current;
 
@@ -107,7 +109,7 @@ const StreamVideoCoreV3 = () => {
       clearTimeout(timer);
       call.off("call.recording_started", handleRecordingStarted);
     };
-  }, [showCall, type, patientApproved]);
+  }, [showCall, patientApproved]);
 
   useEffect(() => {
     let isMounted = true;

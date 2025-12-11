@@ -248,29 +248,21 @@ function Patients() {
 
 
   return (
-    <div className="space-y-6">
-      <PageNavigation showDate={false} />
-
-      <div className="relative mt-2 mb-2 flex items-center justify-center">
-          {/* Centered Title + Subtitle */}
-          <div className="text-center leading-tight">
-            <h1 className="text-2xl font-semibold">Patients</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              View, Search, and Organize All Patients.
-            </p>
-          </div>
-
-          {/* Add Patient Button — unchanged */}
-          <div className="absolute right-0 top-1">
-            <Button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white"
-            >
-              + Add Patient
-            </Button>
-          </div>
-        </div>
-
+    <div className="space-y-6 px-4">
+      <PageNavigation
+        title="Patients"
+        subtitle="View, search, and organize all patients."
+        showDate={false}
+        rightSlot={
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white"
+          >
+            + Add Patient
+          </Button>
+        }
+      />
+      
 
       <Card>
         <CardHeader className="pb-3">

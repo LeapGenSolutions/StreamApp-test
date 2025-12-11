@@ -783,32 +783,42 @@ const Documentation = () => {
   const [activeTab, setActiveTab] = useState("Introduction");
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4">
-      <PageNavigation 
-        showBackButton={true}
-        hideTitle={true}
-      />
-      <h1 className="text-3xl font-bold text-blue-700 mb-6">Seismic Application Documentation</h1>
-      <div className="flex flex-wrap gap-3 mb-8">
-        {tabs.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap
-              ${activeTab === tab
-                ? "bg-blue-100 text-blue-700 border-b-2 border-blue-500"
-                : "bg-neutral-100 text-neutral-600 hover:bg-blue-50"}
-            `}
-          >
-            {tab}
-          </button>
-        ))}
+    <div className="space-y-6 px-4">
+      <div className="relative mb-6">
+        {/* Back button (left aligned, from PageNavigation) */}
+        <div className="mt-[11px]"> 
+          <PageNavigation 
+          showBackButton={true} 
+          hideTitle={true} 
+          />
+        </div>
+
+        {/* Centered title (same line as back button) */}
+        <h1 className="absolute inset-0 flex items-center justify-center 
+                      text-3xl font-bold text-blue-700 pointer-events-none">Seismic Application Documentation</h1>
       </div>
-      <div className="bg-white rounded-xl shadow p-6 min-h-[200px]">
-        {tabContent[activeTab]}
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-wrap gap-3 mb-8">
+          {tabs.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap
+                ${activeTab === tab
+                    ? "bg-blue-100 text-blue-700 border-b-2 border-blue-500"
+                    : "bg-neutral-100 text-neutral-600 hover:bg-blue-50"}
+              `}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className="bg-white rounded-xl shadow p-6 min-h-[200px]">
+          {tabContent[activeTab]}
+        </div>
       </div>
     </div>
   );
 };
 
-export default Documentation; 
+export default Documentation;

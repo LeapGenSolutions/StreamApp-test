@@ -87,28 +87,28 @@ const VideoCallPage = () => {
   const setAppointmentDetails = useState(null)[1];
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  
+
   useEffect(() => {
-  const queryParams = new URLSearchParams(window.location.search);
-  const roomParam = queryParams.get("room");
+    const queryParams = new URLSearchParams(window.location.search);
+    const roomParam = queryParams.get("room");
 
-  if (roomParam) {
-    setRoom(roomParam);
-    setActiveTab("join");
+    if (roomParam) {
+      setRoom(roomParam);
+      setActiveTab("join");
 
-    const appointment = sortedAppointments.find(
-      (app) => app.id === roomParam
-    );
+      const appointment = sortedAppointments.find(
+        (app) => app.id === roomParam
+      );
 
-    if (appointment) {
-      setAppointmentDetails(appointment);
-    } else {
-      setInvalidMeetingId(true);
+      if (appointment) {
+        setAppointmentDetails(appointment);
+      } else {
+        setInvalidMeetingId(true);
+      }
     }
-  }
-
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [sortedAppointments]);
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedAppointments]);
 
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role") || "doctor";
@@ -177,32 +177,29 @@ const VideoCallPage = () => {
     });
 
   return (
-    <>
-      <PageNavigation showBackButton={true} hideTitle={true} />
+    <div className="space-y-6 px-4">
+      <PageNavigation
+        title="Seismic Video Call"
+        subtitle="Connect with patients through secure video consultations"
+        showBackButton={true}
+        showDate={false}
+        rightSlot={
+          role === "doctor" && activeTab === "upcoming" ? (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 shadow-sm"
+            >
+              + Add
+            </button>
+          ) : null
+        }
+      />
+
       <div className="bg-gray-50 flex flex-col items-center min-h-screen p-4">
         <div className="rounded-lg border bg-white shadow-sm w-full">
-          <div className="flex justify-between items-center p-6 w-full">
-            <div>
-              <h3 className="text-2xl font-semibold leading-none tracking-tight">
-                Seismic Video Call
-              </h3>
-              <p className="text-sm text-gray-500">
-                Connect with patients through secure video consultations
-              </p>
-            </div>
-
-            {activeTab === "upcoming" && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 shadow-sm"
-              >
-                + Add
-              </button>
-            )}
-          </div>
-
-          <div className="p-6 pt-0">
+          <div className="p-6 pt-4">
             <div className="space-y-4">
+              {/* Tabs */}
               <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500 mb-4">
                 {role === "doctor" && (
                   <button
@@ -244,6 +241,7 @@ const VideoCallPage = () => {
                 )}
               </div>
 
+              {/* Upcoming tab */}
               {activeTab === "upcoming" && (
                 <div className="space-y-4">
                   <div className="grid gap-2">
@@ -423,6 +421,7 @@ const VideoCallPage = () => {
                 </div>
               )}
 
+              {/* Join tab */}
               {activeTab === "join" && (
                 <div className="space-y-4">
                   <div className="w-full mb-6">
@@ -459,6 +458,7 @@ const VideoCallPage = () => {
                 </div>
               )}
 
+              {/* History tab */}
               {activeTab === "history" && (
                 <div className="space-y-4">
                   <CallHistory />
@@ -493,7 +493,7 @@ const VideoCallPage = () => {
           }}
         />
       )}
-    </>
+    </div>
   );
 };
 

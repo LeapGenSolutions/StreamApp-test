@@ -10,6 +10,10 @@ import CreateAppointmentModal from "./CreateAppointmentModal";
 import { useSelector } from "react-redux";
 import CreateBulkAppointments from "./createBulkAppointments";
 
+function capitalizeFirst(str = "") {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 const locales = { "en-US": enUS };
 
 const localizer = dateFnsLocalizer({
@@ -91,7 +95,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     const seismicLabel = appt.seismified ? "Seismified" : "Not Seismified";
 
     return {
-      title: `${appt.full_name} (${appt.status} • ${seismicLabel})`,
+      title: `${appt.full_name} (${capitalizeFirst(appt.status)} • ${seismicLabel})`,
       start,
       end,
       allDay: false,
@@ -118,20 +122,23 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   };
 
   /* ------------------------------------------------------------------
-    UPDATED EVENT CELL WITH CLEAR TOOLTIP PER VIEW
+    EVENT CELL WITH RADIO ICON + VIEW-SPECIFIC LAYOUT + STATUS CAPITALIZATION
   ------------------------------------------------------------------ */
   const EventCell = ({ event, currentView }) => {
-    const startTime = format(event.start, "h:mm a");
+    const status = capitalizeFirst(event.status || "Unknown");
+    const startTime = format(event.start, "h:mm");
     const endTime = format(event.end, "h:mm a");
     const timeRange = `${startTime} – ${endTime}`;
 
-    const tooltip = `${event.full_name}\n${timeRange}`;
-
     const seismiText = event.seismified ? "Seismified" : "Not Seismified";
+    const icon = event.seismified ? "◉" : "○";
+
+    const tooltip = `${event.full_name} • ${status} • ${seismiText}\n${timeRange}`;
 
     if (currentView === "day") {
       return (
         <div title={tooltip}>
+          <span style={{ marginRight: 6 }}>{icon}</span>
           <b>{event.full_name}</b>
           <span style={{ marginLeft: 6 }}>({seismiText})</span>
           <div style={{ fontSize: "11px", opacity: 0.9 }}>{timeRange}</div>
@@ -142,6 +149,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     if (currentView === "week") {
       return (
         <div title={tooltip}>
+          <span style={{ marginRight: 6 }}>{icon}</span>
           <b>{event.full_name}</b>
         </div>
       );
@@ -150,6 +158,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     if (currentView === "month") {
       return (
         <div title={tooltip}>
+          <span style={{ marginRight: 6 }}>{icon}</span>
           {event.full_name}
         </div>
       );
@@ -157,6 +166,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
     return (
       <div title={tooltip}>
+        <span style={{ marginRight: 6 }}>{icon}</span>
         <b>{event.full_name}</b>
       </div>
     );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Video, CalendarClock, ShieldCheck, Plug, FileText, BrainCircuit,
-  Smile, ActivitySquare, BarChart3, Bot, Handshake
+  Smile, ActivitySquare, BarChart3, Bot, Handshake 
 } from "lucide-react";
 import { PageNavigation } from "../components/ui/page-navigation";
 
@@ -27,12 +27,16 @@ const roadmap = [
 const About = () => {
   const [tab, setTab] = useState("features");
   return (
-    <>
-      <PageNavigation showBackButton={true} hideTitle={true} />
+    <div className="px-4 pb-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Back Navigation (aligned with other pages) */}
+        <div className="mt-[11px]">
+          <PageNavigation showBackButton={true} hideTitle={true} />
+        </div>
 
-      <div className="max-w-5xl mx-auto py-8 px-4">
+
         {/* Hero Section */}
-        <div className="rounded-2xl bg-gradient-to-tr from-blue-100 via-blue-200 to-purple-100 p-8 mb-8 flex flex-col items-center text-center">
+        <div className="rounded-2xl bg-gradient-to-tr from-blue-100 via-blue-200 to-purple-100 p-8 mt-4 mb-8 flex flex-col items-center text-center">
           {/* Remove the hero image below */}
           {/* <img src="/about-hero.png" alt="About Seismic Connect" className="w-48 h-48 object-contain mb-4" /> */}
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-500 mb-2">About Seismic Connect</h1>
@@ -144,7 +148,7 @@ const About = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

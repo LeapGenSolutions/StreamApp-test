@@ -118,136 +118,138 @@ export function TimelineDashboard() {
   };
 
   return (
-    <div className="timeline-dashboard">
-      <PageNavigation 
-        title="Timeline Dashboard"
-        subtitle="View and manage today's appointments"
-        showDate={true}
-      />
+    <div className="px-4 pb-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <PageNavigation 
+          title="Timeline Dashboard"
+          subtitle="View and manage today's appointments"
+          showDate={true}
+        />
 
-      <div className="timeline-stats-grid">
-        <Card className="timeline-stat-card blue">
-          <CardContent className="p-6">
-            <div className="timeline-stat-content">
-              <div>
-                <p className="timeline-stat-number">
-                  {dashboardData?.todaysAppointments || 0}
-                </p>
-                <p className="timeline-stat-label">Today's Total</p>
+        <div className="timeline-stats-grid">
+          <Card className="timeline-stat-card blue">
+            <CardContent className="p-6">
+              <div className="timeline-stat-content">
+                <div>
+                  <p className="timeline-stat-number">
+                    {dashboardData?.todaysAppointments || 0}
+                  </p>
+                  <p className="timeline-stat-label">Today's Total</p>
+                </div>
+                <Calendar className="w-8 h-8 text-blue-500" />
               </div>
-              <Calendar className="w-8 h-8 text-blue-500" />
+            </CardContent>
+          </Card>
+
+          <Card className="timeline-stat-card green">
+            <CardContent className="p-6">
+              <div className="timeline-stat-content">
+                <div>
+                  <p className="timeline-stat-number">
+                    {dashboardData?.statusCounts.completed || 0}
+                  </p>
+                  <p className="timeline-stat-label">Completed</p>
+                </div>
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="timeline-stat-card yellow">
+            <CardContent className="p-6">
+              <div className="timeline-stat-content">
+                <div>
+                  <p className="timeline-stat-number">
+                    {dashboardData?.statusCounts.waiting || 0}
+                  </p>
+                  <p className="timeline-stat-label">Waiting</p>
+                </div>
+                <HourglassIcon className="w-8 h-8 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="timeline-stat-card purple">
+            <CardContent className="p-6">
+              <div className="timeline-stat-content">
+                <div>
+                  <p className="timeline-stat-number">
+                    {dashboardData?.providers.length || 0}
+                  </p>
+                  <p className="timeline-stat-label">Active Providers</p>
+                </div>
+                <User className="w-8 h-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="timeline-main-card">
+          <CardContent className="p-6">
+            <div className="timeline-header">
+              <h2 className="timeline-title">Today's Schedule Timeline</h2>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card className="timeline-stat-card green">
-          <CardContent className="p-6">
-            <div className="timeline-stat-content">
-              <div>
-                <p className="timeline-stat-number">
-                  {dashboardData?.statusCounts.completed || 0}
-                </p>
-                <p className="timeline-stat-label">Completed</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
+            <div className="timeline-container">
+              <div className="timeline-line"></div>
+              <div className="timeline-items">
+                {todayAppointments.map((appointment) => (
+                  <div key={appointment.id} className="timeline-item">
+                    <div className={`timeline-dot ${appointment.status.replace('-', '-')}`}>
+                      {getStatusIcon(appointment.status)}
+                    </div>
 
-        <Card className="timeline-stat-card yellow">
-          <CardContent className="p-6">
-            <div className="timeline-stat-content">
-              <div>
-                <p className="timeline-stat-number">
-                  {dashboardData?.statusCounts.waiting || 0}
-                </p>
-                <p className="timeline-stat-label">Waiting</p>
-              </div>
-              <HourglassIcon className="w-8 h-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
+                    <Card className="timeline-appointment-card">
+                      <CardContent className="p-4">
+                        <div className="timeline-appointment-header">
+                          <div className="timeline-appointment-meta">
+                            <div className="timeline-time">{appointment.time}</div>
+                            <Badge className={`timeline-status-badge ${appointment.status.replace('-', '-')}`}>
+                              {appointment.status.replace('-', ' ')}
+                            </Badge>
+                            <Badge variant="outline" className="timeline-type-badge">
+                              {appointment.type === "virtual" ? (
+                                <Video className="w-3 h-3" />
+                              ) : (
+                                <MapPin className="w-3 h-3" />
+                              )}
+                              <span>{appointment.type}</span>
+                            </Badge>
+                          </div>
+                          <div className="timeline-duration">
+                            {appointment?.duration !== null ? "--" : appointment?.duration + "min" }
+                          </div>
+                        </div>
 
-        <Card className="timeline-stat-card purple">
-          <CardContent className="p-6">
-            <div className="timeline-stat-content">
-              <div>
-                <p className="timeline-stat-number">
-                  {dashboardData?.providers.length || 0}
-                </p>
-                <p className="timeline-stat-label">Active Providers</p>
+                        <div className="timeline-appointment-details">
+                          <div className="timeline-detail-section">
+                            <p className="timeline-detail-label">Patient</p>
+                            <p className="timeline-detail-value">{appointment.full_name}</p>
+                          </div>
+                          <div className="timeline-detail-section">
+                            <p className="timeline-detail-label">Provider</p>
+                            <p className="timeline-detail-value">{appointment.doctor_name}</p>
+                            <p className="timeline-detail-subtitle">{appointment.specialization}</p>
+                          </div>
+                        </div>
+
+                        {appointment.status === "in-progress" && (
+                          <div className="timeline-active-session">
+                            <div className="timeline-active-indicator">
+                              <Activity className="w-4 h-4 text-blue-500 animate-pulse" />
+                              <span className="timeline-active-text">Currently in session</span>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
               </div>
-              <User className="w-8 h-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="timeline-main-card">
-        <CardContent className="p-6">
-          <div className="timeline-header">
-            <h2 className="timeline-title">Today's Schedule Timeline</h2>
-          </div>
-
-          <div className="timeline-container">
-            <div className="timeline-line"></div>
-            <div className="timeline-items">
-              {todayAppointments.map((appointment) => (
-                <div key={appointment.id} className="timeline-item">
-                  <div className={`timeline-dot ${appointment.status.replace('-', '-')}`}>
-                    {getStatusIcon(appointment.status)}
-                  </div>
-
-                  <Card className="timeline-appointment-card">
-                    <CardContent className="p-4">
-                      <div className="timeline-appointment-header">
-                        <div className="timeline-appointment-meta">
-                          <div className="timeline-time">{appointment.time}</div>
-                          <Badge className={`timeline-status-badge ${appointment.status.replace('-', '-')}`}>
-                            {appointment.status.replace('-', ' ')}
-                          </Badge>
-                          <Badge variant="outline" className="timeline-type-badge">
-                            {appointment.type === "virtual" ? (
-                              <Video className="w-3 h-3" />
-                            ) : (
-                              <MapPin className="w-3 h-3" />
-                            )}
-                            <span>{appointment.type}</span>
-                          </Badge>
-                        </div>
-                        <div className="timeline-duration">
-                          {appointment?.duration !== null ? "--" : appointment?.duration + "min" }
-                        </div>
-                      </div>
-
-                      <div className="timeline-appointment-details">
-                        <div className="timeline-detail-section">
-                          <p className="timeline-detail-label">Patient</p>
-                          <p className="timeline-detail-value">{appointment.full_name}</p>
-                        </div>
-                        <div className="timeline-detail-section">
-                          <p className="timeline-detail-label">Provider</p>
-                          <p className="timeline-detail-value">{appointment.doctor_name}</p>
-                          <p className="timeline-detail-subtitle">{appointment.specialization}</p>
-                        </div>
-                      </div>
-
-                      {appointment.status === "in-progress" && (
-                        <div className="timeline-active-session">
-                          <div className="timeline-active-indicator">
-                            <Activity className="w-4 h-4 text-blue-500 animate-pulse" />
-                            <span className="timeline-active-text">Currently in session</span>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

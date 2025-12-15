@@ -8,6 +8,7 @@ import EditAppointmentModal from "./EditAppointmentModal";
 import DeleteAppointmentModal from "./DeleteAppointmentModal";
 import CancelAppointmentModal from "./CancelAppointmentModal";
 import { Pencil, Trash2, XCircle } from "lucide-react";
+import { formatUsDate } from "../../lib/dateUtils";
 
 const AppointmentModal = ({
   selectedAppointment,
@@ -39,9 +40,7 @@ const AppointmentModal = ({
     selectedAppointment?.birthDate ||
     null;
 
-  const formattedDOB = rawDOB
-    ? new Date(rawDOB).toLocaleString("en-US", { month: "short", year: "numeric" })
-    : "—";
+  const formattedDOB = formatUsDate(rawDOB);
 
   const maskedDOB = "Hidden";
 

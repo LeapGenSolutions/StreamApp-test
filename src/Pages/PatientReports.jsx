@@ -11,6 +11,7 @@ import { fetchSummaryofSummaries } from "../api/summaryOfSummaries";
 import { PageNavigation } from "../components/ui/page-navigation";
 import { format, isToday } from "date-fns";
 import { fetchCallHistory } from "../api/callHistory";
+import { formatUsDate } from "../lib/dateUtils";
 
 const PatientReports = () => {
   const { patientId } = useParams();
@@ -166,15 +167,7 @@ const PatientReports = () => {
     patient?.original_json?.details?.dob ||
     patient?.original_json?.original_json?.details?.dob;
 
-  let formattedDob = "Not Available";
-  if (rawDOB) {
-    const d = new Date(rawDOB);
-    if (!isNaN(d.getTime())) formattedDob = format(d, "MMM yyyy");
-  }
-  if (!patient) {
-    navigate("/patients");
-    return null;
-  }
+const formattedDOB = formatUsDate(rawDOB);
 
   return (
     <div className="p-6 w-full space-y-6">
@@ -191,16 +184,17 @@ const PatientReports = () => {
       {/* Patient Info */}
       <div className="bg-white border rounded-xl shadow p-6">
         <PatientInfoComponent
-          firstName={firstName}
-          lastName={lastName}
-          phone={maskedPhone}
-          email={maskedEmail}
-          insuranceProvider={insuranceProvider}
-          insuranceId={insuranceId}
-          lastVisit={lastVisit}
-          totalAppointments={mergedAppointments.length}
-          dob={formattedDob}
-        />
+        firstName={firstName}
+        lastName={lastName}
+        phone={maskedPhone}
+        email={maskedEmail}
+        insuranceProvider={insuranceProvider}
+        insuranceId={insuranceId}
+        lastVisit={lastVisit}
+        totalAppointments={mergedAppointments.length}
+        dob={formattedDOB}
+      />
+
 
         <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
       </div>

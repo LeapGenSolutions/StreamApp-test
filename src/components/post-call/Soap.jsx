@@ -7,6 +7,114 @@ import SubjectiveSection from "./sections/SubjectiveSection";
 import ObjectiveSection from "./sections/ObjectiveSection";
 import AssessmentPlanSection from "./sections/AssessmentPlanSection";
 
+
+const SECTION_TITLES = [
+  "Procedure Information",
+  "Anesthesia / Analgesia",
+  "Preparation & Equipment",
+  "Procedure Description",
+  "Post-Procedure Assessment",
+  "Discharge Instructions",
+   "Provider Attestation",
+];
+
+
+const ProcedureNotesSection = ({ content }) => {
+  if (!content) {
+    return (
+      <p className="text-sm text-black-500 italic">
+        No procedure notes available.
+      </p>
+    );
+  }
+
+  const lines = content
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(
+      (line) =>
+        line &&
+        line.toLowerCase() !== "procedure_notes -" &&
+        line.toLowerCase() !== "procedure note" &&
+        !line.toLowerCase().includes("provider attestation")
+    );
+
+  const sections = [];
+  let current = null;
+
+  lines.forEach((line) => {
+    if (SECTION_TITLES.includes(line)) {
+      current = { title: line, items: [] };
+      sections.push(current);
+      return;
+    }
+
+    if (!current) {
+      current = { title: "Procedure Notes", items: [] };
+      sections.push(current);
+    }
+
+    current.items.push(line);
+  });
+
+  const isCalloutSection = (title) =>
+    title === "Procedure Description";
+
+  const renderLine = (line, idx) => {
+    if (line.includes(":")) {
+      const [label, ...rest] = line.split(":");
+      const value = rest.join(":").trim();
+
+      return (
+        <div key={idx} className="grid grid-cols-12 gap-6 py-2">
+          <div className="col-span-4 text-sm font-medium text-black-700">
+            {label}
+          </div>
+          <div className="col-span-8 text-sm text-black-900">
+            {value || "—"}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <p key={idx} className="text-sm text-black-800 leading-relaxed py-1">
+        {line}
+      </p>
+    );
+  };
+
+  return (
+    <div className="space-y-10">
+      {sections.map((section, idx) => (
+        <div key={idx} className="pb-6 border-b border-black-200">
+          <h4 className="text-blue-600 font-semibold text-lg mb-4">
+            {section.title}
+          </h4>
+
+          {isCalloutSection(section.title) ? (
+            <div className="bg-gray-50 border-l-4 border-blue-300 rounded-md p-4 space-y-2">
+              {section.items.map((line, i) => (
+                <p
+                  key={i}
+                  className="text-sm text-black-800 leading-relaxed"
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-black-100">
+              {section.items.map((line, i) => renderLine(line, i))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ---------------- Main SOAP ---------------- */
 const Soap = ({ appointmentId, username }) => {
   const [soapNotes, setSoapNotes] = useState({
     patient: "",
@@ -15,245 +123,193 @@ const Soap = ({ appointmentId, username }) => {
     assessmentAndPlan: {},
   });
 
+  const [procedureNotes, setProcedureNotes] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [, setRawFromServer] = useState("");
+  const [activeTab, setActiveTab] = useState("soap");
 
-  // eslint-disable-next-line 
-  const controlCharRegex = useMemo(() => new RegExp("[\\x00-\\x1F]+", "g"), []);
+  // eslint-disable-next-line no-control-regex
+  const controlCharRegex = useMemo(
+    // eslint-disable-next-line no-control-regex
+    () => new RegExp("[\\x00-\\x1F]+", "g"),
+    []
+  );
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["soap-notes", appointmentId, username],
-    queryFn: () => fetchSoapNotes(`${username}_${appointmentId}_soap`, username),
+    queryFn: () =>
+      fetchSoapNotes(`${username}_${appointmentId}_soap`, username),
   });
 
   useEffect(() => {
-    if (data?.data?.soap_notes && !isLoading) {
-      const raw = data.data.soap_notes;
-      setRawFromServer(raw);
+    if (!data?.data?.soap_notes) return;
 
-      // --- Extract text sections ---
-      const patientMatch = raw.match(/Patient:\s*(.*?)\n/);
-      const reasonMatch = raw.match(/Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/);
-      const subjectiveMatch = raw.match(/Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/);
-      const familyHistoryMatch = raw.match(/Family history discussed in this appointment -([\s\S]*?)(?=\n\nSurgical history discussed)/);
-      const surgicalHistoryMatch = raw.match(/Surgical history discussed in this appointment -([\s\S]*?)(?=\n\nSocial history discussed)/);
-      const socialHistoryMatch = raw.match(/Social history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/);
-      const rosMatch = raw.match(/Review of Systems(?:\s*\(ROS\))?:\s*([\s\S]*?)(?=\n\nObjective -)/);
-      const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/);
-      const assessmentPlanMatch = raw.match(/Assessment and Plan -([\s\S]*)$/);
+    const raw = data.data.soap_notes;
+    const [soapPart, procedurePart = ""] =
+      raw.split("procedure_notes -");
 
-      // --- Parse JSON sections ---
-      let objectiveJSON = {};
-      let assessmentPlanJSON = {};
+    setProcedureNotes(procedurePart.trim());
 
-      try {
-        const objRaw = objectiveMatch?.[1]?.trim();
-        if (objRaw && objRaw.includes("{") && objRaw.includes("}")) {
-          const startIdx = objRaw.indexOf("{");
-          const endIdx = objRaw.lastIndexOf("}");
-          const jsonString = objRaw
-            .slice(startIdx, endIdx + 1)
+    const patientMatch = soapPart.match(/Patient:\s*(.*?)\n/);
+    const reasonMatch = soapPart.match(
+      /Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/
+    );
+    const subjectiveMatch = soapPart.match(
+      /Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/
+    );
+    const familyHistoryMatch = soapPart.match(
+      /Family history discussed in this appointment -([\s\S]*?)(?=\n\nSurgical history discussed)/
+    );
+    const surgicalHistoryMatch = soapPart.match(
+      /Surgical history discussed in this appointment -([\s\S]*?)(?=\n\nSocial history discussed)/
+    );
+    const socialHistoryMatch = soapPart.match(
+      /Social history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/
+    );
+    const rosMatch = soapPart.match(
+      /Review of Systems(?:\s*\(ROS\))?:\s*([\s\S]*?)(?=\n\nObjective -)/
+    );
+    const objectiveMatch = soapPart.match(
+      /Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/
+    );
+    const assessmentPlanMatch = soapPart.match(
+      /Assessment and Plan -([\s\S]*)$/
+    );
+
+    let objectiveJSON = {};
+    let assessmentPlanJSON = {};
+
+    try {
+      const objRaw = objectiveMatch?.[1];
+      if (objRaw?.includes("{")) {
+        objectiveJSON = JSON.parse(
+          objRaw
+            .slice(objRaw.indexOf("{"), objRaw.lastIndexOf("}") + 1)
             .replace(controlCharRegex, "")
-            .replace(/\\n/g, "\\n");
-          objectiveJSON = JSON.parse(jsonString);
-        }
-      } catch (err) {
-        console.warn("Objective JSON parse error:", err.message);
-        objectiveJSON = {};
+        );
       }
+    } catch {}
 
-      try {
-        const apRaw = assessmentPlanMatch?.[1]?.trim();
-        if (apRaw && apRaw.includes("{") && apRaw.includes("}")) {
-          const startIdx = apRaw.indexOf("{");
-          const endIdx = apRaw.lastIndexOf("}");
-          const jsonString = apRaw
-            .slice(startIdx, endIdx + 1)
+    try {
+      const apRaw = assessmentPlanMatch?.[1];
+      if (apRaw?.includes("{")) {
+        assessmentPlanJSON = JSON.parse(
+          apRaw
+            .slice(apRaw.indexOf("{"), apRaw.lastIndexOf("}") + 1)
             .replace(controlCharRegex, "")
-            .replace(/\\n/g, "\\n");
-          assessmentPlanJSON = JSON.parse(jsonString);
-        } else {
-          console.warn("Assessment & Plan section missing JSON structure.");
-        }
-      } catch (err) {
-        console.warn("Assessment & Plan JSON parse error:", err.message);
-        assessmentPlanJSON = {};
+        );
       }
+    } catch {}
 
-      // --- Clean chief complaint ---
-      const rawReason = (reasonMatch?.[1] || "").trim();
-      const cleanedComplaint = rawReason
-        .replace(/^(The\s*)?(Patient|Pt)\s*(presents|reports)\s*(with\s*)?/i, "")
-        .trim();
-      const formattedComplaint = cleanedComplaint
-        ? cleanedComplaint.charAt(0).toUpperCase() + cleanedComplaint.slice(1)
-        : "";
+    setSoapNotes({
+      patient: patientMatch?.[1] || "",
+      subjective: {
+        chief_complaint: (reasonMatch?.[1] || "").trim(),
+        hpi: (subjectiveMatch?.[1] || "").trim(),
+        family_history: (familyHistoryMatch?.[1] || "").trim(),
+        surgical_history: (surgicalHistoryMatch?.[1] || "").trim(),
+        social_history: (socialHistoryMatch?.[1] || "").trim(),
+        ros: (rosMatch?.[1] || "").trim(),
+      },
+      objective: objectiveJSON,
+      assessmentAndPlan: assessmentPlanJSON,
+    });
+  }, [data, controlCharRegex]);
 
-      // --- Format patient info ---
-      const rawPatient = patientMatch?.[1]?.trim() || "";
-      let formattedPatient = rawPatient;
-      try {
-        const match = rawPatient.match(/(.*?),\s*(\d+)\s*years old,\s*(F|M)/i);
-        if (match) {
-          const [, name, age, gender] = match;
-          const genderFull =
-            gender.toUpperCase() === "F"
-              ? "Female"
-              : gender.toUpperCase() === "M"
-              ? "Male"
-              : "";
-          formattedPatient = `${name.trim()}, ${age.trim()}-year-old ${genderFull}`;
-        }
-      } catch {
-        formattedPatient = rawPatient;
-      }
-
-      // --- Build final structured object ---
-      setSoapNotes({
-        patient: formattedPatient,
-        subjective: {
-          chief_complaint: formattedComplaint,
-          hpi: (subjectiveMatch?.[1] || "").trim(),
-          family_history: (familyHistoryMatch?.[1] || "").trim(),
-          surgical_history: (surgicalHistoryMatch?.[1] || "").trim(),
-          social_history: (socialHistoryMatch?.[1] || "").trim(),
-          ros: (rosMatch?.[1] || "").trim(),
-        },
-        objective: objectiveJSON,
-        assessmentAndPlan: assessmentPlanJSON,
-      });
-    }
-  }, [data, isLoading, controlCharRegex]);
-
-  //  Save mutation logic remains same
   const mutation = useMutation({
     mutationFn: (updatedNotes) =>
-      updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
+      updateSoapNotes(
+        `${username}_${appointmentId}_soap`,
+        username,
+        updatedNotes
+      ),
     onSuccess: () => {
       refetch();
       setIsEditing(false);
     },
-    onError: () => alert("Failed to save SOAP notes."),
   });
 
-  const buildRawSoap = useMemo(() => {
-    return (state) => {
-      const {
-        patient,
-        subjective: { chief_complaint, hpi, family_history, surgical_history, social_history, ros },
-        objective,
-        assessmentAndPlan,
-      } = state;
-
-      const patientLine = patient ? `Patient: ${patient}` : "";
-      const reasonLine = chief_complaint ? `Reason for Visit - ${chief_complaint}` : "";
-      const subjBlock = `Subjective - ${hpi || ""}`;
-      const famBlock = `Family history discussed in this appointment - ${
-        family_history || "Not discussed"
-      }`;
-      const surgBlock = `Surgical history discussed in this appointment - ${
-        surgical_history || "Not discussed"
-      }`;
-      const socialBlock = `Social history discussed in this appointment - ${
-        social_history || "Not discussed"
-      }`;
-      const rosBlock = ros ? `Review of Systems:\n${ros}` : "Review of Systems:\n";
-      const objectiveBlock = `Objective - ${JSON.stringify(objective || {}, null, 2)}`;
-      const apBlock = `Assessment and Plan - ${JSON.stringify(
-        assessmentAndPlan || {},
-        null,
-        2
-      )}`;
-
-      return [
-        patientLine,
+  const buildRawSoap = useMemo(
+    () => (state) =>
+      [
+        state.patient ? `Patient: ${state.patient}` : "",
         "",
-        reasonLine,
+        `Reason for Visit - ${state.subjective.chief_complaint || ""}`,
         "",
-        subjBlock,
+        `Subjective - ${state.subjective.hpi || ""}`,
         "",
-        famBlock,
+        `Objective - ${JSON.stringify(state.objective || {}, null, 2)}`,
         "",
-        surgBlock,
-        "",
-        socialBlock,
-        "",
-        rosBlock,
-        "",
-        objectiveBlock,
-        "",
-        apBlock,
-      ].join("\n");
-    };
-  }, []);
-
-  const handleSave = async () => {
-    const rawOut = buildRawSoap(soapNotes);
-    mutation.mutate(rawOut);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    refetch();
-  };
+        `Assessment and Plan - ${JSON.stringify(
+          state.assessmentAndPlan || {},
+          null,
+          2
+        )}`,
+        procedureNotes ? `\n\nprocedure_notes - ${procedureNotes}` : "",
+      ].join("\n"),
+    [procedureNotes]
+  );
 
   if (isLoading) return <LoadingCard message="Loading SOAP..." />;
   if (error) return <LoadingCard />;
 
   return (
-    <div className="space-y-6 text-gray-900 leading-snug">
-      <h3 className="font-semibold text-black text-lg">SOAP Notes</h3>
+    <div className="space-y-6 text-black-900">
+      <h3 className="text-lg font-semibold">Clinical Documentation</h3>
 
-      <div className="space-y-6 divide-y divide-gray-300">
-        {soapNotes.patient && (
-          <div className="pb-2">
-            <p className="text-base font-medium text-gray-900">{soapNotes.patient}</p>
-          </div>
-        )}
-
-        <SubjectiveSection
-          soapNotes={soapNotes}
-          setSoapNotes={setSoapNotes}
-          isEditing={isEditing}
-        />
-        <ObjectiveSection
-          soapNotes={soapNotes}
-          setSoapNotes={setSoapNotes}
-          isEditing={isEditing}
-        />
-        <AssessmentPlanSection
-          soapNotes={soapNotes}
-          setSoapNotes={setSoapNotes}
-          isEditing={isEditing}
-        />
-      </div>
-
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
-        {!isEditing ? (
-          <Button
-            onClick={() => setIsEditing(true)}
-            className="bg-yellow-600 text-white hover:bg-yellow-700"
+      <div className="flex gap-3">
+        {["soap", "procedure"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-2 rounded-md text-sm font-medium border ${
+              activeTab === tab
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white text-black-700 border-black-300"
+            }`}
           >
-            Edit
-          </Button>
-        ) : (
-          <>
-            <Button
-              onClick={handleSave}
-              disabled={mutation.isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {mutation.isLoading ? "Saving..." : "Save SOAP Notes"}
-            </Button>
-            <Button
-              onClick={handleCancel}
-              className="bg-gray-500 hover:bg-gray-600 text-white"
-            >
-              Cancel
-            </Button>
-          </>
-        )}
+            {tab === "soap" ? "SOAP" : "Procedure Notes"}
+          </button>
+        ))}
       </div>
+
+      {activeTab === "soap" ? (
+        <>
+          <SubjectiveSection
+            soapNotes={soapNotes}
+            setSoapNotes={setSoapNotes}
+            isEditing={isEditing}
+          />
+          <ObjectiveSection
+            soapNotes={soapNotes}
+            setSoapNotes={setSoapNotes}
+            isEditing={isEditing}
+          />
+          <AssessmentPlanSection
+            soapNotes={soapNotes}
+            setSoapNotes={setSoapNotes}
+            isEditing={isEditing}
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            {!isEditing ? (
+              <Button onClick={() => setIsEditing(true)}>Edit</Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => mutation.mutate(buildRawSoap(soapNotes))}
+                >
+                  Save
+                </Button>
+                <Button variant="secondary" onClick={refetch}>
+                  Cancel
+                </Button>
+              </>
+            )}
+          </div>
+        </>
+      ) : (
+        <ProcedureNotesSection content={procedureNotes} />
+      )}
     </div>
   );
 };

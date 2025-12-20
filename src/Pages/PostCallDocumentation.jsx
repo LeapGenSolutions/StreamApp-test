@@ -225,10 +225,7 @@ const dob = rawDob
             <EmotionalConnect
               username={username}
               appointmentId={callId}
-              patientId={
-                selectedAppointment.patient_id ||
-                selectedAppointment.patient_Id
-              }
+              appointment={selectedAppointment}
             />
           )}
         </CardContent>

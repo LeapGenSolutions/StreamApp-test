@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import axios from "axios";
 import { useSelector } from "react-redux";
 import { BACKEND_URL } from "../../constants";
@@ -82,17 +82,17 @@ const CreateBulkAppointments = ({ onClose }) => {
                 "practice_id": "99999",
                 "doctor_id": doctor_details.doctor_id || ""
             }))
-
-            const response = await axios.post(`${BACKEND_URL}api/appointments/bulk/appointments`, formData, {
+            await axios.post(`${BACKEND_URL}api/appointments/bulk/appointments`, formData, {
                  headers: {
                     "Content-Type": "multipart/form-data",
                 },
             });
-            setMessage("✔ Uploaded Successfully: " + (response?.data?.fileUrl ?? ""));
+            setMessage("✔ Uploaded Successfully");
         } catch (err) {
             console.error(err);
-            setMessage("❌ Upload failed: " + (err?.message ?? ""));
+            setMessage("❌ Upload failed please try again.");
         }
+        setFile(null);
     };
 
     const formatBytes = (bytes, decimals = 2) => {
@@ -103,6 +103,11 @@ const CreateBulkAppointments = ({ onClose }) => {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
     };
+
+    const handleDownloadTemplate = () => {
+        const templateUrl = `https://leapgenai-my.sharepoint.com/:x:/g/personal/goutham_leapgen_ai/IQApLWLGTmU-SIc0aHvoaJXJAWN9Q-qSD3WXISWfv7JrSrA?rtime=Zcm4qRs33kg`;
+        window.open(templateUrl, "_blank");
+    }
 
     return (
         <div
@@ -127,10 +132,29 @@ const CreateBulkAppointments = ({ onClose }) => {
                 </div>
 
                 <div className="p-6">
-                    <p className="text-sm text-gray-700 mb-4">
+                    <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded flex items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                            <span className="text-amber-600 text-xl font-bold flex-shrink-0">⚠️</span>
+                            <div>
+                                <h3 className="font-semibold text-amber-900 text-sm mb-1">Important: Follow Template Format</h3>
+                                <p className="text-xs text-amber-800">
+                                    Your Excel file must match the template structure exactly. Download the template, fill in your appointment data, and upload it without modifying column names or structure.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleDownloadTemplate}
+                            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 border border-blue-600 flex-shrink-0 whitespace-nowrap text-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download
+                        </button>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-6">
                         Please upload an Excel file (.xlsx or .xls) containing the appointment details.
                     </p>
-
                     <div
                         className={`w-full mb-3 rounded-lg p-8 border-2 ${isDragging ? 'border-blue-600 bg-blue-50' : 'border-dashed border-blue-300'} flex flex-col items-center justify-center text-center cursor-pointer`}
                         onDragOver={onDragOver}

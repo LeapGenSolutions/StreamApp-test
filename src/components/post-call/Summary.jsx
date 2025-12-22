@@ -8,7 +8,7 @@ import { fetchSoapNotes } from "../../api/soap";
 import { fetchSummaryofSummaries } from "../../api/summaryOfSummaries";
 import LoadingCard from "./LoadingCard";
 import SummaryOfPatient from "../patients/SummaryOfPatient";
-import { fetchCallHistory } from "../../api/callHistory"; // ✅ Added :contentReference[oaicite:0]{index=0}
+import { fetchCallHistory } from "../../api/callHistory"; 
 
 const extractReasonFromSoap = (soapText) => {
   const match = soapText.match(/Reason for Visit\s*[-–—:]?\s*(.*?)(\n|$)/i);
@@ -106,27 +106,18 @@ const Summary = ({ appointmentId, username, patientId }) => {
             <span className="font-bold">Patient:</span>{" "}
             {selectedAppointment?.full_name}
           </p>
-
-          
-          <p className="mb-2 font-semibold text-gray-800">Call Time:</p>
-
-
           <p className="mb-2">
             <span className="font-bold">Start Time:</span>{" "}
             {callHistoryEntry?.startTime
               ? new Date(callHistoryEntry.startTime).toLocaleString()
               : "—"}
           </p>
-
-
           <p className="mb-2">
             <span className="font-bold">End Time:</span>{" "}
             {callHistoryEntry?.endTime
               ? new Date(callHistoryEntry.endTime).toLocaleString()
               : "—"}
           </p>
-
-
           <p className="mb-2">
             <span className="font-bold">Reason for Visit:</span>{" "}
             {reasonForVisit}

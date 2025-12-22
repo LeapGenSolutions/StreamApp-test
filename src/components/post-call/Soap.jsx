@@ -7,7 +7,6 @@ import SubjectiveSection from "./sections/SubjectiveSection";
 import ObjectiveSection from "./sections/ObjectiveSection";
 import AssessmentPlanSection from "./sections/AssessmentPlanSection";
 
-
 const SECTION_TITLES = [
   "Procedure Information",
   "Anesthesia / Analgesia",
@@ -15,11 +14,9 @@ const SECTION_TITLES = [
   "Procedure Description",
   "Post-Procedure Assessment",
   "Discharge Instructions",
-   "Provider Attestation",
+  "Provider Attestation",
 ];
-
-
-const ProcedureNotesSection = ({ content }) => {
+const ProcedureNotesSection = ({ content, procedureMeta }) => {
   if (!content) {
     return (
       <p className="text-sm text-black-500 italic">
@@ -27,7 +24,6 @@ const ProcedureNotesSection = ({ content }) => {
       </p>
     );
   }
-
   const lines = content
     .split("\n")
     .map((l) => l.trim())
@@ -61,31 +57,40 @@ const ProcedureNotesSection = ({ content }) => {
     title === "Procedure Description";
 
   const renderLine = (line, idx) => {
-    if (line.includes(":")) {
-      const [label, ...rest] = line.split(":");
-      const value = rest.join(":").trim();
-
-      return (
-        <div key={idx} className="grid grid-cols-12 gap-6 py-2">
-          <div className="col-span-4 text-sm font-medium text-black-700">
-            {label}
-          </div>
-          <div className="col-span-8 text-sm text-black-900">
-            {value || "—"}
-          </div>
-        </div>
-      );
+  if (line.includes(":")) {
+    const [label, ...rest] = line.split(":");
+    let value = rest.join(":").trim(); 
+    if (
+      procedureMeta &&
+      label.toLowerCase().includes("date & time") &&
+      value.toLowerCase().includes("insert")
+    ) {
+      value = `${procedureMeta.date}, ${procedureMeta.start} – ${procedureMeta.end}`;
     }
 
     return (
-      <p key={idx} className="text-sm text-black-800 leading-relaxed py-1">
-        {line}
-      </p>
+      <div key={idx} className="grid grid-cols-12 gap-6 py-2">
+        <div className="col-span-4 text-sm font-medium text-black-700">
+          {label}
+        </div>
+        <div className="col-span-8 text-sm text-black-900">
+          {value || "—"}
+        </div>
+      </div>
     );
-  };
+  }
+
+  return (
+    <p key={idx} className="text-sm text-black-800 leading-relaxed py-1">
+      {line}
+    </p>
+  );
+};
+
 
   return (
     <div className="space-y-10">
+
       {sections.map((section, idx) => (
         <div key={idx} className="pb-6 border-b border-black-200">
           <h4 className="text-blue-600 font-semibold text-lg mb-4">
@@ -113,8 +118,6 @@ const ProcedureNotesSection = ({ content }) => {
     </div>
   );
 };
-
-/* ---------------- Main SOAP ---------------- */
 const Soap = ({ appointmentId, username }) => {
   const [soapNotes, setSoapNotes] = useState({
     patient: "",
@@ -126,6 +129,9 @@ const Soap = ({ appointmentId, username }) => {
   const [procedureNotes, setProcedureNotes] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("soap");
+  const navState = window.history.state || {};
+  const encounterStart = navState?.startTime;
+  const encounterEnd = navState?.endTime;
 
   // eslint-disable-next-line no-control-regex
   const controlCharRegex = useMemo(
@@ -251,6 +257,20 @@ const Soap = ({ appointmentId, username }) => {
 
   if (isLoading) return <LoadingCard message="Loading SOAP..." />;
   if (error) return <LoadingCard />;
+  const procedureMeta =
+    encounterStart && encounterEnd
+      ? {
+          date: new Date(encounterStart).toLocaleDateString("en-US"),
+          start: new Date(encounterStart).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+          end: new Date(encounterEnd).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+        }
+      : null;
 
   return (
     <div className="space-y-6 text-black-900">
@@ -308,10 +328,12 @@ const Soap = ({ appointmentId, username }) => {
           </div>
         </>
       ) : (
-        <ProcedureNotesSection content={procedureNotes} />
+        <ProcedureNotesSection
+          content={procedureNotes}
+          procedureMeta={procedureMeta}
+        />
       )}
     </div>
   );
 };
-
 export default Soap

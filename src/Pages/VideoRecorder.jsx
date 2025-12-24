@@ -160,22 +160,30 @@ const VideoCallPage = () => {
     );
   };
 
-  const SortedAppointmentsComponent = () =>
-    sortedAppointments.map((appointment) => {
-      const startTime = parse(appointment.time, "HH:mm", new Date());
-      const formattedStart = format(startTime, "h:mm a");
-
-      const capitalizedStatus =
-        appointment.status?.charAt(0).toUpperCase() +
-          appointment.status?.slice(1) || "Unknown";
-
-      return (
-        <option key={appointment.id} value={appointment.id}>
-          {appointment.full_name} – {formattedStart} ({capitalizedStatus})
-        </option>
+const SortedAppointmentsComponent = () =>
+  sortedAppointments.map((appointment) => {
+    let formattedStart = "Time not set";
+    if (appointment.time && typeof appointment.time === "string") {
+      const parsedTime = parse(
+        appointment.time.trim(),
+        "HH:mm",
+        new Date()
       );
-    });
-
+      if (!Number.isNaN(parsedTime.getTime())) {
+        formattedStart = format(parsedTime, "h:mm a");
+      }
+    }
+    const capitalizedStatus =
+      appointment.status
+        ? appointment.status.charAt(0).toUpperCase() +
+          appointment.status.slice(1)
+        : "Unknown";
+    return (
+      <option key={appointment.id} value={appointment.id}>
+        {appointment.full_name} – {formattedStart} ({capitalizedStatus})
+      </option>
+    );
+  });
   return (
     <div className="space-y-6 px-4">
       <PageNavigation

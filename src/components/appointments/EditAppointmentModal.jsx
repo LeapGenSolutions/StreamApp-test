@@ -204,7 +204,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 error={errors.appointment_date}
               />
               <Input
-                label="Time"
+                label="Time(24hr Format)"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}

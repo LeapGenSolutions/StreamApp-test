@@ -8,7 +8,7 @@ import UnsavedChangesModal from "../UnsavedChangesModal";
 import { Calendar, User2, Clock } from "lucide-react";
 import SeismicTimeDropdown from "./SeismicTimeDropdown";
 
-const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
+const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const { toast } = useToast();
   const dispatch = useDispatch();
 
@@ -71,6 +71,11 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     p;
 
   const norm = (str) => (str || "").toString().toLowerCase().trim();
+  const getFirstName = (d) => d.first_name || d.firstname || "";
+  const getMiddleName = (d) => d.middle_name || d.middlename || "";
+  const getLastName = (d) => d.last_name || d.lastname || "";
+  const getGender = (d) => d.gender || d.sex || "";
+  const getPhone = (d) => d.phone || d.contactmobilephone || "";
 
   const resetPatientAndForm = () => {
     setExistingPatient(null);
@@ -104,15 +109,17 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       return;
     }
 
-    const matches = patientsList.filter((p) => {
-      const d = extractDetails(p);
-      const full = norm(
-        [d.first_name, d.middle_name, d.last_name].filter(Boolean).join(" ")
-      );
-      const first = norm(d.first_name);
-      const last = norm(d.last_name);
-      return full.includes(term) || first.includes(term) || last.includes(term);
-    });
+  const matches = patientsList.filter((p) => {
+  const d = extractDetails(p);
+  const firstName = getFirstName(d);
+  const middleName = getMiddleName(d);
+  const lastName = getLastName(d);
+  const full = norm([firstName, middleName, lastName].filter(Boolean).join(" "));
+  const first = norm(firstName);
+  const last = norm(lastName);
+
+  return full.includes(term) || first.includes(term) || last.includes(term);
+});
 
     if (!matches.length) {
       setNameMatches([]);
@@ -128,14 +135,14 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     const resolvedMRN = extractMRN(match);
 
     setFormData((prev) => ({
-      ...prev,
-      first_name: d.first_name || "",
-      middle_name: d.middle_name || "",
-      last_name: d.last_name || "",
+  ...prev,
+      first_name: getFirstName(d),
+      middle_name: getMiddleName(d),
+      last_name: getLastName(d),
       dob: d.dob ?? "",
-      gender: d.gender || "",
+      gender: getGender(d),
       email: d.email || "",
-      phone: d.phone || "",
+      phone: getPhone(d),
       ehr: d.ehr || "",
       mrn: resolvedMRN || d.mrn || prev.mrn || "",
     }));
@@ -208,6 +215,23 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       });
       return;
     }
+    // DOB validation: today and past allowed, future blocked
+const todayISO = new Date().toISOString().split("T")[0];
+
+if (formData.dob && formData.dob > todayISO) {
+  toast({
+    title: "Invalid Date of Birth",
+    description: "Date of birth cannot be in the future.",
+    variant: "destructive",
+  });
+
+  setErrors((prev) => ({
+    ...prev,
+    dob: "Date of birth cannot be in the future.",
+  }));
+
+  return;
+}
 
     try {
       const today = new Date();
@@ -330,9 +354,8 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       );
 
       toast({
-        title: "Appointment created",
-        description: "The appointment has been successfully scheduled.",
-        variant: "success",
+      title: "Appointment created",
+      description: "The appointment has been successfully scheduled.",
       });
 
       const savedAppointment = created?.data?.[created.data.length - 1];
@@ -416,9 +439,11 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 {nameMatches.map((p) => {
                   const d = extractDetails(p);
 
-                  const displayName = [d.first_name, d.middle_name, d.last_name]
-                    .filter(Boolean)
-                    .join(" ");
+                  const displayName = [
+                  getFirstName(d),
+                  getMiddleName(d),
+                  getLastName(d),
+                ].filter(Boolean).join(" ");
 
                   let formattedDOB = "—";
 
@@ -468,14 +493,15 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
 
                 <div className="grid grid-cols-2 gap-3 min-w-[0]">
                   <Input
-                    label="Appointment Date *"
-                    type="date"
-                    name="appointment_date"
-                    value={formData.appointment_date}
-                    onChange={handleChange}
-                    error={errors.appointment_date}
-                    touched={touched.appointment_date}
-                  />
+  label="Appointment Date *"
+  type="date"
+  name="appointment_date"
+  value={formData.appointment_date}
+  min={new Date().toISOString().split("T")[0]}
+  onChange={handleChange}
+  error={errors.appointment_date}
+  touched={touched.appointment_date}
+/>
 
                   <div className="min-w-[180px]">
                     <SeismicTimeDropdown
@@ -543,16 +569,26 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                     touched={touched.last_name}
                   />
 
-                  <Input
+                 <Input
                     type="date"
                     label="Date of Birth *"
                     name="dob"
                     value={formData.dob}
+                    max={new Date().toISOString().split("T")[0]}
                     readOnly={!!existingPatient}
-                    onChange={existingPatient ? undefined : handleChange}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
+                    onChange={
+                      existingPatient
+                        ? undefined
+                        : (e) => {
+                            handleChange({
+                              target: {
+                                name: "dob",
+                                value: e.target.value, // ISO only
+                              },
+                            });
+                          }
                     }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.dob}
                     touched={touched.dob}
                   />
@@ -655,6 +691,7 @@ const Input = ({
   className = "",
   error,
   touched,
+  ...rest
 }) => {
   const isInvalid = touched && !!error;
 
@@ -671,6 +708,7 @@ const Input = ({
         readOnly={readOnly}
         onChange={onChange}
         placeholder={placeholder}
+        {...rest}
         className={`
           border rounded-md w-full p-2 text-sm 
           ${isInvalid ? "border-red-500 bg-red-50" : "border-black-300"}

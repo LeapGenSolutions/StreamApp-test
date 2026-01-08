@@ -1,87 +1,84 @@
-import { Bell, MessageSquare } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useSelector } from "react-redux";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
-import SalesModal from "./SalesModal";
-
 
 const Header = () => {
   const [location] = useLocation();
-  const [showSalesModal, setShowSalesModal] = useState(false);
   const user = useSelector((state) => state.me.me);
+
+  const isActive = (path) => location === path;
 
   return (
     <header className="bg-white border-b border-neutral-200">
-      <div className="px-6 py-3 flex items-center justify-between">
+      {/* Make it a single row by default, allow wrap only when it gets really tight */}
+      <div className="px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        
         {/* --- Left Navigation --- */}
-        <nav className="flex items-center gap-1">
-          <Link href="/documentation">
-            <a
-              href="!#"
-              className={`px-3 py-1 text-base font-normal transition-colors ${
-                location === "/documentation"
-                  ? "font-bold underline underline-offset-4 text-black"
-                  : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              Documentation
-            </a>
-          </Link>
-
-          <Link href="/connect">
-            <a
-              href="!#"
-              className={`px-3 py-1 text-base font-normal transition-colors ${
-                location === "/connect"
-                  ? "font-bold underline underline-offset-4 text-black"
-                  : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              Connect
-            </a>
-          </Link>
-
-          <Link href="/about">
-            <a
-              href="!#"
-              className={`px-3 py-1 text-base font-normal transition-colors ${
-                location === "/about"
-                  ? "font-bold underline underline-offset-4 text-black"
-                  : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              About Us
-            </a>
-          </Link>
-
-          <Link href="/contact">
-            <a
-              href="!#"
-              className={`px-3 py-1 text-base font-normal transition-colors ${
-                location === "/contact"
-                  ? "font-bold underline underline-offset-4 text-black"
-                  : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              Contact Us
-            </a>
-          </Link>
-
-          {/*  Contact Sales beside Contact Us */}
-          <button
-            className="ml-2 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full font-semibold text-sm shadow focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-            onClick={() => setShowSalesModal(true)}
+        <nav
+          className="
+            order-2 sm:order-1
+            flex items-center gap-1
+            whitespace-nowrap overflow-x-auto
+            max-w-full
+            flex-1 min-w-0
+          "
+        >
+          <Link
+            href="/documentation"
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base cursor-pointer transition-colors ${
+              isActive("/documentation")
+                ? "font-bold underline underline-offset-4 text-black"
+                : "text-neutral-600 hover:text-black"
+            }`}
           >
-            <MessageSquare className="w-4 h-4" />
-            Contact Sales
-          </button>
+            Documentation
+          </Link>
+
+          <Link
+            href="/connect"
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base transition-colors ${
+              isActive("/connect")
+                ? "font-bold underline underline-offset-4 text-black"
+                : "text-neutral-600 hover:text-black"
+            }`}
+          >
+            Connect
+          </Link>
+
+          <Link
+            href="/about"
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base transition-colors ${
+              isActive("/about")
+                ? "font-bold underline underline-offset-4 text-black"
+                : "text-neutral-600 hover:text-black"
+            }`}
+          >
+            About Us
+          </Link>
+
+          <Link
+            href="/contact"
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base transition-colors ${
+              isActive("/contact")
+                ? "font-bold underline underline-offset-4 text-black"
+                : "text-neutral-600 hover:text-black"
+            }`}
+          >
+            Contact Us
+          </Link>
         </nav>
 
-        <div className="flex items-center gap-4">
-
+        {/* --- Right: Notifications + User --- */}
+        <div
+          className="
+            order-1 sm:order-2
+            flex items-center gap-2 sm:gap-3
+            flex-shrink-0
+          "
+        >
           {/* Bell Icon */}
-          <button className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-full">
-            <Bell className="w-5 h-5" />
+          <button className="p-1.5 sm:p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-full">
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* User Avatar + Info */}
@@ -97,10 +94,12 @@ const Header = () => {
                 {user?.given_name?.charAt(0) || "U"}
               </div>
             )}
+
             <div className="ml-2">
-              <p className="text-sm font-medium text-neutral-800">
+              <p className="text-xs sm:text-sm font-medium text-neutral-800">
                 {user?.given_name || "Loading..."}
               </p>
+              {/* Hide role on very small screens to save height */}
               <p className="text-xs text-neutral-500">
                 {user?.specialty || user?.role || "Staff"}
               </p>
@@ -108,8 +107,6 @@ const Header = () => {
           </div>
         </div>
       </div>
-
-      {showSalesModal && <SalesModal onClose={() => setShowSalesModal(false)} />}
     </header>
   );
 };

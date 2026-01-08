@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import { FaUserMd, FaVideo} from "react-icons/fa";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
 
 const AppointmentStats = ({ date: propDate }) => {
@@ -20,10 +20,14 @@ const AppointmentStats = ({ date: propDate }) => {
     loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
 
   const doctorUniqueId =
-    loggedInDoctor?.doctor_id ||
-    loggedInDoctor?.id ||
-    loggedInDoctor?.oid ||
+    loggedInDoctor?.doctor_id || 
+    loggedInDoctor?.id || 
+    loggedInDoctor?.oid || 
     null;
+
+  // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
+  const localTodayKey = new Date().toLocaleDateString("en-CA");
+  const utcTodayKey = new Date().toISOString().slice(0, 10);
 
   // Always fetch appointments for the logged-in doctor when dashboard loads
   useEffect(() => {
@@ -32,17 +36,22 @@ const AppointmentStats = ({ date: propDate }) => {
     }
   }, [dispatch, DoctorEmail]);
 
-  // Get today's date in local timezone (yyyy-MM-dd)
-  const today = propDate || new Date().toLocaleDateString("en-CA");
+  // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
+  const todayKey =
+    typeof propDate === "string"
+      ? propDate === utcTodayKey && localTodayKey !== utcTodayKey
+        ? localTodayKey
+        : propDate
+      : propDate instanceof Date
+      ? format(propDate, "yyyy-MM-dd")
+      : localTodayKey;
 
   // Safely build a local Date from yyyy-MM-dd for display
   let formattedDate = "";
-  if (typeof today === "string") {
-    const [year, month, day] = today.split("-").map(Number);
+  {
+    const [year, month, day] = todayKey.split("-").map(Number);
     const localDate = new Date(year, month - 1, day);
     formattedDate = format(localDate, "MMMM d, yyyy");
-  } else {
-    formattedDate = format(today, "MMMM d, yyyy");
   }
 
   // Compute stats only for the logged-in doctor
@@ -60,25 +69,27 @@ const AppointmentStats = ({ date: propDate }) => {
     }
 
     const todayAppointments = appointments.filter((app) => {
-      // normalize date to yyyy-MM-dd
-      let appDate = app.appointment_date;
-      if (typeof appDate === 'string') {
-        try {
-          appDate = format(parseISO(appDate), 'yyyy-MM-dd');
-        } catch {
-          // leave as original if parse fails
-        }
+      let appDateKey = app.appointment_date;
+
+      // Normalize appointment date to yyyy-MM-dd WITHOUT timezone shifting
+      if (typeof appDateKey === 'string') {
+        // Handles "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ssZ"
+        appDateKey = appDateKey.slice(0, 10);
+      } else if (appDateKey instanceof Date) {
+        appDateKey = format(appDateKey, "yyyy-MM-dd");
+      } else {
+        appDateKey = "";
       }
 
-      const isToday = appDate === today;
+      const isToday = appDateKey === todayKey;
 
       // robust doctor matching (same pattern as other components)
       const isSameDoctor =
         (doctorUniqueId &&
-          (app.doctorId === doctorUniqueId ||
+          (app.doctorId === doctorUniqueId || 
             app.doctor_id === doctorUniqueId)) ||
         (DoctorEmail &&
-          (app.doctorEmail === DoctorEmail ||
+          (app.doctorEmail === DoctorEmail || 
             app.doctor_email === DoctorEmail));
 
       return isToday && isSameDoctor && app.status !== "cancelled";
@@ -99,7 +110,7 @@ const AppointmentStats = ({ date: propDate }) => {
       virtualAppointments,
     });
     setIsLoading(false);
-  }, [appointments, today, DoctorEmail, doctorUniqueId]);
+  }, [appointments, todayKey, DoctorEmail, doctorUniqueId]);
 
   if (isLoading) {
     return (

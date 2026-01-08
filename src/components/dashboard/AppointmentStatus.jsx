@@ -1,6 +1,12 @@
-import { format, parseISO } from "date-fns";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,} from "recharts";
-import { FaCheckCircle, FaClock, FaUserTimes, FaSyncAlt,} from "react-icons/fa";
+import { format } from "date-fns";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+} from "recharts";
+import { FaCheckCircle, FaClock, FaUserTimes, FaSyncAlt } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState, useCallback } from "react";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
@@ -38,8 +44,8 @@ const STATUS_CARDS = [
   {
     key: "noShow",
     label: "No-show",
-    color: "#EDE9FE",   // violet-100
-    text: "#6D28D9",    // violet-700
+    color: "#EDE9FE", // violet-100
+    text: "#6D28D9", // violet-700
     icon: <FaUserTimes className="text-violet-600" />,
   },
   {
@@ -57,6 +63,7 @@ const STATUS_CARDS = [
     icon: <FaUserTimes className="text-red-500" />,
   },
 ];
+
 // Colors for the pie chart slices, in the same order as `data`
 const PIE_COLORS = [
   "#22C55E", // Completed    - green
@@ -66,9 +73,7 @@ const PIE_COLORS = [
   "#EF4444", // Cancelled    - red
 ];
 
-
 const AppointmentStatus = ({ date }) => {
-
   const loggedInDoctor = useSelector((state) => state.me.me);
   const [isLoading, setIsLoading] = useState(true);
   const appointments = useSelector((state) => state.appointments.appointments);
@@ -81,17 +86,25 @@ const AppointmentStatus = ({ date }) => {
     cancelled: 0,
   });
 
-  const DoctorEmail = loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
+  const DoctorEmail =
+    loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
 
   // Unique doctor identifier for filtering appointments
   const doctorUniqueId =
-    loggedInDoctor?.doctor_id ||
-    loggedInDoctor?.id ||
-    loggedInDoctor?.oid ||
-    null;
+    loggedInDoctor?.doctor_id || loggedInDoctor?.id || loggedInDoctor?.oid || null;
 
-  // Today's date in local timezone (yyyy-MM-dd)
-  const today = date || new Date().toLocaleDateString('en-CA');
+  // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
+  const localTodayKey = new Date().toLocaleDateString("en-CA");
+  const utcTodayKey = new Date().toISOString().slice(0, 10);
+
+  const todayKey =
+    typeof date === "string"
+      ? date === utcTodayKey && localTodayKey !== utcTodayKey
+        ? localTodayKey
+        : date
+      : date instanceof Date
+      ? format(date, "yyyy-MM-dd")
+      : localTodayKey;
 
   // Always refetch when Dashboard mounts or doctor changes
   useEffect(() => {
@@ -102,27 +115,27 @@ const AppointmentStatus = ({ date }) => {
 
   // Helper to decide if an appointment time has already passed (today)
   const isAppointmentPast = useCallback(
-  (app) => {
-    const timeStr =
-      app.appointment_time ||
-      app.start_time ||
-      app.slot_start_time ||
-      app.time;
+    (app) => {
+      const timeStr =
+        app.appointment_time ||
+        app.start_time ||
+        app.slot_start_time ||
+        app.time;
 
-    if (!timeStr || typeof timeStr !== "string") return false;
+      if (!timeStr || typeof timeStr !== "string") return false;
 
-    const [year, month, day] = today.split("-").map(Number);
-    const [hStr, mStr] = timeStr.split(":");
-    const hours = parseInt(hStr, 10);
-    const minutes = parseInt(mStr ?? "0", 10);
+      const [year, month, day] = todayKey.split("-").map(Number);
+      const [hStr, mStr] = timeStr.split(":");
+      const hours = parseInt(hStr, 10);
+      const minutes = parseInt(mStr ?? "0", 10);
 
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return false;
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return false;
 
-    const scheduled = new Date(year, month - 1, day, hours, minutes);
-    return scheduled.getTime() < Date.now();
-  },
-  [today] // dependency
-);
+      const scheduled = new Date(year, month - 1, day, hours, minutes);
+      return scheduled.getTime() < Date.now();
+    },
+    [todayKey] // dependency
+  );
 
   // Calculate Completed / Upcoming / No-show / Rescheduled / Cancelled
   useEffect(() => {
@@ -143,16 +156,19 @@ const AppointmentStatus = ({ date }) => {
 
       // All today's appointments for this doctor (including cancelled/rescheduled)
       const todayAppointments = appointments.filter((app) => {
-        let appDate = app.appointment_date;
-        if (typeof appDate === 'string') {
-          try {
-            appDate = format(parseISO(appDate), 'yyyy-MM-dd');
-          } catch {
-            // if parse fails, leave as original
-          }
+        let appDateKey = app.appointment_date;
+
+        // Normalize appointment date to yyyy-MM-dd WITHOUT timezone shifting
+        if (typeof appDateKey === "string") {
+          // Handles "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ssZ"
+          appDateKey = appDateKey.slice(0, 10);
+        } else if (appDateKey instanceof Date) {
+          appDateKey = format(appDateKey, "yyyy-MM-dd");
+        } else {
+          appDateKey = "";
         }
 
-        const isToday = appDate === today;
+        const isToday = appDateKey === todayKey;
 
         const isSameDoctor =
           app.doctorId === doctorUniqueId ||
@@ -225,7 +241,7 @@ const AppointmentStatus = ({ date }) => {
     };
 
     computeStats();
-  }, [appointments, today, doctorUniqueId, DoctorEmail, isAppointmentPast]);
+  }, [appointments, todayKey, doctorUniqueId, DoctorEmail, isAppointmentPast]);
 
   if (isLoading) {
     return (
@@ -266,9 +282,27 @@ const AppointmentStatus = ({ date }) => {
       title="Click to view the Status Overview and Timeline Dashboard"
     >
       <div className="flex items-center justify-between mb-1">
-        <div className="text-lg font-semibold text-gray-800">Status Overview</div>
+        <div className="text-lg font-semibold text-gray-800">
+          Status Overview
+        </div>
         <div className="bg-green-100 p-2 rounded-full">
-          <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="8" fill="#22C55E" opacity="0.15"/><path d="M12 8v4l3 2" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"/></svg>
+          <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <rect
+              x="4"
+              y="4"
+              width="16"
+              height="16"
+              rx="8"
+              fill="#22C55E"
+              opacity="0.15"
+            />
+            <path
+              d="M12 8v4l3 2"
+              stroke="#22C55E"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
         </div>
       </div>
       <p className="text-xs text-gray-500 mb-2">
@@ -317,10 +351,7 @@ const AppointmentStatus = ({ date }) => {
               {card.icon}
               {card.label}
             </div>
-            <div
-              className="text-base font-bold"
-              style={{ color: card.text }}
-            >
+            <div className="text-base font-bold" style={{ color: card.text }}>
               {countsByKey[card.key] ?? 0}
             </div>
           </div>
@@ -331,4 +362,3 @@ const AppointmentStatus = ({ date }) => {
 };
 
 export default AppointmentStatus;
-

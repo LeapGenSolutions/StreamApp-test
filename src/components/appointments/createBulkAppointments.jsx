@@ -105,8 +105,19 @@ const CreateBulkAppointments = ({ onClose }) => {
     };
 
     const handleDownloadTemplate = () => {
-        const templateUrl = `https://leapgenai-my.sharepoint.com/:x:/g/personal/goutham_leapgen_ai/IQApLWLGTmU-SIc0aHvoaJXJAWN9Q-qSD3WXISWfv7JrSrA?rtime=Zcm4qRs33kg`;
-        window.open(templateUrl, "_blank");
+        try {
+            const filename = 'Bulk Appointment Templeate.xlsx';
+            const templateUrl = `/${encodeURI(filename)}`;
+            const link = document.createElement('a');
+            link.href = templateUrl;
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            console.error('Download failed', err);
+            window.open(`/Bulk%20Appointment%20Templeate.xlsx`, '_blank');
+        }
     }
 
     return (

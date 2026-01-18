@@ -173,15 +173,36 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     setFormData((p) => ({ ...p, [name]: value }));
     setTouched((p) => ({ ...p, [name]: true }));
   };
+  
+  const handlePhoneChange = (e) => {
+  const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+  setFormData((p) => ({ ...p, phone: digitsOnly }));
+  setTouched((p) => ({ ...p, phone: true }));
+};
 
-  const validateForm = () => {
-    const errs = {};
-    requiredFields.forEach((f) => {
-      if (!formData[f]) errs[f] = "Required";
-    });
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
+const validateForm = () => {
+  const errs = {};
+  const newTouched = {};
+  requiredFields.forEach((f) => {
+    newTouched[f] = true;
+    if (!formData[f]) errs[f] = "Required";
+  });
+  setTouched((prev) => ({ ...prev, ...newTouched }));
+  setErrors(errs);
+  return Object.keys(errs).length === 0;
+};
+
+
+const scrollToFirstError = (errs) => {
+  const firstField = Object.keys(errs)[0];
+  if (!firstField) return;
+
+  const el = document.querySelector(`[name="${firstField}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus();
+  }
+};
 
   const convertTo24Hour = (t) => {
     if (!t) return "";
@@ -192,8 +213,22 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+   
+    if (formData.phone && formData.phone.length !== 10) {
+      toast({
+        title: "Invalid phone number",
+        description: "Phone number must be exactly 10 digits",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    if (!validateForm()) return;
+    const isValid = validateForm();
+    if (!isValid) {
+      scrollToFirstError(errors);
+      return;
+    }
+
 
     setIsSubmitting(true);
 
@@ -542,16 +577,17 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                   />
 
                   <Input
-                    label="Phone Number"
-                    name="phone"
-                    value={formData.phone}
-                    readOnly={!!existingPatient}
-                    onChange={existingPatient ? undefined : handleChange}
-                    placeholder="Enter phone number"
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
-                  />
+                  label="Phone Number"
+                  name="phone"
+                  value={formData.phone}
+                  readOnly={!!existingPatient}
+                  onChange={existingPatient ? undefined : handlePhoneChange}
+                  placeholder="Enter 10-digit phone number"
+                  maxLength={10}
+                  className={
+                    existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
+                  }
+                />
 
                   <Input
                     label="MRN"

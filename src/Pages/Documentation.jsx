@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, User, MessageCircle,
   UserCog, RefreshCcw, Lock, Newspaper, Bot, Calendar, BarChart2, Star,
-  Link as LinkIcon, Video, FileText, Users
+  Link as LinkIcon, Video, FileText, Users, PhoneCall
 } from "lucide-react";
 import { PageNavigation } from "../components/ui/page-navigation";
 
@@ -117,15 +117,19 @@ function NavigationGuideAccordion() {
               <ul className="space-y-4 text-base text-neutral-800 font-normal">
                 <li>
                   <span className="font-semibold text-neutral-900">Today's Schedule:</span>
-                  <span className="ml-2 text-neutral-700">See your total appointments for the day</span>
+                  <span className="ml-2 text-neutral-700">View the total number of appointments scheduled for the current day.</span>
                 </li>
                 <li>
                   <span className="font-semibold text-neutral-900">Status Overview:</span>
-                  <span className="ml-2 text-neutral-700">Track Completed, In Progress, Waiting, and No-Show appointments</span>
+                  <span className="ml-2 text-neutral-700">Track appointment statuses such as Completed, Upcoming, No-show, Rescheduled, and Cancelled.</span>
+                </li>
+                 <li>
+                  <span className="font-semibold text-neutral-900">Provider Workload</span>
+                  <span className="ml-2 text-neutral-700">Review a weekly summary of total, seismified, and non-seismified appointments.</span>
                 </li>
                 <li>
                   <span className="font-semibold text-neutral-900">Quick Actions:</span>
-                  <span className="ml-2 text-neutral-700">Join video calls, view appointment details, and more</span>
+                  <span className="ml-2 text-neutral-700">Quickly navigate to appointments or start a video call from the dashboard</span>
                 </li>
               </ul>
               <button
@@ -177,16 +181,20 @@ function NavigationGuideAccordion() {
             <div className="flex-1 min-w-0 md:pr-6">
               <ul className="space-y-4 text-base text-neutral-800 font-normal">
                 <li>
-                  <span className="font-semibold text-neutral-900">View Upcoming & Past Appointments:</span>
-                  <span className="ml-2 text-neutral-700">See your full schedule and appointment history</span>
+                  <span className="font-semibold text-neutral-900">View Schedule:</span>
+                  <span className="ml-2 text-neutral-700">See Current and past appointments in a calendar-based view</span>
                 </li>
                 <li>
                   <span className="font-semibold text-neutral-900">Manage Appointments:</span>
-                  <span className="ml-2 text-neutral-700">Reschedule, cancel, or join video calls directly</span>
+                  <span className="ml-2 text-neutral-700">Reschedule, cancel, or manage appointments including bulk uploads</span>
                 </li>
                 <li>
-                  <span className="font-semibold text-neutral-900">Sync with Calendar:</span>
-                  <span className="ml-2 text-neutral-700">(If enabled) Keep your appointments in sync with your calendar</span>
+                  <span className="font-semibold text-neutral-900">Navigate & Filter:</span>
+                  <span className="ml-2 text-neutral-700">Move between dates and filter appointments by provider.</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Quick Access:</span>
+                  <span className="ml-2 text-neutral-700">Open appointment details or join video calls directly.</span>
                 </li>
               </ul>
               <button
@@ -225,6 +233,71 @@ function NavigationGuideAccordion() {
       description: "This section helps you manage your clinical schedule with ease:"
     },
     {
+      icon: <PhoneCall className="w-7 h-7 text-blue-500" />,
+      title: "Video Call",
+      details: (
+        <>
+          {/* Subtle, professional Video Call walkthrough section with video */}
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Video Call feature list */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>
+                  <span className="font-semibold text-neutral-900">Upcoming Calls:</span>
+                  <span className="ml-2 text-neutral-700">View and manage scheduled video appointments.</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Appointment Details:</span>
+                  <span className="ml-2 text-neutral-700">Review basic patient and appointment information before starting a call.</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Start Video Call:</span>
+                  <span className="ml-2 text-neutral-700">Initiate a secure online consultation directly from the Video Call page.</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Call History:</span>
+                  <span className="ml-2 text-neutral-700">Access a list of completed video consultations with basic filtering options.</span>
+                </li>
+              </ul>
+              <button
+                id="explore-videocall-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/video call'}
+              >
+                Explore your Video Call
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Video-Call Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">A quick tour of your Video Call features</div>
+              <video
+                src="/video call.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-videocall-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
+      ),
+      description: "Conduct secure virtual consultations with built-in video calling:"
+    },
+    {
       icon: <User className="w-7 h-7 text-blue-500" />,
       title: "Patients",
       details: (
@@ -237,11 +310,22 @@ function NavigationGuideAccordion() {
             {/* Left: Patients feature list (key highlights) */}
             <div className="flex-1 min-w-0 md:pr-6">
               <ul className="space-y-4 text-base text-neutral-800 font-normal">
-                <li>Search patients by name or advanced filters.</li>
-                <li>Filter by doctor or appointment date range</li>
-                <li>View patient list with contact, last visit, and assigned doctor</li>
-                <li>Click a patient for clinical summary and appointment history</li>
-                <li>Access Post-Call Documentation: SOAP, Transcript, Billing, Recommendations</li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Search & Filter Patients:</span>
+                  <span className="ml-2 text-neutral-700">Quickly find patients using basic search and Advance filters</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Patient List View:</span>
+                  <span className="ml-2 text-neutral-700">View patients with key details and assigned doctor</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Patient Records:</span>
+                  <span className="ml-2 text-neutral-700">Access patient profiles and visit history</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Add Patient:</span>
+                  <span className="ml-2 text-neutral-700">Create a new patient record when needed.</span>
+                </li>
               </ul>
               <button
                 id="explore-patients-btn"
@@ -280,17 +364,68 @@ function NavigationGuideAccordion() {
     },
     {
       icon: <BarChart2 className="w-7 h-7 text-blue-500" />,
-      title: "Reports",
+      title: "Report",
       details: (
-        <ul className="space-y-4 text-base text-neutral-800 font-normal">
-          <li>View a summary of services used by each doctor, including total sessions conducted.</li>
-          <li>Access billing breakdowns showing charges incurred based on usage (e.g., per session or per minute).</li>
-          <li>Understand how Seismic calculates charges for telehealth services provided through the platform.</li>
-          <li>Identify trends in provider activity, appointment volume, and usage patterns.</li>
-          <li>Export report data for billing, audits, or performance review in CSV or other formats.</li>
-        </ul>
+        <>
+          {/* Subtle, professional Report walkthrough section with video */}
+          <div
+            className="flex flex-col md:flex-row items-center md:items-start py-8 gap-8 relative"
+            style={{ background: 'linear-gradient(135deg, #f6f8fa 0%, #f3f7fd 100%)', borderRadius: '1.5rem' }}
+          >
+            {/* Left: Patients feature list (key highlights) */}
+            <div className="flex-1 min-w-0 md:pr-6">
+              <ul className="space-y-4 text-base text-neutral-800 font-normal">
+                <li>
+                  <span className="font-semibold text-neutral-900">Visit Summary & Transcript:</span>
+                  <span className="ml-2 text-neutral-700">Review the AI-generated visit summary alongside the full call transcript</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Clinical Notes:</span>
+                  <span className="ml-2 text-neutral-700">Access SOAP notes, procedure notes, and provider documentation</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Recommendations & Orders:</span>
+                  <span className="ml-2 text-neutral-700">Review care recommendations, medications, and follow-up actions</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-900">Billing & Reports:</span>
+                  <span className="ml-2 text-neutral-700">View billing details, CPT/ICD codes, and audit-ready reports</span>
+                </li>
+              </ul>
+              <button
+                id="explore-reports-btn"
+                className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
+                style={{ display: 'none' }}
+                onClick={() => window.location.href = '/reports'}
+              >
+                Explore your Reports
+              </button>
+            </div>
+            {/* Right: Video card with clean heading */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
+              <div className="mb-2 text-lg font-bold text-neutral-900">
+                Report Video Walkthrough
+              </div>
+              <div className="text-xs text-neutral-500 mb-3">Key Highlights</div>
+              <video
+                src="/reports.mp4"
+                controls
+                controlsList="nodownload"
+                className="w-full rounded-xl object-cover shadow"
+                style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
+                onEnded={() => {
+                  const btn = document.getElementById('explore-reports-btn');
+                  if (btn) btn.style.display = 'flex';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </>
       ),
-      description: "Generate actionable insights and export data:"
+      description: "Review AI-generated summaries, transcripts, clinical notes, and billing reports after each consultation:"
     },
     {
       icon: <Star className="w-7 h-7 text-blue-500" />,

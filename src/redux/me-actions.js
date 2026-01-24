@@ -21,17 +21,38 @@ const setMyDetails = (details) => {
     );
 
     // store final doctor metadata into Redux
-    dispatch(
-      myActions.setMyself({
-        ...details,
-        email,
+    if(doctorDoc?.profileComplete===true){
+      dispatch( 
+        myActions.setMyself({
+          ...details,
+          email,
 
-        doctor_name: doctorDoc?.doctor_name,
-        doctor_id: doctorDoc?.doctor_id,
-        doctor_email: doctorDoc?.doctor_email,
-        specialization: doctorDoc?.specialization,
-      })
-    );
+          doctor_name: doctorDoc?.doctor_name || doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          doctor_id: doctorDoc?.doctor_id || doctorDoc?.id,
+          doctor_email: doctorDoc?.doctor_email,
+          specialization: doctorDoc?.specialization || doctorDoc?.specialty,
+          given_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          family_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          fullName: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          role:[ doctorDoc?.role],
+          roles:[ doctorDoc?.roles],
+          specialty: doctorDoc?.specialty || doctorDoc?.specialization,
+        })
+      );
+    }else{
+      dispatch(
+        myActions.setMyself({
+          ...details,
+          email,
+
+          doctor_name: doctorDoc?.doctor_name,
+          doctor_id: doctorDoc?.doctor_id,
+          doctor_email: doctorDoc?.doctor_email,
+          specialization: doctorDoc?.specialization,
+        })
+      );
+    }
   };
 };
 

@@ -7,7 +7,7 @@ import Logo from "../assets/Logo";
 
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isGuestLoading, setIsGuestLoading] = useState(false);
+  //const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [, setShowBranding] = useState(false);
 
   const { instance, accounts } = useMsal();
@@ -39,14 +39,14 @@ const AuthPage = () => {
       .finally(() => setIsLoading(false));
   };
 
-  const handleGuest = () => {
-    setIsGuestLoading(true);
-    localStorage.setItem("isGuest", "true");
-    setTimeout(() => {
-      setIsGuestLoading(false);
-      navigate("/dashboard");
-    }, 800);
-  };
+ // const handleGuest = () => {
+ //   setIsGuestLoading(true);
+ //   localStorage.setItem("isGuest", "true");
+ //   setTimeout(() => {
+ //     setIsGuestLoading(false);
+ //     navigate("/dashboard");
+ //   }, 800);
+ // };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 px-4 overflow-hidden">
@@ -74,13 +74,13 @@ const AuthPage = () => {
         {/* Sign In Button */}
         <button
           onClick={handleLogin}
-          disabled={isLoading || isGuestLoading}
+          disabled={isLoading}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#1E40AF] to-[#3B82F6] hover:from-[#1E3A8A] hover:to-[#2563EB] text-white font-semibold py-3 rounded-lg transition-all duration-200 transform hover:scale-[1.02] mb-4"
         >
           {isLoading ? "Signing in..." : "Sign in"}
         </button>
 
-        {/* Continue as Guest */}
+        {/* Continue as Guest 
         <button
           onClick={handleGuest}
           disabled={isLoading || isGuestLoading}
@@ -89,11 +89,11 @@ const AuthPage = () => {
           }`}
         >
           {isGuestLoading ? "Continuing..." : "Continue as Guest"}
-        </button>
+        </button>*/}
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-gray-400">
-          © 2025 Seismic Connect. All rights reserved.
+          © 2026 Seismic Connect. All rights reserved.
         </div>
       </div>
 

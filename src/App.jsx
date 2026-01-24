@@ -27,7 +27,23 @@ import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
 
-
+function decodeJwt(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error("Failed to decode JWT from URL token:", e);
+    return null;
+  }
+}
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
@@ -67,6 +83,7 @@ function Router() {
 
 function Main() {
   const isAuthenticated = useIsAuthenticated();
+  const [tokenBypass, setTokenBypass] = useState(false)
   const { instance, accounts } = useMsal();
   const [hasRole, setHasRole] = useState(false)
   const dispatch = useDispatch()
@@ -89,14 +106,35 @@ function Main() {
   }
 
   useEffect(() => {
-    if (isAuthenticated) {
+    const queryParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = queryParams.get("token");
+    const storedToken = sessionStorage.getItem("bypassToken");
+    const activeToken = tokenFromUrl || storedToken;
+    if (activeToken) {
+      if (tokenFromUrl) {
+        sessionStorage.setItem("bypassToken", tokenFromUrl);
+      }
+      const claims = decodeJwt(activeToken);
+      if (claims) {
+        const rolesFromToken = claims.roles || claims["roles"] || claims["role"] || [];
+        const normalizedRoles = Array.isArray(rolesFromToken)
+          ? rolesFromToken
+          : [rolesFromToken].filter(Boolean);
+
+        dispatch(setMyDetails(claims));
+        if (normalizedRoles.includes("SeismicDoctors")) {
+          setHasRole(true);
+        }
+      }
+      setTokenBypass(true);
+    } else if (isAuthenticated) {
       requestProfileData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
   return (
     <>
-      {hasRole ? <AuthenticatedTemplate>
+      {hasRole || tokenBypass ? <AuthenticatedTemplate>
         <QueryClientProvider client={queryClient}>
           <Router />
           <Toaster />
@@ -106,9 +144,16 @@ function Main() {
           Sign is successful but you dont previlaged role to view this app. Try contacting your admin
         </AuthenticatedTemplate>
       }
-      <UnauthenticatedTemplate>
-        <AuthPage />
-      </UnauthenticatedTemplate>
+            {(!isAuthenticated && !tokenBypass) &&
+        <UnauthenticatedTemplate>
+          <AuthPage />
+        </UnauthenticatedTemplate>
+      }
+      {tokenBypass && 
+      <QueryClientProvider client={queryClient}>
+        <Router />
+        <Toaster />
+      </QueryClientProvider>}
     </>
   )
 }

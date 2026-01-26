@@ -41,8 +41,28 @@ const DoctorMultiSelect = ({
   useEffect(() => {
     const loadDoctors = async () => {
       try {
+        const storedToken = sessionStorage.getItem("bypassToken");
+        const isCIAMUser = !!storedToken;
+        const matchesLoggedInUser = (doc) => {
+          if (!email) return false;
+          const docEmail = doc.doctor_email?.toLowerCase() || "";
+          const docId = doc.id?.toLowerCase() || "";
+          const docDoctorId = doc.doctor_id?.toLowerCase() || "";
+          return (
+            docEmail === email ||
+            docId === email ||
+            docDoctorId === email
+          );
+        };
         const enriched = rawDoctors
-          .filter((doc) => doc.doctor_name && doc.doctor_email)
+          .filter((doc) => {
+            if (!doc.doctor_name || !doc.doctor_email) return false;
+            if (isCIAMUser) {
+              return doc.profileComplete === true && matchesLoggedInUser(doc);
+            } else {
+              return doc.profileComplete !== true;
+            }
+          })
           .map((doc) => {
             const emailKey = doc.doctor_email.trim().toLowerCase();
             const fullName = doc.doctor_name;

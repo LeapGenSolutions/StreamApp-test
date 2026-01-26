@@ -11,13 +11,19 @@ function Dashboard() {
   const dispatch = useDispatch();
   const myEmail = useSelector((state) => state.me.me.email);
   const appointments = useSelector((state) => state.appointments.appointments);
+
+  
+  const hasFetchedOnce = useSelector(
+    (state) => state.appointments.hasFetchedOnce
+  );
+
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (appointments?.length === 0 && myEmail) {
+    if (!hasFetchedOnce && myEmail) {
       dispatch(fetchAppointmentDetails(myEmail));
     }
-  }, [dispatch, appointments, myEmail]);
+  }, [dispatch, myEmail, hasFetchedOnce]);
 
   useEffect(() => {
     document.title = "Dashboard - Seismic Connect";
@@ -28,12 +34,18 @@ function Dashboard() {
       <div className="flex justify-between items-center">
         <WelcomeCard />
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AppointmentStats date={new Date().toISOString().split('T')[0]} />
-        <div style={{ cursor: "pointer" }} onClick={() => navigate("/timeline") }>
-          <AppointmentStatus date={new Date().toISOString().split('T')[0]} />
+        <AppointmentStats date={new Date().toISOString().split("T")[0]} />
+
+        <div
+          style={{ cursor: "pointer" }}
+          onClick={() => navigate("/timeline")}
+        >
+          <AppointmentStatus date={new Date().toISOString().split("T")[0]} />
         </div>
-        <ProviderWorkload date={new Date().toISOString().split('T')[0]} />
+
+        <ProviderWorkload date={new Date().toISOString().split("T")[0]} />
       </div>
     </div>
   );

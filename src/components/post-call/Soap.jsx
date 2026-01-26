@@ -6,6 +6,7 @@ import LoadingCard from "./LoadingCard";
 import SubjectiveSection from "./sections/SubjectiveSection";
 import ObjectiveSection from "./sections/ObjectiveSection";
 import AssessmentPlanSection from "./sections/AssessmentPlanSection";
+import OrdersSection from "./sections/OrdersSection";
 
 const SECTION_TITLES = [
   "Procedure Information",
@@ -16,24 +17,26 @@ const SECTION_TITLES = [
   "Discharge Instructions",
   "Provider Attestation",
 ];
+
 const ProcedureNotesSection = ({ content, procedureMeta }) => {
   if (!content) {
     return (
-      <p className="text-sm text-black-500 italic">
-        No procedure notes available.
-      </p>
+      <p className="text-sm text-gray-500 italic">No procedure notes available.</p>
     );
   }
+
   const lines = content
     .split("\n")
     .map((l) => l.trim())
-    .filter(
-      (line) =>
+    .filter((line) => {
+      const low = line.toLowerCase();
+      return (
         line &&
-        line.toLowerCase() !== "procedure_notes -" &&
-        line.toLowerCase() !== "procedure note" &&
-        !line.toLowerCase().includes("provider attestation")
-    );
+        low !== "$procedure_notes -" &&
+        low !== "procedure_notes -" &&
+        low !== "procedure note"
+      );
+    });
 
   const sections = [];
   let current = null;
@@ -53,44 +56,43 @@ const ProcedureNotesSection = ({ content, procedureMeta }) => {
     current.items.push(line);
   });
 
-  const isCalloutSection = (title) =>
-    title === "Procedure Description";
+  const isCalloutSection = (title) => title === "Procedure Description";
 
   const renderLine = (line, idx) => {
-  if (line.includes(":")) {
-    const [label, ...rest] = line.split(":");
-    let value = rest.join(":").trim(); 
-    if (
-      procedureMeta &&
-      label.toLowerCase().includes("date & time") &&
-      value.toLowerCase().includes("insert")
-    ) {
-      value = `${procedureMeta.date}, ${procedureMeta.start} – ${procedureMeta.end}`;
+    if (line.includes(":")) {
+      const [label, ...rest] = line.split(":");
+      let value = rest.join(":").trim();
+
+      // Fill placeholder for Date & Time if we have encounter meta
+      if (
+        procedureMeta &&
+        label.toLowerCase().includes("date & time") &&
+        value.toLowerCase().includes("insert")
+      ) {
+        value = `${procedureMeta.date}, ${procedureMeta.start} – ${procedureMeta.end}`;
+      }
+
+      return (
+        <div key={idx} className="grid grid-cols-12 gap-6 py-2">
+          <div className="col-span-4 text-sm font-medium text-black-700">
+            {label}
+          </div>
+          <div className="col-span-8 text-sm text-black-900">
+            {value || "—"}
+          </div>
+        </div>
+      );
     }
 
     return (
-      <div key={idx} className="grid grid-cols-12 gap-6 py-2">
-        <div className="col-span-4 text-sm font-medium text-black-700">
-          {label}
-        </div>
-        <div className="col-span-8 text-sm text-black-900">
-          {value || "—"}
-        </div>
-      </div>
+      <p key={idx} className="text-sm text-black-800 leading-relaxed py-1">
+        {line}
+      </p>
     );
-  }
-
-  return (
-    <p key={idx} className="text-sm text-black-800 leading-relaxed py-1">
-      {line}
-    </p>
-  );
-};
-
+  };
 
   return (
     <div className="space-y-10">
-
       {sections.map((section, idx) => (
         <div key={idx} className="pb-6 border-b border-black-200">
           <h4 className="text-blue-600 font-semibold text-lg mb-4">
@@ -100,10 +102,7 @@ const ProcedureNotesSection = ({ content, procedureMeta }) => {
           {isCalloutSection(section.title) ? (
             <div className="bg-gray-50 border-l-4 border-blue-300 rounded-md p-4 space-y-2">
               {section.items.map((line, i) => (
-                <p
-                  key={i}
-                  className="text-sm text-black-800 leading-relaxed"
-                >
+                <p key={i} className="text-sm text-black-800 leading-relaxed">
                   {line}
                 </p>
               ))}
@@ -118,6 +117,8 @@ const ProcedureNotesSection = ({ content, procedureMeta }) => {
     </div>
   );
 };
+
+
 const Soap = ({ appointmentId, username }) => {
   const [soapNotes, setSoapNotes] = useState({
     patient: "",
@@ -127,65 +128,106 @@ const Soap = ({ appointmentId, username }) => {
   });
 
   const [procedureNotes, setProcedureNotes] = useState("");
+  const [ordersData, setOrdersData] = useState({ orders: [], confirmed: false });
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("soap");
+  const [, setRawFromServer] = useState("");
+
+  // encounter meta (for Date & Time placeholder)
   const navState = window.history.state || {};
   const encounterStart = navState?.startTime;
   const encounterEnd = navState?.endTime;
 
-  // eslint-disable-next-line no-control-regex
-  const controlCharRegex = useMemo(
-    // eslint-disable-next-line no-control-regex
-    () => new RegExp("[\\x00-\\x1F]+", "g"),
-    []
-  );
+  // eslint-disable-next-line
+  const controlCharRegex = useMemo(() => new RegExp("[\\x00-\\x1F]+", "g"), []);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["soap-notes", appointmentId, username],
-    queryFn: () =>
-      fetchSoapNotes(`${username}_${appointmentId}_soap`, username),
+    queryFn: () => fetchSoapNotes(`${username}_${appointmentId}_soap`, username),
   });
 
+  // ---- helpers to extract blocks safely ----
+  const extractBlock = (raw, marker, nextMarkers = []) => {
+    const idx = raw.indexOf(marker);
+    if (idx === -1) return "";
+    const start = idx + marker.length;
+    const after = raw.slice(start);
+
+    const nextIdxs = nextMarkers
+      .map((m) => after.indexOf(m))
+      .filter((n) => n !== -1);
+
+    const end = nextIdxs.length ? Math.min(...nextIdxs) : after.length;
+    return after.slice(0, end).trim();
+  };
   useEffect(() => {
-    if (!data?.data?.soap_notes) return;
+    if (!data?.data?.soap_notes || isLoading) return;
 
     const raw = data.data.soap_notes;
-    const [soapPart, procedurePart = ""] =
-      raw.split("procedure_notes -");
+    setRawFromServer(raw);
+    let soapText = "";
+    if (raw.includes("$soap_notes -")) {
+      soapText = extractBlock(raw, "$soap_notes -", ["$procedure_notes -", "$orders -"]);
+    } else {
+      // fallback for old records that didn't have $soap_notes -
+      soapText = raw.split("$procedure_notes -")[0]?.trim() || raw;
+    }
 
-    setProcedureNotes(procedurePart.trim());
+    const procText = raw.includes("$procedure_notes -")
+      ? extractBlock(raw, "$procedure_notes -", ["$orders -"])
+      : "";
 
-    const patientMatch = soapPart.match(/Patient:\s*(.*?)\n/);
-    const reasonMatch = soapPart.match(
-      /Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/
-    );
-    const subjectiveMatch = soapPart.match(
-      /Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/
-    );
-    const familyHistoryMatch = soapPart.match(
-      /Family history discussed in this appointment -([\s\S]*?)(?=\n\nSurgical history discussed)/
-    );
-    const surgicalHistoryMatch = soapPart.match(
-      /Surgical history discussed in this appointment -([\s\S]*?)(?=\n\nSocial history discussed)/
-    );
-    const socialHistoryMatch = soapPart.match(
-      /Social history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/
-    );
-    const rosMatch = soapPart.match(
-      /Review of Systems(?:\s*\(ROS\))?:\s*([\s\S]*?)(?=\n\nObjective -)/
-    );
-    const objectiveMatch = soapPart.match(
-      /Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/
-    );
-    const assessmentPlanMatch = soapPart.match(
-      /Assessment and Plan -([\s\S]*)$/
-    );
+    setProcedureNotes(procText);
+
+    // orders parse (safe slice only JSON)
+    if (raw.includes("$orders -")) {
+  const afterOrders = raw.split("$orders -")[1] || "";
+
+  try {
+    let cleaned = afterOrders
+      .replace(controlCharRegex, "")
+      .trim();
+
+    // 🔥 FIX: convert single quotes → double quotes
+    cleaned = cleaned
+      .replace(/'/g, '"')
+      .replace(/None/g, "null")
+      .replace(/True/g, "true")
+      .replace(/False/g, "false");
+
+    const parsed = JSON.parse(cleaned);
+
+    // Normalize shape
+    if (Array.isArray(parsed)) {
+      setOrdersData({
+        orders: parsed,
+        confirmed: true,
+      });
+    } else if (parsed?.orders) {
+      setOrdersData(parsed);
+    } else {
+      setOrdersData({ orders: [], confirmed: false });
+    }
+  } catch (e) {
+    console.error("Orders parse failed:", e);
+    setOrdersData({ orders: [], confirmed: false });
+  }
+}
+    const patientMatch = soapText.match(/Patient:\s*(.*?)\n/);
+    const reasonMatch = soapText.match(/Reason for Visit -([\s\S]*?)(?=\n\nSubjective -)/);
+    const subjectiveMatch = soapText.match(/Subjective -([\s\S]*?)(?=\n\nFamily history discussed)/);
+    const familyHistoryMatch = soapText.match(/Family history discussed in this appointment -([\s\S]*?)(?=\n\nSurgical history discussed)/);
+    const surgicalHistoryMatch = soapText.match(/Surgical history discussed in this appointment -([\s\S]*?)(?=\n\nSocial history discussed)/);
+    const socialHistoryMatch = soapText.match(/Social history discussed in this appointment -([\s\S]*?)(?=\n\nReview of Systems)/);
+    const rosMatch = soapText.match(/Review of Systems(?:\s*\(ROS\))?:\s*([\s\S]*?)(?=\n\nObjective -)/);
+    const objectiveMatch = soapText.match(/Objective -([\s\S]*?)(?=\n\nAssessment and Plan -)/);
+    const assessmentPlanMatch = soapText.match(/Assessment and Plan -([\s\S]*)$/);
 
     let objectiveJSON = {};
     let assessmentPlanJSON = {};
 
     try {
-      const objRaw = objectiveMatch?.[1];
+      const objRaw = objectiveMatch?.[1]?.trim();
       if (objRaw?.includes("{")) {
         objectiveJSON = JSON.parse(
           objRaw
@@ -196,7 +238,7 @@ const Soap = ({ appointmentId, username }) => {
     } catch {}
 
     try {
-      const apRaw = assessmentPlanMatch?.[1];
+      const apRaw = assessmentPlanMatch?.[1]?.trim();
       if (apRaw?.includes("{")) {
         assessmentPlanJSON = JSON.parse(
           apRaw
@@ -219,44 +261,93 @@ const Soap = ({ appointmentId, username }) => {
       objective: objectiveJSON,
       assessmentAndPlan: assessmentPlanJSON,
     });
-  }, [data, controlCharRegex]);
+  }, [data, isLoading, controlCharRegex]);
 
   const mutation = useMutation({
     mutationFn: (updatedNotes) =>
-      updateSoapNotes(
-        `${username}_${appointmentId}_soap`,
-        username,
-        updatedNotes
-      ),
+      updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
     onSuccess: () => {
       refetch();
       setIsEditing(false);
     },
+    onError: () => alert("Failed to save SOAP notes."),
   });
 
-  const buildRawSoap = useMemo(
-    () => (state) =>
-      [
-        state.patient ? `Patient: ${state.patient}` : "",
+  // your original SOAP raw builder (kept as-is)
+  const buildRawSoap = useMemo(() => {
+    return (state) => {
+      const {
+        patient,
+        subjective: { chief_complaint, hpi, family_history, surgical_history, social_history, ros },
+        objective,
+        assessmentAndPlan,
+      } = state;
+
+      const patientLine = patient ? `Patient: ${patient}` : "";
+      const reasonLine = chief_complaint ? `Reason for Visit - ${chief_complaint}` : "";
+      const subjBlock = `Subjective - ${hpi || ""}`;
+      const famBlock = `Family history discussed in this appointment - ${
+        family_history || "Not discussed"
+      }`;
+      const surgBlock = `Surgical history discussed in this appointment - ${
+        surgical_history || "Not discussed"
+      }`;
+      const socialBlock = `Social history discussed in this appointment - ${
+        social_history || "Not discussed"
+      }`;
+      const rosBlock = ros ? `Review of Systems:\n${ros}` : "Review of Systems:\n";
+      const objectiveBlock = `Objective - ${JSON.stringify(objective || {}, null, 2)}`;
+      const apBlock = `Assessment and Plan - ${JSON.stringify(
+        assessmentAndPlan || {},
+        null,
+        2
+      )}`;
+
+      return [
+        patientLine,
         "",
-        `Reason for Visit - ${state.subjective.chief_complaint || ""}`,
+        reasonLine,
         "",
-        `Subjective - ${state.subjective.hpi || ""}`,
+        subjBlock,
         "",
-        `Objective - ${JSON.stringify(state.objective || {}, null, 2)}`,
+        famBlock,
         "",
-        `Assessment and Plan - ${JSON.stringify(
-          state.assessmentAndPlan || {},
-          null,
-          2
-        )}`,
-        procedureNotes ? `\n\nprocedure_notes - ${procedureNotes}` : "",
-      ].join("\n"),
-    [procedureNotes]
-  );
+        surgBlock,
+        "",
+        socialBlock,
+        "",
+        rosBlock,
+        "",
+        objectiveBlock,
+        "",
+        apBlock,
+      ].join("\n");
+    };
+  }, []);
+
+  const buildFullRaw = (state) => {
+    const soapOnly = buildRawSoap(state);
+
+    return [
+      `$soap_notes -\n${soapOnly}`,
+      `$procedure_notes -\n${procedureNotes || ""}`,
+      `$orders - ${JSON.stringify(ordersData)}`,
+    ].join("\n\n");
+  };
+
+  const handleSave = async () => {
+    const rawOut = buildFullRaw(soapNotes);
+    mutation.mutate(rawOut);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    refetch();
+  };
 
   if (isLoading) return <LoadingCard message="Loading SOAP..." />;
   if (error) return <LoadingCard />;
+
   const procedureMeta =
     encounterStart && encounterEnd
       ? {
@@ -273,67 +364,86 @@ const Soap = ({ appointmentId, username }) => {
       : null;
 
   return (
-    <div className="space-y-6 text-black-900">
-      <h3 className="text-lg font-semibold">Clinical Documentation</h3>
+    <div className="space-y-6 text-gray-900 leading-snug">
+      <h3 className="font-semibold text-black text-lg">SOAP Notes</h3>
 
+      {/* Tabs */}
       <div className="flex gap-3">
-        {["soap", "procedure"].map((tab) => (
+        {["soap", "procedure", "orders"].map((t) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={t}
+            onClick={() => setActiveTab(t)}
             className={`px-5 py-2 rounded-md text-sm font-medium border ${
-              activeTab === tab
+              activeTab === t
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-white text-black-700 border-black-300"
             }`}
           >
-            {tab === "soap" ? "SOAP" : "Procedure Notes"}
+            {t === "soap" ? "SOAP" : t === "procedure" ? "Procedure Notes" : "Orders"}
           </button>
         ))}
       </div>
 
       {activeTab === "soap" ? (
         <>
-          <SubjectiveSection
-            soapNotes={soapNotes}
-            setSoapNotes={setSoapNotes}
-            isEditing={isEditing}
-          />
-          <ObjectiveSection
-            soapNotes={soapNotes}
-            setSoapNotes={setSoapNotes}
-            isEditing={isEditing}
-          />
-          <AssessmentPlanSection
-            soapNotes={soapNotes}
-            setSoapNotes={setSoapNotes}
-            isEditing={isEditing}
-          />
+          <div className="space-y-6 divide-y divide-gray-300">
+            {soapNotes.patient && (
+              <div className="pb-2">
+                <p className="text-base font-medium text-gray-900">{soapNotes.patient}</p>
+              </div>
+            )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+            <SubjectiveSection
+              soapNotes={soapNotes}
+              setSoapNotes={setSoapNotes}
+              isEditing={isEditing}
+            />
+            <ObjectiveSection
+              soapNotes={soapNotes}
+              setSoapNotes={setSoapNotes}
+              isEditing={isEditing}
+            />
+            <AssessmentPlanSection
+              soapNotes={soapNotes}
+              setSoapNotes={setSoapNotes}
+              isEditing={isEditing}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
             {!isEditing ? (
-              <Button onClick={() => setIsEditing(true)}>Edit</Button>
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="bg-yellow-600 text-white hover:bg-yellow-700"
+              >
+                Edit
+              </Button>
             ) : (
               <>
                 <Button
-                  onClick={() => mutation.mutate(buildRawSoap(soapNotes))}
+                  onClick={handleSave}
+                  disabled={mutation.isLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Save
+                  {mutation.isLoading ? "Saving..." : "Save SOAP Notes"}
                 </Button>
-                <Button variant="secondary" onClick={refetch}>
+                <Button
+                  onClick={handleCancel}
+                  className="bg-gray-500 hover:bg-gray-600 text-white"
+                >
                   Cancel
                 </Button>
               </>
             )}
           </div>
         </>
+      ) : activeTab === "procedure" ? (
+        <ProcedureNotesSection content={procedureNotes} procedureMeta={procedureMeta} />
       ) : (
-        <ProcedureNotesSection
-          content={procedureNotes}
-          procedureMeta={procedureMeta}
-        />
+        <OrdersSection ordersData={ordersData} />
       )}
     </div>
   );
 };
+
 export default Soap

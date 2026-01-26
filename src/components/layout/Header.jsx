@@ -101,7 +101,7 @@ const Header = () => {
               </p>
               {/* Hide role on very small screens to save height */}
               <p className="text-xs text-neutral-500">
-                {user?.specialty || user?.role || "Staff"}
+                {user?.role || "Staff"}
               </p>
             </div>
           </div>

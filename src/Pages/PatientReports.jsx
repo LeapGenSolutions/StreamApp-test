@@ -27,7 +27,7 @@ const PatientReports = () => {
   const [callHistory, setCallHistory] = useState([]);
 
   const patient = useMemo(
-    () => patients.find((p) => String(p.patient_id) === patientId),
+    () => patients.find((p) => String(p.patient_id) === String(patientId)),
     [patients, patientId]
   );
   const { data: summaryData } = useQuery({
@@ -71,12 +71,16 @@ const PatientReports = () => {
       );
 
       const apptDateStr = getUnifiedDate(appt);
-      const apptDateObj = apptDateStr ? new Date(apptDateStr) : null;
+      const apptDateObj = apptDateStr
+        ? new Date(apptDateStr + "T12:00:00")
+        : null;
 
       const startTimeObj = match?.startTime
         ? new Date(match.startTime)
         : null;
-      const endTimeObj = match?.endTime ? new Date(match.endTime) : null;
+      const endTimeObj = match?.endTime
+        ? new Date(match.endTime)
+        : null;
 
       let durationMinutes = null;
       if (startTimeObj && endTimeObj) {
@@ -90,8 +94,6 @@ const PatientReports = () => {
         appt,
         history: match || null,
         apptDateObj,
-        startTimeObj,
-        endTimeObj,
         durationMinutes,
         isCompleted,
       };
@@ -128,33 +130,77 @@ const PatientReports = () => {
     if (!nextUpcoming) return false;
 
     const { meta, dt } = nextUpcoming;
-
     const status = (meta.appt.status || "").toLowerCase();
     const cancelled = status === "cancelled" || status === "canceled";
 
     return isToday(dt) && dt > now && !cancelled && !meta.isCompleted;
   }, [nextUpcoming, now]);
 
-  const firstName = patient?.firstname || patient?.first_name || "";
-  const lastName = patient?.lastname || patient?.last_name || "";
-  const maskedPhone = patient?.phone
-    ? `XXX-XXX-${String(patient.phone).slice(-4)}`
-    : "Not Available";
+  const firstName =
+    patient?.firstname ||
+    patient?.first_name ||
+    patient?.details?.firstname ||
+    patient?.details?.first_name ||
+    "";
+
+  const middleName =
+    patient?.middlename ||
+    patient?.middle_name ||
+    patient?.details?.middlename ||
+    patient?.details?.middle_name ||
+    patient?.original_json?.details?.middlename ||
+    patient?.original_json?.original_json?.details?.middlename ||
+    "";
+
+  const lastName =
+    patient?.lastname ||
+    patient?.last_name ||
+    patient?.details?.lastname ||
+    patient?.details?.last_name ||
+    "";
+
+  const fullName = `${firstName}${middleName ? " " + middleName : ""}${
+    lastName ? " " + lastName : ""
+  }`;
+
+  // FIX: correct phone mapping + masked fallback
+  const rawPhone =
+    patient?.phone ||
+    patient?.contactmobilephone ||
+    patient?.details?.contactmobilephone ||
+    "";
+
+  const maskedPhone = rawPhone
+    ? `XXX-XXX-${String(rawPhone).slice(-4)}`
+    : "******";
+
   const maskedEmail = patient?.email
     ? `${patient.email[0]}***@${patient.email.split("@")[1]}`
     : "Not Available";
+
   const insuranceProvider = patient?.insurance_provider || "N/A";
   const insuranceId = patient?.insurance_id || "N/A";
+
   const lastVisit = useMemo(() => {
+    const today = new Date();
+
     const completed = mergedAppointments
       .filter((m) => m.isCompleted && m.apptDateObj)
       .sort((a, b) => b.apptDateObj - a.apptDateObj);
 
-    if (completed.length > 0)
+    if (completed.length > 0) {
       return format(completed[0].apptDateObj, "MMM dd, yyyy");
+    }
 
-    if (mergedAppointments.length > 0 && mergedAppointments[0].apptDateObj)
-      return format(mergedAppointments[0].apptDateObj, "MMM dd, yyyy");
+    const hasTodayAppt = mergedAppointments.some(
+      (m) =>
+        m.apptDateObj &&
+        m.apptDateObj.toDateString() === today.toDateString()
+    );
+
+    if (hasTodayAppt) {
+      return format(today, "MMM dd, yyyy");
+    }
 
     return "Not Available";
   }, [mergedAppointments]);
@@ -167,13 +213,13 @@ const PatientReports = () => {
     patient?.original_json?.details?.dob ||
     patient?.original_json?.original_json?.details?.dob;
 
-const formattedDOB = formatUsDate(rawDOB);
+  const formattedDOB = formatUsDate(rawDOB);
 
   return (
     <div className="p-6 w-full space-y-6">
       <PageNavigation
         title="Patient Reports"
-        subtitle={`${firstName} ${lastName}`}
+        subtitle={fullName}
         customTrail={[
           { href: "/patients", label: "Patients" },
           { href: `/patients/${patientId}`, label: "Patient Details" },
@@ -181,20 +227,19 @@ const formattedDOB = formatUsDate(rawDOB);
         ]}
       />
 
-      {/* Patient Info */}
       <div className="bg-white border rounded-xl shadow p-6">
         <PatientInfoComponent
-        firstName={firstName}
-        lastName={lastName}
-        phone={maskedPhone}
-        email={maskedEmail}
-        insuranceProvider={insuranceProvider}
-        insuranceId={insuranceId}
-        lastVisit={lastVisit}
-        totalAppointments={mergedAppointments.length}
-        dob={formattedDOB}
-      />
-
+          firstName={firstName}
+          middleName={middleName}
+          lastName={lastName}
+          phone={maskedPhone}
+          email={maskedEmail}
+          insuranceProvider={insuranceProvider}
+          insuranceId={insuranceId}
+          lastVisit={lastVisit}
+          totalAppointments={mergedAppointments.length}
+          dob={formattedDOB}
+        />
 
         <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
       </div>
@@ -266,8 +311,6 @@ const formattedDOB = formatUsDate(rawDOB);
                       appt.doctor_email?.split("@")[0]}
                   </span>
                 </p>
-
-               
                 {isCompleted && (
                   <span className="inline-block mt-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
                     Completed

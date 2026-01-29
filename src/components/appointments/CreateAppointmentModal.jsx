@@ -42,6 +42,7 @@ const extractDetails = (p) =>
   p.original_json?.details ||
   p.original_json?.original_json?.details ||
   p;
+
 const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const { toast } = useToast();
   const dispatch = useDispatch();
@@ -52,7 +53,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
 
   const loggedInDoctor = useSelector((state) => state.me.me);
   const patientsList = useSelector((state) => state.patients.patients);
+
   const [existingPatient, setExistingPatient] = useState(null);
+
   const resolvedDoctorName = loggedInDoctor?.doctor_name;
   const resolvedDoctorEmail =
     loggedInDoctor?.doctor_email || loggedInDoctor?.email;
@@ -168,41 +171,69 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     setErrors({});
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((p) => ({ ...p, [name]: value }));
-    setTouched((p) => ({ ...p, [name]: true }));
-  };
-  
-  const handlePhoneChange = (e) => {
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  setFormData((p) => ({ ...p, [name]: value }));
+  setTouched((p) => ({ ...p, [name]: true }));
+  setErrors((prev) => {
+    if (!prev[name]) return prev;
+    const updated = { ...prev };
+    delete updated[name];
+    return updated;
+  });
+};
+
+
+ const handlePhoneChange = (e) => {
   const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+
   setFormData((p) => ({ ...p, phone: digitsOnly }));
   setTouched((p) => ({ ...p, phone: true }));
-};
-
-const validateForm = () => {
-  const errs = {};
-  const newTouched = {};
-  requiredFields.forEach((f) => {
-    newTouched[f] = true;
-    if (!formData[f]) errs[f] = "Required";
+  setErrors((prev) => {
+    if (!prev.phone) return prev;
+    const updated = { ...prev };
+    delete updated.phone;
+    return updated;
   });
-  setTouched((prev) => ({ ...prev, ...newTouched }));
-  setErrors(errs);
-  return Object.keys(errs).length === 0;
 };
 
 
-const scrollToFirstError = (errs) => {
-  const firstField = Object.keys(errs)[0];
-  if (!firstField) return;
+  const validateForm = () => {
+    const errs = {};
+    const newTouched = {};
 
-  const el = document.querySelector(`[name="${firstField}"]`);
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.focus();
-  }
-};
+    requiredFields.forEach((field) => {
+      if (
+        existingPatient &&
+        ["first_name", "last_name", "dob"].includes(field)
+      ) {
+        return;
+      }
+
+      newTouched[field] = true;
+
+      if (!formData[field] || String(formData[field]).trim() === "") {
+        errs[field] = "Required";
+      }
+    });
+
+    setTouched((prev) => ({ ...prev, ...newTouched }));
+    setErrors(errs);
+
+    return errs;
+  };
+
+  const scrollToFirstError = (errs) => {
+    const firstField = Object.keys(errs)[0];
+    if (!firstField) return;
+
+    const el = document.querySelector(`[name="${firstField}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.focus();
+    }
+  };
 
   const convertTo24Hour = (t) => {
     if (!t) return "";
@@ -213,7 +244,13 @@ const scrollToFirstError = (errs) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-   
+
+    const requiredErrors = validateForm();
+    if (Object.keys(requiredErrors).length > 0) {
+      scrollToFirstError(requiredErrors);
+      return;
+    }
+
     if (formData.phone && formData.phone.length !== 10) {
       toast({
         title: "Invalid phone number",
@@ -223,20 +260,12 @@ const scrollToFirstError = (errs) => {
       return;
     }
 
-    const isValid = validateForm();
-    if (!isValid) {
-      scrollToFirstError(errors);
-      return;
-    }
-
-
     setIsSubmitting(true);
 
     try {
       let patient_id;
       let practice_id;
 
-      /* ===== EXISTING PATIENT PATH (FIXED) ===== */
       if (existingPatient) {
         patient_id = extractPatientId(existingPatient);
         practice_id = extractPracticeId(existingPatient);
@@ -251,8 +280,7 @@ const scrollToFirstError = (errs) => {
           setIsSubmitting(false);
           return;
         }
-      }
-      else {
+      } else {
         const res = await fetch(`${BACKEND_URL}api/patients/add`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

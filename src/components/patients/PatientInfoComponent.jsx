@@ -10,6 +10,7 @@ import {
 
 const PatientInfoComponent = ({
   firstName,
+  middleName,
   lastName,
   phone,
   email,
@@ -32,6 +33,13 @@ const PatientInfoComponent = ({
           <User className="w-4 h-4 text-gray-500" />
           <strong>First Name:</strong> {firstName}
         </p>
+
+        {middleName && (
+          <p className="flex items-center gap-2">
+            <User className="w-4 h-4 text-gray-500" />
+            <strong>Middle Name:</strong> {middleName}
+          </p>
+        )}
 
         <p className="flex items-center gap-2">
           <User className="w-4 h-4 text-gray-500" />

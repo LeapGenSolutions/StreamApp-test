@@ -31,11 +31,9 @@ const CustomToolbar = ({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
 
-
   const viewMenuRef = useRef(null);
   const datePickerRef = useRef(null);
-  const addMenuRef = useRef(null); 
-
+  const addMenuRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -45,7 +43,6 @@ const CustomToolbar = ({
       if (datePickerRef.current && !datePickerRef.current.contains(e.target)) {
         setDatePickerOpen(false);
       }
-
       if (addMenuRef.current && !addMenuRef.current.contains(e.target)) {
         setShowAddMenu(false);
       }
@@ -54,6 +51,16 @@ const CustomToolbar = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const isPastDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const selected = new Date(date);
+    selected.setHours(0, 0, 0, 0);
+
+    return selected < today;
+  };
 
   const formatDateLabel = () => {
     if (view === "day") return format(date, "EEEE MMM dd");
@@ -119,19 +126,18 @@ const CustomToolbar = ({
 
           {datePickerOpen && (
             <div className="absolute mt-2 z-30 bg-white border border-blue-200 rounded-lg shadow-lg">
-            <TeamsDatePicker
-              selectedDate={date}
-              currentView={view}   
-              onSelectDate={(d) => {
-                setDatePickerOpen(false);
-                onNavigate("DATE", d);
-              }}
-            />
+              <TeamsDatePicker
+                selectedDate={date}
+                currentView={view}
+                onSelectDate={(d) => {
+                  setDatePickerOpen(false);
+                  onNavigate("DATE", d);
+                }}
+              />
             </div>
           )}
         </div>
       </div>
-
 
       <div className="flex items-center gap-3 flex-1 justify-center">
         <div className="relative" ref={viewMenuRef}>
@@ -150,7 +156,9 @@ const CustomToolbar = ({
                 <button
                   key={opt.value}
                   className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                    view === opt.value ? "text-blue-600 font-medium" : "text-gray-700"
+                    view === opt.value
+                      ? "text-blue-600 font-medium"
+                      : "text-gray-700"
                   }`}
                   onClick={() => handleViewSelect(opt.value)}
                 >
@@ -171,14 +179,25 @@ const CustomToolbar = ({
 
       <div className="relative flex justify-end" ref={addMenuRef}>
         <button
-          onClick={() => setShowAddMenu((prev) => !prev)}
-          className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+          disabled={isPastDate()}
+         title={isPastDate() ? "Appointments cannot be added for past dates" : ""}
+          onClick={() => {
+            if (!isPastDate()) {
+              setShowAddMenu((prev) => !prev);
+            }
+          }}
+          className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-md
+            ${
+              isPastDate()
+                ? "bg-gray-300 cursor-default text-gray-600"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }
+          `}
         >
           + Add <ChevronDown size={14} />
         </button>
-
-        {showAddMenu && (
-          <div className="absolute right=0 mt-1 w-40 bg-white rounded-md border border-blue-200 shadow-md z-20 text-sm">
+        {showAddMenu && !isPastDate() && (
+          <div className="absolute right-0 mt-1 w-40 bg-white rounded-md border border-blue-200 shadow-md z-20 text-sm">
             <button
               className="block w-full text-left px-3 py-2 hover:bg-blue-100"
               onClick={() => {

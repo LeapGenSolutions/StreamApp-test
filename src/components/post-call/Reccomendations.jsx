@@ -3,6 +3,7 @@ import { fetchRecommendationByAppointment } from "../../api/recommendations";
 import ReactMarkdown from "react-markdown";
 import { useEffect, useState } from "react";
 import LoadingCard from "./LoadingCard";
+import UpToDate from "./UpToDate";
 
 const Reccomendations = ({ appointmentId, username }) => {
   const { data: reccomendations , isLoading, error } = useQuery({
@@ -14,6 +15,7 @@ const Reccomendations = ({ appointmentId, username }) => {
       ),
   });
   const [text, setText] = useState(null);
+  const [active, setActive] = useState("recommendations");
 
   useEffect(() => {
     if (reccomendations) {
@@ -33,12 +35,42 @@ const Reccomendations = ({ appointmentId, username }) => {
     return <LoadingCard message="From symptoms to strategy… aligning recommendations." />;
   }
 
-  if(error){
+  if (error) {
     return <LoadingCard />;
   }
 
   return (
     <>
+      <div className="mb-4">
+        <h2 className="text-2xl font-semibold text-slate-900">Recommendations</h2>
+
+          <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={() => setActive("recommendations")}
+            aria-pressed={active === "recommendations"}
+            className={`px-6 py-2 rounded-md border shadow-sm text-sm font-medium ${
+              active === "recommendations"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-slate-700"
+            }`}
+          >
+            Recommendations
+          </button>
+
+          <button
+            onClick={() => setActive("uptodate")}
+            aria-pressed={active === "uptodate"}
+            className={`px-6 py-2 rounded-md border shadow-sm text-sm font-medium ${
+              active === "uptodate"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-slate-700"
+            }`}
+          >
+            UpToDate
+          </button>
+        </div>
+      </div>
+
       <style>
         {`.markdown h1 {
             font-size: 1.5rem;
@@ -57,9 +89,16 @@ const Reccomendations = ({ appointmentId, username }) => {
             margin: 0.5rem 0;
           }`}
       </style>
-      <div className="markdown">
-        <ReactMarkdown>{text}</ReactMarkdown>
-      </div>
+
+      {active === "recommendations" ? (
+        <div className="markdown">
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </div>
+      ) : (
+        <div>
+          <UpToDate appId={appointmentId} username={username} data={reccomendations?.data} />
+        </div>
+      )}
     </>
   );
 };

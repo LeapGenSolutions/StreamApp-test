@@ -1,220 +1,330 @@
-import React, { useEffect, useState } from "react";
-import {
-  // 1. IMPORT RENAMED FUNCTIONS
-  fetchPostCallFeedbackByAppointment, 
-  updatePostCallFeedbackByAppointment,
-} from "../../api/postCallFeedback"; // 2. IMPORT FROM RENAMED FILE (postCallFeedback.js)
+import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
+import { updatePostCallFeedbackByAppointment } from "../../api/postCallFeedback";
 
-// The component name already matches the intent
-const PostCallFeedback = ({ appointmentId, username }) => {
-  const [feedback, setFeedback] = useState(null);
-  const [editMode, setEditMode] = useState(false);
+const CallFeedback = ({ username, appointmentId }) => {
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    // 3. Backend uses 'comments', so update the frontend field name
-    comments: "", 
-    rating: 0, // 1–10 rating
+    overallExperience: 0,
+    summaryAccuracy: 0,
+    soapHelpfulness: 0,
+    billingAccuracy: 0,
+    transcriptAccuracy: 0,
+    featureSuggestions: "",
   });
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const [dialogMode, setDialogMode] = useState(null); // null, "select", "view", "edit"
 
-  // Fetch feedback
-  useEffect(() => {
-    const fetchFeedback = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // 4. Use the new fetch function
-        const data = await fetchPostCallFeedbackByAppointment(
-          appointmentId,
-          username
-        );
-        setFeedback(data);
-        setForm({
-          // 5. Backend returns 'comments', so use that to populate the form
-          comments: data?.comments || "", 
-          rating: data?.rating || 0,
-        });
-      } catch {
-        setFeedback(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFeedback();
-  }, [appointmentId, username]);
+  const ratingOptions = [1, 2, 3, 4, 5];
 
-  // Save feedback
+  const renderRatingButtons = (field, editable = true) => (
+    <div className="flex items-center space-x-2 mt-1">
+      {ratingOptions.map((num) => (
+        <button
+          key={num}
+          type="button"
+          className={`w-8 h-8 rounded-lg border font-medium text-sm ${
+            form[field] === num
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-700 border-gray-300"
+          }`}
+          onClick={() => {
+            if (!editable) return;
+            setForm((f) => ({
+              ...f,
+              [field]: f[field] === num ? 0 : num,
+            }));
+          }}
+        >
+          {num}
+        </button>
+      ))}
+      <span className="ml-2 text-xs text-gray-500">1-Poor, 5-Very Satisfied</span>
+    </div>
+  );
+
+  const validateForm = () => {
+    const ratings = [
+      form.overallExperience,
+      form.summaryAccuracy,
+      form.soapHelpfulness,
+      form.billingAccuracy,
+      form.transcriptAccuracy,
+    ];
+    return !ratings.every((r) => r === 0);
+  };
+
   const handleSave = async () => {
-    setSaving(true);
     setError(null);
+    if (!validateForm()) {
+      setError("Please provide rating to submit. Thank you.");
+      return;
+    }
+
+    setSaving(true);
     try {
-      // 6. Use the new update function and align data keys
       await updatePostCallFeedbackByAppointment(appointmentId, {
         userID: username,
-        // The client-side API (postCallFeedback.js) will map 'content' 
-        // to 'comments' for the backend, so we need to pass the 'comments' state as 'content'
-        content: form.comments, 
-        rating: form.rating,
+        ...form,
       });
+      setSubmitted(true);
+      setShowForm(false);
+      setDialogMode(null);
+      setShowThankYou(true);
 
-      // 7. Update the local state to reflect the successful save
-      setFeedback({
-        // Aligning with the backend's ID suffix: '_PostCallFeedback'
-        id: `${username}_${appointmentId}_PostCallFeedback`, 
-        user_id: username, // Backend uses user_id
-        appointment_id: appointmentId,
-        // Backend uses 'comments' and 'rating' directly on the item, not inside a 'data' object
-        comments: form.comments, 
-        rating: form.rating,
-        created_at: new Date().toISOString(),
-        last_update: new Date().toISOString(),
-      });
-
-      setEditMode(false);
+      setTimeout(() => setShowThankYou(false), 3000);
     } catch {
-      setError("Failed to save post call feedback");
+      setError("Failed to save post call feedback. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="p-4">Loading post call feedback...</div>; // Update text
-
-  // No feedback yet
-  if (!feedback && !editMode) {
-    return (
-      <div className="max-w-xl mx-auto bg-white rounded shadow p-6 border border-blue-100 text-center">
-        <div className="mb-4 text-gray-500">
-          No post call feedback found.<br />You can add new feedback now.
-        </div>
-        <Button
-          size="sm"
-          className="bg-blue-500 text-white"
-          onClick={() => setEditMode(true)}
-        >
-          Add Feedback
-        </Button>
-      </div>
-    );
-  }
+  const handleFeedbackButtonClick = () => {
+    if (submitted) {
+      setDialogMode("select");
+    } else {
+      setShowForm(true);
+    }
+  };
 
   return (
-    <div className="max-w-xl mx-auto bg-white rounded shadow p-6 border border-blue-100">
-      {/* View Mode */}
-      {feedback && !editMode && (
-        <>
+    <div className="relative">
+      {!showForm && !showThankYou && (
+        <Button
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+          onClick={handleFeedbackButtonClick}
+        >
+          Call Feedback
+        </Button>
+      )}
+
+      {/* Feedback form */}
+      {showForm && (
+        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50">
+          <h2 className="text-lg font-semibold text-blue-800 mb-4">Call Feedback</h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="font-medium text-gray-700 text-sm">
+                How satisfied are you with the overall experience during this call?
+              </label>
+              {renderRatingButtons("overallExperience")}
+            </div>
+
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Was summary accurate?</label>
+              {renderRatingButtons("summaryAccuracy")}
+            </div>
+
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Were SOAP notes accurate?</label>
+              {renderRatingButtons("soapHelpfulness")}
+            </div>
+
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Were billing codes accurate?</label>
+              {renderRatingButtons("billingAccuracy")}
+            </div>
+
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Was transcript accurate?</label>
+              {renderRatingButtons("transcriptAccuracy")}
+            </div>
+
+            <div>
+              <label className="font-medium text-gray-700 text-sm">
+                Are there any features or improvements you would like us to add?
+              </label>
+              <Textarea
+                placeholder="Your suggestions..."
+                value={form.featureSuggestions}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, featureSuggestions: e.target.value }))
+                }
+                rows={3}
+                className="bg-white border border-gray-300 mt-1 w-full rounded"
+              />
+            </div>
+
+            {error && <div className="text-red-600 font-medium">{error}</div>}
+
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button
+                size="sm"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                onClick={handleSave} // Only Submit saves
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Submit"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowForm(false)} // Cancel just closes
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Thank you message */}
+      {showThankYou && (
+        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50 flex items-center justify-center">
+          <span className="text-green-600 font-medium">
+            Thank you for your feedback! We appreciate your input.
+          </span>
+        </div>
+      )}
+
+      {/* Dialog for already given feedback */}
+      {dialogMode === "select" && (
+        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50 flex flex-col space-y-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold text-blue-800">
-              Post Call Feedback
-            </h2> {/* Update title */}
+            <span className="text-gray-700 font-medium">Feedback already given</span>
+            <button
+              className="text-gray-400 hover:text-gray-700 font-bold text-xl"
+              onClick={() => setDialogMode(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button size="sm" onClick={() => setDialogMode("view")}>View</Button>
             <Button
               size="sm"
-              onClick={() => setEditMode(true)}
-              className="bg-blue-500 text-white"
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => setDialogMode("edit")}
             >
               Edit
             </Button>
           </div>
+        </div>
+      )}
 
-          {/* Rating Display */}
-          <div className="mb-2">
-            <span className="font-medium text-gray-700">Rating: </span>
-            {/* 8. Rating is directly on the feedback object, not in 'data' */}
-            <span className="text-blue-600 font-bold">
-              {feedback.rating}/10 
-            </span>
-          </div>
+      {/* View Mode */}
+      {dialogMode === "view" && (
+        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50">
+          <button
+            className="self-end text-gray-400 hover:text-gray-700 font-bold text-xl"
+            onClick={() => setDialogMode(null)} // Cancel closes dialog, no save
+          >
+            ✕
+          </button>
+          <h2 className="text-lg font-semibold text-blue-800 mb-4">View Feedback</h2>
 
-          {/* Feedback Content */}
-          <div className="mb-2">
-            <span className="font-medium text-gray-700">Feedback:</span>
-            <div className="bg-blue-50 border border-blue-100 rounded p-2 mt-1 text-gray-800 whitespace-pre-line">
-              {/* 9. Feedback content is in 'comments', not 'feedback_content' in 'data' */}
-              {feedback.comments || "—"} 
+          <div className="space-y-4">
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Overall Experience</label>
+              {renderRatingButtons("overallExperience", false)}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Summary Accuracy</label>
+              {renderRatingButtons("summaryAccuracy", false)}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">SOAP Helpfulness</label>
+              {renderRatingButtons("soapHelpfulness", false)}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Billing Accuracy</label>
+              {renderRatingButtons("billingAccuracy", false)}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Transcript Accuracy</label>
+              {renderRatingButtons("transcriptAccuracy", false)}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm"> Are there any features or improvements you would like us to add?</label>
+              <Textarea
+                value={form.featureSuggestions}
+                readOnly
+                rows={3}
+                className="bg-white border border-gray-300 mt-1 w-full rounded"
+              />
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button size="sm" variant="outline" onClick={() => setDialogMode(null)}>
+                Cancel
+              </Button>
             </div>
           </div>
-
-          <div className="text-xs text-gray-400 mt-2">
-            Last updated: {new Date(feedback.last_update).toLocaleString()}
-          </div>
-        </>
+        </div>
       )}
 
       {/* Edit Mode */}
-      {(!feedback || editMode) && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-blue-800">
-              {feedback ? "Edit Post Call Feedback" : "Add Post Call Feedback"} 
-            </h2> {/* Update title */}
-            {feedback && (
-              <Button size="sm" variant="outline" onClick={() => setEditMode(false)}>
+      {dialogMode === "edit" && (
+        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50">
+          <button
+            className="self-end text-gray-400 hover:text-gray-700 font-bold text-xl"
+            onClick={() => setDialogMode(null)} // Cancel closes dialog, no save
+          >
+            
+          </button>
+          <h2 className="text-lg font-semibold text-blue-800 mb-4">Edit Feedback</h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="font-medium text-gray-700 text-sm">How satisfied are you with the overall experience during this call?</label>
+              {renderRatingButtons("overallExperience")}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Was summary accurate?</label>
+              {renderRatingButtons("summaryAccuracy")}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Were SOAP notes accurate?</label>
+              {renderRatingButtons("soapHelpfulness")}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Were billing codes accurate?</label>
+              {renderRatingButtons("billingAccuracy")}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm">Was transcript accurate?</label>
+              {renderRatingButtons("transcriptAccuracy")}
+            </div>
+            <div>
+              <label className="font-medium text-gray-700 text-sm"></label>
+              <Textarea
+                placeholder="Your suggestions..."
+                value={form.featureSuggestions}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, featureSuggestions: e.target.value }))
+                }
+                rows={3}
+                className="bg-white border border-gray-300 mt-1 w-full rounded"
+              />
+            </div>
+            {error && <div className="text-red-600 font-medium">{error}</div>}
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button
+                size="sm"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                onClick={handleSave} // Only Submit saves
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Submit"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDialogMode(null)} // Cancel closes dialog, no save
+              >
                 Cancel
               </Button>
-            )}
-          </div>
-
-          {/* 1–10 Number Rating System - NO CHANGE REQUIRED */}
-          <div>
-            <div className="mb-1 font-medium text-gray-700">Rating (1–10)</div>
-            <div className="flex flex-wrap gap-2">
-              {[...Array(10)].map((_, i) => {
-                const num = i + 1;
-                const selected = form.rating === num;
-
-                return (
-                  <button
-                    key={num}
-                    onClick={() =>
-                      setForm((f) => ({ ...f, rating: num }))
-                    }
-                    className={`
-                      w-9 h-9 rounded-md border text-sm font-bold
-                      transition 
-                      ${selected
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white border-gray-300 text-gray-600"
-                      }
-                      hover:bg-blue-100
-                    `}
-                  >
-                    {num}
-                  </button>
-                );
-              })}
             </div>
           </div>
-
-          {/* Feedback Textarea */}
-          <Textarea
-            placeholder="Write additional feedback..."
-            // 10. Bind to the 'comments' state field
-            value={form.comments} 
-            onChange={(e) =>
-              // 11. Update the 'comments' state field
-              setForm((f) => ({ ...f, comments: e.target.value })) 
-            }
-            rows={5}
-            className="bg-blue-50 border-blue-200"
-          />
-
-          {error && <div className="text-red-500 text-xs">{error}</div>}
-
-          <Button
-            size="sm"
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : feedback ? "Save Changes" : "Add Feedback"}
-          </Button>
         </div>
       )}
     </div>
   );
 };
 
-export default PostCallFeedback;
+export default CallFeedback;

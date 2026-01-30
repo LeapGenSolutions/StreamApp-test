@@ -36,12 +36,12 @@ const SeismicTimeDropdown = ({
     return slots;
   }, []);
 
-  // ⭐ CLICK OUTSIDE TO CLOSE
+  // Click outside to close
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setOpen(false);     // close dropdown
-        setManualMode(false); // close manual box if open
+        setOpen(false);
+        setManualMode(false);
       }
     };
 
@@ -64,6 +64,7 @@ const SeismicTimeDropdown = ({
       });
       return;
     }
+
     const parsed = new Date(`1970-01-01 ${manualValue}`);
     if (isNaN(parsed)) {
       toast?.({
@@ -88,7 +89,7 @@ const SeismicTimeDropdown = ({
         {label}
       </label>
 
-      {/* MAIN BUTTON */}
+      {/* Main button */}
       <button
         type="button"
         onClick={() => {
@@ -102,13 +103,18 @@ const SeismicTimeDropdown = ({
         <ChevronDown size={16} />
       </button>
 
-      {/* DROPDOWN */}
+      {/* ✅ INLINE ERROR MESSAGE (ADDED) */}
+      {touched && error && (
+        <p className="text-red-600 text-xs mt-1">{error}</p>
+      )}
+
+      {/* Dropdown */}
       {open && (
         <div
           ref={listRef}
           className="absolute z-50 mt-1 w-full max-h-64 overflow-y-auto bg-white border rounded-xl shadow-xl"
         >
-          {/* MANUAL ENTRY OPTION */}
+          {/* Manual entry option */}
           <div
             onClick={() => setManualMode(true)}
             className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 border-b text-blue-700 font-medium"
@@ -116,7 +122,7 @@ const SeismicTimeDropdown = ({
             Enter time manually
           </div>
 
-          {/* MANUAL INPUT BOX */}
+          {/* Manual input */}
           {manualMode && (
             <div className="px-3 py-2 bg-black-50 border-b">
               <input
@@ -150,7 +156,7 @@ const SeismicTimeDropdown = ({
             </div>
           )}
 
-          {/* TIME LIST */}
+          {/* Time list */}
           {times.map((t, index) => (
             <div
               key={t}

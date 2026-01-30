@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom"; 
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
@@ -171,33 +172,31 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     setErrors({});
   };
 
-const handleChange = (e) => {
-  const { name, value } = e.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
-  setFormData((p) => ({ ...p, [name]: value }));
-  setTouched((p) => ({ ...p, [name]: true }));
-  setErrors((prev) => {
-    if (!prev[name]) return prev;
-    const updated = { ...prev };
-    delete updated[name];
-    return updated;
-  });
-};
+    setFormData((p) => ({ ...p, [name]: value }));
+    setTouched((p) => ({ ...p, [name]: true }));
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const updated = { ...prev };
+      delete updated[name];
+      return updated;
+    });
+  };
 
+  const handlePhoneChange = (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
 
- const handlePhoneChange = (e) => {
-  const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
-
-  setFormData((p) => ({ ...p, phone: digitsOnly }));
-  setTouched((p) => ({ ...p, phone: true }));
-  setErrors((prev) => {
-    if (!prev.phone) return prev;
-    const updated = { ...prev };
-    delete updated.phone;
-    return updated;
-  });
-};
-
+    setFormData((p) => ({ ...p, phone: digitsOnly }));
+    setTouched((p) => ({ ...p, phone: true }));
+    setErrors((prev) => {
+      if (!prev.phone) return prev;
+      const updated = { ...prev };
+      delete updated.phone;
+      return updated;
+    });
+  };
 
   const validateForm = () => {
     const errs = {};
@@ -217,6 +216,17 @@ const handleChange = (e) => {
         errs[field] = "Required";
       }
     });
+
+    // ✅ Phone validation (inline)
+    if (!existingPatient) {
+      newTouched.phone = true;
+
+      if (!formData.phone || formData.phone.trim() === "") {
+        errs.phone = "Required";
+      } else if (formData.phone.length !== 10) {
+        errs.phone = "Invalid phone number";
+      }
+    }
 
     setTouched((prev) => ({ ...prev, ...newTouched }));
     setErrors(errs);
@@ -248,15 +258,6 @@ const handleChange = (e) => {
     const requiredErrors = validateForm();
     if (Object.keys(requiredErrors).length > 0) {
       scrollToFirstError(requiredErrors);
-      return;
-    }
-
-    if (formData.phone && formData.phone.length !== 10) {
-      toast({
-        title: "Invalid phone number",
-        description: "Phone number must be exactly 10 digits",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -364,9 +365,10 @@ const handleChange = (e) => {
     (v) => v !== undefined && v !== null && String(v).trim() !== ""
   );
 
-  return (
+  // ✅ MODAL JSX (wrapped in portal)
+  const modalUI = (
     <div
-      className="fixed inset-0 bg-black/40 flex justify-end items-center z-50"
+      className="fixed inset-0 z-[9999] bg-black/40 flex justify-end items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           if (formHasAnyValue) setShowUnsavedConfirm(true);
@@ -401,37 +403,35 @@ const handleChange = (e) => {
             </h3>
 
             <div className="mb-3">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-black-600 mb-1">
-                Search by Patient Name
-              </label>
-              <button
-                type="button"
-                onClick={resetPatientAndForm}
-                className="text-xs text-blue-700 hover:text-blue-900 underline underline-offset-2"
-              >
-                Reset
-              </button>
-            </div>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-black-600 mb-1">
+                  Search by Patient Name
+                </label>
+                <button
+                  type="button"
+                  onClick={resetPatientAndForm}
+                  className="text-xs text-blue-700 hover:text-blue-900 underline underline-offset-2"
+                >
+                  Reset
+                </button>
+              </div>
 
-            <input
-              value={nameSearchTerm}
-              onChange={handleNameInputChange}
-              placeholder="Start typing name..."
-              className="border rounded-md w-full p-2 text-sm border-black-300"
-            />
-          </div>
+              <input
+                value={nameSearchTerm}
+                onChange={handleNameInputChange}
+                placeholder="Start typing name..."
+                className="border rounded-md w-full p-2 text-sm border-black-300"
+              />
+            </div>
 
             {nameMatches.length > 0 && (
               <div className="border rounded-md max-h-80 overflow-y-auto">
                 {nameMatches.map((p) => {
                   const d = extractDetails(p);
 
-                  const displayName = [
-                  getFirstName(d),
-                  getMiddleName(d),
-                  getLastName(d),
-                ].filter(Boolean).join(" ");
+                  const displayName = [getFirstName(d), getMiddleName(d), getLastName(d)]
+                    .filter(Boolean)
+                    .join(" ");
 
                   let formattedDOB = "—";
 
@@ -481,15 +481,15 @@ const handleChange = (e) => {
 
                 <div className="grid grid-cols-2 gap-3 min-w-[0]">
                   <Input
-                  label="Appointment Date *"
-                  type="date"
-                  name="appointment_date"
-                  value={formData.appointment_date}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={handleChange}
-                  error={errors.appointment_date}
-                  touched={touched.appointment_date}
-                />
+                    label="Appointment Date *"
+                    type="date"
+                    name="appointment_date"
+                    value={formData.appointment_date}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={handleChange}
+                    error={errors.appointment_date}
+                    touched={touched.appointment_date}
+                  />
 
                   <div className="min-w-[180px]">
                     <SeismicTimeDropdown
@@ -499,7 +499,6 @@ const handleChange = (e) => {
                       onChange={handleChange}
                       error={errors.time}
                       touched={touched.time}
-                      appointmentDate={formData.appointment_date}
                       toast={toast}
                     />
                   </div>
@@ -526,9 +525,7 @@ const handleChange = (e) => {
                     value={formData.first_name}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.first_name}
                     touched={touched.first_name}
                   />
@@ -539,9 +536,7 @@ const handleChange = (e) => {
                     value={formData.middle_name}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                   />
 
                   <Input
@@ -550,14 +545,12 @@ const handleChange = (e) => {
                     value={formData.last_name}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.last_name}
                     touched={touched.last_name}
                   />
 
-                 <Input
+                  <Input
                     type="date"
                     label="Date of Birth *"
                     name="dob"
@@ -567,14 +560,10 @@ const handleChange = (e) => {
                     onChange={
                       existingPatient
                         ? undefined
-                        : (e) => {
+                        : (e) =>
                             handleChange({
-                              target: {
-                                name: "dob",
-                                value: e.target.value, // ISO only
-                              },
-                            });
-                          }
+                              target: { name: "dob", value: e.target.value },
+                            })
                     }
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.dob}
@@ -588,9 +577,7 @@ const handleChange = (e) => {
                     onChange={existingPatient ? () => {} : handleChange}
                     options={["Male", "Female", "Other"]}
                     disabled={!!existingPatient}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                   />
 
                   <Input
@@ -599,23 +586,21 @@ const handleChange = (e) => {
                     value={formData.email}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                   />
 
                   <Input
-                  label="Phone Number"
-                  name="phone"
-                  value={formData.phone}
-                  readOnly={!!existingPatient}
-                  onChange={existingPatient ? undefined : handlePhoneChange}
-                  placeholder="Enter 10-digit phone number"
-                  maxLength={10}
-                  className={
-                    existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                  }
-                />
+                    label="Phone Number"
+                    name="phone"
+                    value={formData.phone}
+                    readOnly={!!existingPatient}
+                    onChange={existingPatient ? undefined : handlePhoneChange}
+                    placeholder="Enter 10-digit phone number"
+                    maxLength={10}
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
+                    error={errors.phone}
+                    touched={touched.phone}
+                  />
 
                   <Input
                     label="MRN"
@@ -623,9 +608,7 @@ const handleChange = (e) => {
                     value={formData.mrn}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={
-                      existingPatient ? "bg-blue-50 cursor-not-allowed" : ""
-                    }
+                    className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.mrn}
                     touched={touched.mrn}
                   />
@@ -667,6 +650,8 @@ const handleChange = (e) => {
       </div>
     </div>
   );
+
+  return createPortal(modalUI, document.body);
 };
 
 const Input = ({
@@ -705,9 +690,7 @@ const Input = ({
         `}
       />
 
-      {isInvalid && (
-        <p className="text-red-600 text-xs mt-1">{error}</p>
-      )}
+      {isInvalid && <p className="text-red-600 text-xs mt-1">{error}</p>}
     </div>
   );
 };

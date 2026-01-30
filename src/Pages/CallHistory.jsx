@@ -59,12 +59,12 @@ const CallHistoryCard = ({ entry }) => (
     <button
       onClick={() =>
         navigate(`/post-call/${entry.appointmentID}?username=${entry.userID}`, {
-      state: {
-        startTime: entry.startTime,
-        endTime: entry.endTime
+          state: {
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+          },
+        })
       }
-    })
-  }
       title="View Post-Call Documentation"
       className="text-blue-600 hover:text-blue-800 ml-auto"
     >
@@ -89,6 +89,7 @@ function CallHistory() {
   );
 
   const dropdownRef = useRef(null);
+
   useEffect(() => {
     if (doctors.length === 0) dispatch(fetchDoctors());
   }, [doctors.length, dispatch]);
@@ -98,6 +99,7 @@ function CallHistory() {
       setSelectedDoctors([doctorEmail]);
     }
   }, [doctorEmail, selectedDoctors.length]);
+
   const { data: callHistoryData = [], isLoading } = useQuery({
     queryKey: ["call-history", selectedDoctors],
     queryFn: () => fetchCallHistory(selectedDoctors),
@@ -116,7 +118,6 @@ function CallHistory() {
 
   useEffect(() => {
     let data = [...callHistoryData];
-
     const searchValue = norm(patientSearch);
 
     data = data.filter((item) => {
@@ -136,18 +137,18 @@ function CallHistory() {
     });
 
     data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-
     setFilteredData(data);
   }, [callHistoryData, selectedDoctors, startDate, endDate, patientSearch]);
 
   const resetFilters = () => {
-  setStartDate(null);
-  setEndDate(null);
-  setPatientSearch("");
-  if (doctorEmail) {
-    setSelectedDoctors([doctorEmail.toLowerCase()]);
-  }
-};
+    setStartDate(null);
+    setEndDate(null);
+    setPatientSearch("");
+    if (doctorEmail) {
+      setSelectedDoctors([doctorEmail.toLowerCase()]);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Title */}
@@ -162,7 +163,6 @@ function CallHistory() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-4">
-
         <div ref={dropdownRef}>
           <DoctorMultiSelect
             selectedDoctors={selectedDoctors}
@@ -174,6 +174,7 @@ function CallHistory() {
           />
         </div>
 
+        {/* Date range – future dates disabled */}
         <DatePicker
           selectsRange
           startDate={startDate}
@@ -185,6 +186,7 @@ function CallHistory() {
           placeholderText="Select date range"
           className="h-10 border border-gray-300 rounded-md px-4 text-sm w-64"
           isClearable
+          maxDate={new Date()}
         />
 
         <input

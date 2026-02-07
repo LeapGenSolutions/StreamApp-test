@@ -6,8 +6,13 @@ import LongitudinalSentiment from "./longitudinal_sentiment";
 
 
 const EmotionalConnect = (props) => {
-    const [selectTab, setSelectTab] = useState("Emotional Empathy");
+    const [selectTab, setSelectTab] = useState("emotionalEmpathy");
     const { username, appointmentId, appointment} = props;
+    const tabs = [
+        { id: "emotionalEmpathy", label: "Emotional Empathy" },
+        { id: "sentimentAnalysis", label: "Sentiment Analysis" },
+        { id: "longitudinalSentiment", label: "Longitudinal Sentiment" },
+    ];
   return (
     <>
         <Card className="mt-8">
@@ -16,31 +21,27 @@ const EmotionalConnect = (props) => {
             </CardHeader>
             <CardContent>
                 <div className="flex space-x-2 mb-6 justify-left">
-                    {[
-                        "Emotional Empathy",
-                        "Sentiment Analysis",
-                        "Longitudinal Sentiment"
-                    ].map((tab) => (
+                    {tabs.map((tab) => (
                         <button
-                            key={tab}
+                            key={tab.id}
                             className={`px-4 py-2 rounded font-medium ${
-                                selectTab === tab
+                                selectTab === tab.id
                                 ? "bg-blue-600 text-white"
                                 : "bg-white text-neutral-800 border border-b-0"
                             } transition`}
-                            onClick={() => setSelectTab(tab)}
+                            onClick={() => setSelectTab(tab.id)}
                         >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        {tab.label}
                         </button>
                     ))}
                 </div>
-                {selectTab === "Emotional Empathy" && (
+                {selectTab === "emotionalEmpathy" && (
                     <EmotionalEmpathy username={username} appointmentId={appointmentId} appointment={appointment} />
                 )}
-                {selectTab === "Sentiment Analysis" && (
+                {selectTab === "sentimentAnalysis" && (
                     <SentimentAnalysis username={username} appointmentId={appointmentId} />
                 )}
-                {selectTab === "Longitudinal Sentiment" && (
+                {selectTab === "longitudinalSentiment" && (
                     <LongitudinalSentiment username={username} appointmentId={appointmentId} />
                 )}
             </CardContent>

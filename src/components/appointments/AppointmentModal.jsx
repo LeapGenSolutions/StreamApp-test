@@ -10,6 +10,21 @@ import CancelAppointmentModal from "./CancelAppointmentModal";
 import { Pencil, Trash2, XCircle } from "lucide-react";
 import { formatUsDate } from "../../lib/dateUtils";
 
+const normalizeStatus = (status) => {
+  const value = (status || "").toString().trim().toLowerCase();
+  return value === "canceled" ? "cancelled" : value;
+};
+
+const isSeismifiedValue = (value) => {
+  if (value === true) return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "yes" || normalized === "1";
+  }
+  if (typeof value === "number") return value === 1;
+  return false;
+};
+
 const AppointmentModal = ({
   selectedAppointment,
   setSelectedAppointment,
@@ -79,11 +94,14 @@ const AppointmentModal = ({
     }
   }
 
-  const isNotSeismified = !selectedAppointment.seismified;
-  const isNotCancelled = selectedAppointment.status !== "cancelled";
-  const isNotCompleted = selectedAppointment.status !== "completed";
+  const normalizedStatus = normalizeStatus(selectedAppointment.status);
+  const isNotSeismified = !isSeismifiedValue(selectedAppointment.seismified);
+  const isNotCancelled = normalizedStatus !== "cancelled";
+  const isNotCompleted = normalizedStatus !== "completed";
 
   const canCancel =
+    isFutureSlot && isNotSeismified && isNotCancelled && isNotCompleted;
+  const canEdit =
     isFutureSlot && isNotSeismified && isNotCancelled && isNotCompleted;
 
 
@@ -135,13 +153,15 @@ const AppointmentModal = ({
             <h1 className="text-2xl font-bold text-gray-800">Appointment Details</h1>
 
             <div className="flex gap-4">
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="text-gray-700 hover:text-blue-600 transition"
-                title="Edit Appointment"
-              >
-                <Pencil size={20} strokeWidth={1.8} />
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="text-gray-700 hover:text-blue-600 transition"
+                  title="Edit Appointment"
+                >
+                  <Pencil size={20} strokeWidth={1.8} />
+                </button>
+              )}
 
               {canCancel && (
                 <button

@@ -7,13 +7,13 @@ import {
 import { PageNavigation } from "../components/ui/page-navigation";
 
 const tabs = [
-  "Introduction",
-  "Getting Started",
-  "Navigation Guide",
-  "Feature Walkthroughs",
-  "Tips & Best Practices",
-  "FAQ",
-  "Support"
+  { id: "introduction", label: "Introduction" },
+  { id: "gettingStarted", label: "Getting Started" },
+  { id: "navigationGuide", label: "Navigation Guide" },
+  { id: "featureWalkthroughs", label: "Feature Walkthroughs" },
+  { id: "tipsBestPractices", label: "Tips & Best Practices" },
+  { id: "faq", label: "FAQ" },
+  { id: "support", label: "Support" },
 ];
 
 function GettingStartedTab() {
@@ -767,7 +767,7 @@ function FAQAccordion() {
 }
 
 const tabContent = {
-  "Introduction": (
+  introduction: (
     <div>
       <h2 className="text-2xl font-bold mb-2 text-center">What Makes Seismic Connect Unique</h2>
       <div className="flex justify-center mb-6">
@@ -817,10 +817,10 @@ const tabContent = {
       </div>
     </div>
   ),
-  "Getting Started": <GettingStartedTab />,
-  "Navigation Guide": <NavigationGuideAccordion />,
-  "Feature Walkthroughs": <FeatureWalkthroughsAccordion />,
-  "Tips & Best Practices": (
+  gettingStarted: <GettingStartedTab />,
+  navigationGuide: <NavigationGuideAccordion />,
+  featureWalkthroughs: <FeatureWalkthroughsAccordion />,
+  tipsBestPractices: (
     <div>
       <h2 className="text-4xl font-bold text-center mb-2">Tips & Best Practices</h2>
       <p className="text-lg text-center text-neutral-500 mb-8">To ensure the best experience with Seismic Connect, we recommend following these key tips and operational best practices. These simple habits can save time, reduce errors, and help you get the most out of the platform.</p>
@@ -870,8 +870,8 @@ const tabContent = {
       </div>
     </div>
   ),
-  "FAQ": <FAQAccordion />,
-  "Support": (
+  faq: <FAQAccordion />,
+  support: (
     <div>
       <h2 className="text-4xl font-bold text-center mb-2">Support</h2>
       <p className="text-lg text-center text-neutral-500 mb-8">We're here to ensure you get the help you need—quickly and efficiently. Whether it's technical assistance, a general inquiry, or an urgent situation, Seismic Connect provides multiple ways to reach our support team.</p>
@@ -915,7 +915,7 @@ const tabContent = {
 };
 
 const Documentation = () => {
-  const [activeTab, setActiveTab] = useState("Introduction");
+  const [activeTab, setActiveTab] = useState("introduction");
 
   return (
     <div className="space-y-6 px-4">
@@ -934,17 +934,17 @@ const Documentation = () => {
       </div>
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-wrap gap-3 mb-8">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap
-                ${activeTab === tab
+                ${activeTab === tab.id
                     ? "bg-blue-100 text-blue-700 border-b-2 border-blue-500"
                     : "bg-neutral-100 text-neutral-600 hover:bg-blue-50"}
               `}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>

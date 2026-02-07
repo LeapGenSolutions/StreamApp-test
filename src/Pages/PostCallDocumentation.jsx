@@ -96,6 +96,17 @@ const PostCallDocumentation = ({ onSave }) => {
       null
     : null;
 
+  const documentationTabs = [
+    { id: "summary", label: "Summary" },
+    { id: "transcript", label: "Transcript" },
+    { id: "soap", label: "SOAP" },
+    { id: "recommendations", label: "Recommendations" },
+    { id: "billing", label: "Billing" },
+    { id: "clusters", label: "Clusters" },
+    { id: "doctorNotes", label: "Doctor Notes" },
+    { id: "emotionalConnect", label: "Emotional Connect" },
+  ];
+
   return (
     <>
       {/* Top bar: Back button + Call Feedback */}
@@ -171,27 +182,18 @@ const PostCallDocumentation = ({ onSave }) => {
         )}
 
         <CardContent>
-          <div className="flex space-x-2 mb-6 justify-center">
-            {[
-              "summary",
-              "transcript",
-              "SOAP",
-              "recommendations",
-              "billing",
-              "clusters",
-              "doctor notes",
-              "emotional connect",
-            ].map((tab) => (
+          <div className="mb-6 flex flex-wrap justify-center gap-2">
+            {documentationTabs.map((tab) => (
               <button
-                key={tab}
-                className={`px-4 py-2 rounded font-medium ${
-                  docTab === tab
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-neutral-800 border border-b-0"
+                key={tab.id}
+                className={`px-4 py-2 rounded-md font-medium transition ${
+                  docTab === tab.id
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
                 } transition`}
-                onClick={() => setDocTab(tab)}
+                onClick={() => setDocTab(tab.id)}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -214,7 +216,7 @@ const PostCallDocumentation = ({ onSave }) => {
             <Transcript username={username} appointmentId={callId} />
           )}
 
-          {docTab === "SOAP" && (
+          {docTab === "soap" && (
             <Soap username={username} appointmentId={callId} />
           )}
 
@@ -230,11 +232,11 @@ const PostCallDocumentation = ({ onSave }) => {
             <Clusters username={username} appointmentId={callId} />
           )}
 
-          {docTab === "doctor notes" && (
+          {docTab === "doctorNotes" && (
             <DoctorNotes username={username} appointmentId={callId} />
           )}
 
-          {docTab === "emotional connect" && selectedAppointment && (
+          {docTab === "emotionalConnect" && selectedAppointment && (
             <EmotionalConnect
               username={username}
               appointmentId={callId}

@@ -29,7 +29,7 @@ const OrdersSection = ({ ordersData }) => {
 
   useEffect(() => {
     setEditableOrders(ordersData?.orders || []);
-    setIsPosted(false); // reset when new data loads
+    setIsPosted(Boolean(ordersData?.confirmed));
   }, [ordersData]);
 
   const showToast = (type, message) => {
@@ -85,24 +85,6 @@ const OrdersSection = ({ ordersData }) => {
     ordersData.orders = editableOrders;
     setIsEditing(false);
     showToast("success", "Orders updated");
-  };
-
-  const handlePostAll = () => {
-    const ordersToPost = normalizedOrders.filter(
-      (o) => !removedKeys[o.__key]
-    );
-
-    if (!ordersToPost.length) {
-      showToast("error", "No orders to post.");
-      return;
-    }
-
-    console.log("POST TO ATHENA (future):", ordersToPost);
-
-    setIsPosted(true);
-    setIsEditing(false);
-
-    showToast("success", `${ordersToPost.length} order(s) placed`);
   };
 
   return (
@@ -304,20 +286,6 @@ const OrdersSection = ({ ordersData }) => {
         );
       })}
 
-      {/* Post */}
-      <div className="flex justify-end pt-4 border-t">
-        <button
-          disabled={isPosted}
-          onClick={handlePostAll}
-          className={`px-5 py-2 rounded text-white ${
-            isPosted
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          Post Orders
-        </button>
-      </div>
     </div>
   );
 };

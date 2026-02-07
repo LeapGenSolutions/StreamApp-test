@@ -3,6 +3,40 @@ import { useToast } from "../../hooks/use-toast";
 import { updateAppointment } from "../../api/appointment";
 import { Calendar, Clock, User2 } from "lucide-react";
 
+const normalizeStatus = (status) => {
+  const value = (status || "").toString().trim().toLowerCase();
+  return value === "canceled" ? "cancelled" : value;
+};
+
+const isSeismifiedValue = (value) => {
+  if (value === true) return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "yes" || normalized === "1";
+  }
+  if (typeof value === "number") return value === 1;
+  return false;
+};
+
+const getAppointmentDateTime = (appointment) => {
+  const rawDate =
+    appointment?.appointment_date || appointment?.date || appointment?.appointmentDate;
+  const rawTime = appointment?.time || "";
+
+  if (!rawDate || !rawTime) return null;
+
+  const datePart = String(rawDate).split("T")[0];
+  const [year, month, day] = datePart.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const [hRaw, mRaw] = String(rawTime).split(":");
+  const hours = parseInt(hRaw || "0", 10);
+  const minutes = parseInt(mRaw || "0", 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+};
+
 const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const { toast } = useToast();
 
@@ -31,6 +65,29 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const appointmentDateTime = getAppointmentDateTime(appointment);
+    const hasHappened =
+      appointmentDateTime instanceof Date &&
+      !Number.isNaN(appointmentDateTime.getTime()) &&
+      appointmentDateTime <= new Date();
+    const status = normalizeStatus(appointment?.status);
+    const blocked =
+      hasHappened ||
+      isSeismifiedValue(appointment?.seismified) ||
+      status === "completed" ||
+      status === "cancelled";
+
+    if (blocked) {
+      toast({
+        title: "Cannot update appointment",
+        description:
+          "This appointment has already happened, is completed/cancelled, or is seismified and cannot be rescheduled.",
+        variant: "destructive",
+      });
+      onClose();
+      return;
+    }
 
     const newErrors = {
       appointment_date: "",

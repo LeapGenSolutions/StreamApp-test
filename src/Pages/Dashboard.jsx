@@ -15,15 +15,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (myEmail) {
-      const fetchData = () => {
-        dispatch(fetchAppointmentDetails(myEmail, loggedInDoctor?.clinicName));
-      };
-
-      fetchData(); // Initial fetch
-
-      const intervalId = setInterval(fetchData, 30000); // Poll every 30 seconds
-
-      return () => clearInterval(intervalId);
+      dispatch(fetchAppointmentDetails(myEmail, loggedInDoctor?.clinicName));
     }
   }, [dispatch, myEmail, loggedInDoctor?.clinicName]);
 

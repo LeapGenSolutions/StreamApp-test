@@ -33,10 +33,11 @@ export function TimelineDashboard() {
   });
 
   useEffect(() => {
-    if (appointments?.length === 0 && loggedInDoctor?.email) {
+    // Always fetch latest data on mount to ensure freshness
+    if (loggedInDoctor?.email) {
       dispatch(fetchAppointmentDetails(loggedInDoctor.email, loggedInDoctor.clinicName));
     }
-  }, [dispatch, appointments, loggedInDoctor?.email, loggedInDoctor?.clinicName]);
+  }, [dispatch, loggedInDoctor?.email, loggedInDoctor?.clinicName]);
 
 
   useEffect(() => {

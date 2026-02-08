@@ -106,11 +106,11 @@ const AppointmentStatus = ({ date }) => {
         ? format(date, "yyyy-MM-dd")
         : localTodayKey;
 
-   useEffect(() => {
-     if (DoctorEmail) {
-       dispatch(fetchAppointmentDetails(DoctorEmail));
-     }
-   }, [dispatch, DoctorEmail]);
+  useEffect(() => {
+    if (DoctorEmail) {
+      dispatch(fetchAppointmentDetails(DoctorEmail, loggedInDoctor?.clinicName));
+    }
+  }, [dispatch, DoctorEmail, loggedInDoctor?.clinicName]);
 
   // Helper to decide if an appointment time has already passed (today)
   const isAppointmentPast = useCallback(

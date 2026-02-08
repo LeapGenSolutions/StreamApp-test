@@ -29,11 +29,11 @@ const AppointmentStats = ({ date: propDate }) => {
   const localTodayKey = new Date().toLocaleDateString("en-CA");
   const utcTodayKey = new Date().toISOString().slice(0, 10);
 
-   useEffect(() => {
-     if (DoctorEmail) {
-       dispatch(fetchAppointmentDetails(DoctorEmail));
-     }
-   }, [dispatch, DoctorEmail]);
+  useEffect(() => {
+    if (DoctorEmail) {
+      dispatch(fetchAppointmentDetails(DoctorEmail, loggedInDoctor?.clinicName));
+    }
+  }, [dispatch, DoctorEmail, loggedInDoctor?.clinicName]);
 
   // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
   const todayKey =

@@ -9,6 +9,7 @@ const setMyDetails = (details) => {
     let doctors = [];
     try {
       doctors = await fetchDoctorsFromHistory();
+      //console.log("DEBUG: setMyDetails - Fetched doctors:", doctors);
     } catch (err) {
       console.error("Failed to load doctor metadata:", err);
     }
@@ -20,9 +21,13 @@ const setMyDetails = (details) => {
         doc.id?.toLowerCase() === email
     );
 
+    //console.log("DEBUG: setMyDetails - Matched doctor:", doctorDoc, "for email:", email);
+
+    //console.log("DEBUG: setMyDetails - Matched doctor:", doctorDoc, "for email:", email);
+
     // store final doctor metadata into Redux
-    if(doctorDoc?.profileComplete===true){
-      dispatch( 
+    if (doctorDoc?.profileComplete === true) {
+      dispatch(
         myActions.setMyself({
           ...details,
           email,
@@ -35,12 +40,14 @@ const setMyDetails = (details) => {
           family_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
           name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
           fullName: doctorDoc?.firstName + " " + doctorDoc?.lastName,
-          role:[ doctorDoc?.role],
-          roles:[ doctorDoc?.roles],
+          role: [doctorDoc?.role],
+          roles: [doctorDoc?.roles],
           specialty: doctorDoc?.specialty || doctorDoc?.specialization,
+          clinicName: doctorDoc?.clinicName || "", // Added clinicName
         })
       );
-    }else{
+      //console.log("DEBUG: setMyDetails - Dispatching with clinicName:", doctorDoc?.clinicName);
+    } else {
       dispatch(
         myActions.setMyself({
           ...details,
@@ -49,7 +56,9 @@ const setMyDetails = (details) => {
           doctor_name: doctorDoc?.doctor_name,
           doctor_id: doctorDoc?.doctor_id,
           doctor_email: doctorDoc?.doctor_email,
+          //doctor_email: doctorDoc?.doctor_email,
           specialization: doctorDoc?.specialization,
+          clinicName: doctorDoc?.clinicName || "", // Added clinicName
         })
       );
     }

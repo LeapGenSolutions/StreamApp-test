@@ -25,6 +25,7 @@ const VideoCallPage = () => {
   const dispatch = useDispatch();
   const userName = useSelector((state) => state.me.me.given_name);
   const myEmail = useSelector((state) => state.me.me.email);
+  const clinicName = useSelector((state) => state.me.me.clinicName);
   const appointments = useSelector((state) => state.appointments.appointments);
   const { toast } = useToast();
 
@@ -39,9 +40,9 @@ const VideoCallPage = () => {
 
   useEffect(() => {
     if (myEmail) {
-      dispatch(fetchAppointmentDetails(myEmail));
+      dispatch(fetchAppointmentDetails(myEmail, clinicName));
     }
-  }, [dispatch, myEmail]);
+  }, [dispatch, myEmail, clinicName]);
 
   useEffect(() => {
     const todayAppointments = appointments.filter(
@@ -74,6 +75,17 @@ const VideoCallPage = () => {
     if (seismifiedIds.includes(appt.id)) return false;
     const apptDateTime = new Date(`${appt.appointment_date}T${appt.time}`);
     if (apptDateTime < now) return false;
+
+    const normalize = (s) => (s || "").trim().toLowerCase();
+    const userClinic = normalize(clinicName);
+    const apptClinic = normalize(
+      appt.clinicName ||
+      appt.details?.clinicName ||
+      appt.original_json?.clinicName ||
+      appt.original_json?.details?.clinicName
+    );
+
+    if (userClinic && apptClinic !== userClinic) return false;
 
     return true;
   });
@@ -237,11 +249,10 @@ const VideoCallPage = () => {
                 {role === "doctor" && (
                   <button
                     onClick={() => setActiveTab("upcoming")}
-                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
-                      activeTab === "upcoming"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "hover:text-gray-900"
-                    }`}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "upcoming"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "hover:text-gray-900"
+                      }`}
                   >
                     Upcoming Calls
                   </button>
@@ -250,11 +261,10 @@ const VideoCallPage = () => {
                 {role === "patient" && (
                   <button
                     onClick={() => setActiveTab("join")}
-                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
-                      activeTab === "join"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "hover:text-gray-900"
-                    }`}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "join"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "hover:text-gray-900"
+                      }`}
                   >
                     Join by ID
                   </button>
@@ -263,11 +273,10 @@ const VideoCallPage = () => {
                 {role === "doctor" && (
                   <button
                     onClick={() => setActiveTab("history")}
-                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
-                      activeTab === "history"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "hover:text-gray-900"
-                    }`}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "history"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "hover:text-gray-900"
+                      }`}
                   >
                     Call History
                   </button>

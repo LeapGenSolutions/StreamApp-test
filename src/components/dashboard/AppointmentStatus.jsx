@@ -106,12 +106,11 @@ const AppointmentStatus = ({ date }) => {
         ? format(date, "yyyy-MM-dd")
         : localTodayKey;
 
-  // Removed redundant fetch
-  // useEffect(() => {
-  //   if (DoctorEmail) {
-  //     dispatch(fetchAppointmentDetails(DoctorEmail));
-  //   }
-  // }, [dispatch, DoctorEmail]);
+   useEffect(() => {
+     if (DoctorEmail) {
+       dispatch(fetchAppointmentDetails(DoctorEmail));
+     }
+   }, [dispatch, DoctorEmail]);
 
   // Helper to decide if an appointment time has already passed (today)
   const isAppointmentPast = useCallback(
@@ -251,7 +250,7 @@ const AppointmentStatus = ({ date }) => {
     };
 
     computeStats();
-  }, [appointments, todayKey, doctorUniqueId, DoctorEmail, isAppointmentPast]);
+  }, [appointments, todayKey, doctorUniqueId, DoctorEmail, isAppointmentPast, loggedInDoctor?.clinicName]);
 
   if (isLoading) {
     return (

@@ -9,15 +9,23 @@ import { useLocation } from "wouter";
 
 function Dashboard() {
   const dispatch = useDispatch();
-  const myEmail = useSelector((state) => state.me.me.email);
-  const appointments = useSelector((state) => state.appointments.appointments);
+  const loggedInDoctor = useSelector((state) => state.me.me);
+  const myEmail = loggedInDoctor?.email;
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (appointments?.length === 0 && myEmail) {
-      dispatch(fetchAppointmentDetails(myEmail));
+    if (myEmail) {
+      const fetchData = () => {
+        dispatch(fetchAppointmentDetails(myEmail, loggedInDoctor?.clinicName));
+      };
+
+      fetchData(); // Initial fetch
+
+      const intervalId = setInterval(fetchData, 30000); // Poll every 30 seconds
+
+      return () => clearInterval(intervalId);
     }
-  }, [dispatch, appointments, myEmail]);
+  }, [dispatch, myEmail, loggedInDoctor?.clinicName]);
 
   useEffect(() => {
     document.title = "Dashboard - Seismic Connect";
@@ -30,7 +38,7 @@ function Dashboard() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AppointmentStats date={new Date().toISOString().split('T')[0]} />
-        <div style={{ cursor: "pointer" }} onClick={() => navigate("/timeline") }>
+        <div style={{ cursor: "pointer" }} onClick={() => navigate("/timeline")}>
           <AppointmentStatus date={new Date().toISOString().split('T')[0]} />
         </div>
         <ProviderWorkload date={new Date().toISOString().split('T')[0]} />

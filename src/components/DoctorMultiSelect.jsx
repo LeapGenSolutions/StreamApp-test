@@ -31,12 +31,15 @@ const DoctorMultiSelect = ({
   const rawDoctors = useSelector((state) => state.doctors?.doctors || []);
   const dispatch = useDispatch();
 
+  const clinicName = useSelector((state) => state.me?.me?.clinicName); // Added clinicName selector
+
   useEffect(() => {
-    if (rawDoctors.length === 0) {
-      dispatch(fetchDoctors());
+    // Only fetch if we have a clinicName to prevent fetching ALL doctors (global leak)
+    if (rawDoctors.length === 0 && clinicName) {
+      dispatch(fetchDoctors(clinicName));
     }
     // eslint-disable-next-line
-  }, []);
+  }, [clinicName]); // Added clinicName dependency
 
   useEffect(() => {
     const loadDoctors = async () => {
@@ -182,7 +185,7 @@ const DoctorMultiSelect = ({
       {isDropdownOpen && (
         <div className="absolute mt-2 w-64 border rounded-md bg-white shadow-lg max-h-96 overflow-y-auto z-50">
 
-         
+
           <div className="p-2 sticky top-0 bg-white z-10">
             <input
               value={searchTerm}
@@ -192,10 +195,10 @@ const DoctorMultiSelect = ({
             />
           </div>
 
-       
+
           <div className="px-3 py-2 flex items-center justify-between border-b bg-white sticky top-[44px] z-10">
 
-          
+
             <label className="flex items-center cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -208,7 +211,7 @@ const DoctorMultiSelect = ({
               </span>
             </label>
 
-        
+
             <button
               onClick={handleApply}
               className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
@@ -217,7 +220,7 @@ const DoctorMultiSelect = ({
             </button>
           </div>
 
-         
+
           {[...selectedDocs, ...unselectedDocs].map((doc) => (
             <div
               key={doc.email}
@@ -240,7 +243,7 @@ const DoctorMultiSelect = ({
             </div>
           ))}
 
-          
+
           <div className="sticky bottom-0 bg-white border-t px-3 py-2 flex justify-start">
             <button
               onClick={(e) => handleUndo(e)}

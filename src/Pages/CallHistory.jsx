@@ -88,11 +88,15 @@ function CallHistory() {
     (state) => state.me.me.email?.toLowerCase()
   );
 
+  const clinicName = useSelector(
+    (state) => state.me.me.clinicName
+  );
+
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    if (doctors.length === 0) dispatch(fetchDoctors());
-  }, [doctors.length, dispatch]);
+    if (doctors.length === 0) dispatch(fetchDoctors(clinicName));
+  }, [doctors.length, dispatch, clinicName]);
 
   useEffect(() => {
     if (doctorEmail && selectedDoctors.length === 0) {

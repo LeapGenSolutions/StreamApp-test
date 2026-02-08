@@ -29,12 +29,11 @@ const AppointmentStats = ({ date: propDate }) => {
   const localTodayKey = new Date().toLocaleDateString("en-CA");
   const utcTodayKey = new Date().toISOString().slice(0, 10);
 
-  // Removed redundant fetch
-  // useEffect(() => {
-  //   if (DoctorEmail) {
-  //     dispatch(fetchAppointmentDetails(DoctorEmail));
-  //   }
-  // }, [dispatch, DoctorEmail]);
+   useEffect(() => {
+     if (DoctorEmail) {
+       dispatch(fetchAppointmentDetails(DoctorEmail));
+     }
+   }, [dispatch, DoctorEmail]);
 
   // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
   const todayKey =
@@ -120,7 +119,7 @@ const AppointmentStats = ({ date: propDate }) => {
       virtualAppointments,
     });
     setIsLoading(false);
-  }, [appointments, todayKey, DoctorEmail, doctorUniqueId]);
+  }, [appointments, todayKey, DoctorEmail, doctorUniqueId, loggedInDoctor?.clinicName]);
 
   if (isLoading) {
     return (

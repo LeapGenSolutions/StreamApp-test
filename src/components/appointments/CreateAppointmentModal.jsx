@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom"; 
+import { createPortal } from "react-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
@@ -134,6 +134,20 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     }
 
     const matches = patientsList.filter((p) => {
+      const normalizeClinic = (s) => (s || "").trim().toLowerCase();
+      const userClinic = normalizeClinic(loggedInDoctor?.clinicName);
+      const patientClinic = normalizeClinic(
+        p.clinicName ||
+        p.details?.clinicName ||
+        p.original_json?.clinicName ||
+        p.original_json?.details?.clinicName
+      );
+
+      // Clinic Name check
+      if (userClinic && patientClinic !== userClinic) {
+        return false;
+      }
+
       const d = extractDetails(p);
       const full = norm(
         [getFirstName(d), getMiddleName(d), getLastName(d)]
@@ -254,6 +268,8 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    //console.log("DEBUG: CreateAppointmentModal - Submitting with formData:", formData);
+    //console.log("DEBUG: CreateAppointmentModal - LoggedInDoctor:", loggedInDoctor);
 
     const requiredErrors = validateForm();
     if (Object.keys(requiredErrors).length > 0) {
@@ -295,6 +311,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
             phone: formData.phone?.replace(/\D/g, ""),
             ehr: formData.ehr,
             mrn: formData.mrn,
+            clinicName: loggedInDoctor?.clinicName || "", // Added clinicName with fallback
           }),
         });
 
@@ -336,6 +353,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         phone: formData.phone?.replace(/\D/g, ""),
         patient_id,
         practice_id,
+        clinicName: loggedInDoctor?.clinicName || "", // Added clinicName with fallback
       };
 
       const created = await createAppointment(
@@ -561,9 +579,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                       existingPatient
                         ? undefined
                         : (e) =>
-                            handleChange({
-                              target: { name: "dob", value: e.target.value },
-                            })
+                          handleChange({
+                            target: { name: "dob", value: e.target.value },
+                          })
                     }
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.dob}
@@ -574,7 +592,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     label="Gender"
                     name="gender"
                     value={formData.gender}
-                    onChange={existingPatient ? () => {} : handleChange}
+                    onChange={existingPatient ? () => { } : handleChange}
                     options={["Male", "Female", "Other"]}
                     disabled={!!existingPatient}
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}

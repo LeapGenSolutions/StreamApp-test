@@ -88,11 +88,15 @@ function CallHistory() {
     (state) => state.me.me.email?.toLowerCase()
   );
 
+  const clinicName = useSelector(
+    (state) => state.me.me.clinicName
+  );
+
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    if (doctors.length === 0) dispatch(fetchDoctors());
-  }, [doctors.length, dispatch]);
+    if (doctors.length === 0) dispatch(fetchDoctors(clinicName));
+  }, [doctors.length, dispatch, clinicName]);
 
   useEffect(() => {
     if (doctorEmail && selectedDoctors.length === 0) {
@@ -133,12 +137,23 @@ function CallHistory() {
       const patientMatch =
         !searchValue || norm(item.patientName).includes(searchValue);
 
-      return providerMatch && dateMatch && patientMatch;
+      const normalize2 = (s) => (s || "").trim().toLowerCase();
+      const userClinic = normalize2(clinicName);
+      const entryClinic = normalize2(
+        item.clinicName ||
+        item.details?.clinicName ||
+        item.original_json?.clinicName
+      );
+
+      // If user has a clinic, only show entries that match that clinic
+      const clinicMatch = !userClinic || entryClinic === userClinic;
+
+      return providerMatch && dateMatch && patientMatch && clinicMatch;
     });
 
     data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
     setFilteredData(data);
-  }, [callHistoryData, selectedDoctors, startDate, endDate, patientSearch]);
+  }, [callHistoryData, selectedDoctors, startDate, endDate, patientSearch, clinicName]);
 
   const resetFilters = () => {
     setStartDate(null);

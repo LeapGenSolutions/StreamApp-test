@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { createPortal } from "react-dom"; 
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
@@ -95,6 +95,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   ];
 
   const norm = (str) => (str || "").toLowerCase().trim();
+  const sanitizeNameInput = (value) =>
+    String(value || "").replace(/[^a-zA-Z\s'-]/g, "");
+  const isValidName = (value) => /^[A-Za-z][A-Za-z\s'-]*$/.test((value || "").trim());
   const getFirstName = (d) => d.first_name || d.firstname || "";
   const getMiddleName = (d) => d.middle_name || d.middlename || "";
   const getLastName = (d) => d.last_name || d.lastname || "";
@@ -123,31 +126,22 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     setNameMatches([]);
   };
 
+  const resetPatientSearchOnly = () => {
+    setExistingPatient(null);
+    setNameMatches([]);
+  };
+
   const handleNameInputChange = (e) => {
     const value = e.target.value;
     setNameSearchTerm(value);
 
     const term = norm(value);
     if (!term) {
-      resetPatientAndForm();
+      resetPatientSearchOnly();
       return;
     }
 
     const matches = patientsList.filter((p) => {
-      const normalizeClinic = (s) => (s || "").trim().toLowerCase();
-      const userClinic = normalizeClinic(loggedInDoctor?.clinicName);
-      const patientClinic = normalizeClinic(
-        p.clinicName ||
-        p.details?.clinicName ||
-        p.original_json?.clinicName ||
-        p.original_json?.details?.clinicName
-      );
-
-      // Clinic Name check
-      if (userClinic && patientClinic !== userClinic) {
-        return false;
-      }
-
       const d = extractDetails(p);
       const full = norm(
         [getFirstName(d), getMiddleName(d), getLastName(d)]
@@ -187,7 +181,12 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    const rawValue = e.target.value;
+    const value =
+      name === "first_name" || name === "middle_name" || name === "last_name"
+        ? sanitizeNameInput(rawValue)
+        : rawValue;
 
     setFormData((p) => ({ ...p, [name]: value }));
     setTouched((p) => ({ ...p, [name]: true }));
@@ -240,6 +239,14 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       } else if (formData.phone.length !== 10) {
         errs.phone = "Invalid phone number";
       }
+
+      if (formData.first_name && !isValidName(formData.first_name)) {
+        errs.first_name = "Only letters allowed";
+      }
+
+      if (formData.last_name && !isValidName(formData.last_name)) {
+        errs.last_name = "Only letters allowed";
+      }
     }
 
     setTouched((prev) => ({ ...prev, ...newTouched }));
@@ -268,8 +275,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    //console.log("DEBUG: CreateAppointmentModal - Submitting with formData:", formData);
-    //console.log("DEBUG: CreateAppointmentModal - LoggedInDoctor:", loggedInDoctor);
 
     const requiredErrors = validateForm();
     if (Object.keys(requiredErrors).length > 0) {
@@ -311,7 +316,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
             phone: formData.phone?.replace(/\D/g, ""),
             ehr: formData.ehr,
             mrn: formData.mrn,
-            clinicName: loggedInDoctor?.clinicName || "", // Added clinicName with fallback
           }),
         });
 
@@ -353,7 +357,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         phone: formData.phone?.replace(/\D/g, ""),
         patient_id,
         practice_id,
-        clinicName: loggedInDoctor?.clinicName || "", // Added clinicName with fallback
       };
 
       const created = await createAppointment(
@@ -579,9 +582,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                       existingPatient
                         ? undefined
                         : (e) =>
-                          handleChange({
-                            target: { name: "dob", value: e.target.value },
-                          })
+                            handleChange({
+                              target: { name: "dob", value: e.target.value },
+                            })
                     }
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.dob}
@@ -592,7 +595,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     label="Gender"
                     name="gender"
                     value={formData.gender}
-                    onChange={existingPatient ? () => { } : handleChange}
+                    onChange={existingPatient ? () => {} : handleChange}
                     options={["Male", "Female", "Other"]}
                     disabled={!!existingPatient}
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}

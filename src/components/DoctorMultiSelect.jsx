@@ -63,6 +63,11 @@ const DoctorMultiSelect = ({
           .filter((doc) => {
             if (!doc.doctor_name || !doc.doctor_email) return false;
             if (isCIAMUser) {
+              if (clinicName) {
+                return (
+                  doc.profileComplete === true && doc.clinicName === clinicName
+                );
+              }
               return doc.profileComplete === true && matchesLoggedInUser(doc);
             } else {
               return doc.profileComplete !== true;
@@ -100,7 +105,7 @@ const DoctorMultiSelect = ({
     };
 
     loadDoctors();
-  }, [email, onDoctorSelect, selectedDoctors.length, rawDoctors]);
+  }, [email, onDoctorSelect, selectedDoctors.length, rawDoctors, clinicName]);
 
   useEffect(() => {
     if (isDropdownOpen) {

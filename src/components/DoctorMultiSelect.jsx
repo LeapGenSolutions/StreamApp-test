@@ -35,7 +35,9 @@ const DoctorMultiSelect = ({
 
   useEffect(() => {
     // Only fetch if we have a clinicName to prevent fetching ALL doctors (global leak)
-    if (rawDoctors.length === 0 && clinicName) {
+    // UPDATE: We now have strict filtering in fetchDoctors action for legacy users (no clinicName),
+    // so it is safe to fetch even if clinicName is empty.
+    if (rawDoctors.length === 0) {
       dispatch(fetchDoctors(clinicName));
     }
     // eslint-disable-next-line

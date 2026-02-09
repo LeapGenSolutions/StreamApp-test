@@ -143,7 +143,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           );
           return apptClinic === userClinic;
         })
-        : merged;
+        : merged.filter(appt => !appt.clinicName || appt.clinicName.trim() === ""); // Strict filter for legacy users
 
       setAppointments(filtered);
     };

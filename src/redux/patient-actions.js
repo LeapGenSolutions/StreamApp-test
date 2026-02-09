@@ -16,6 +16,13 @@ export const fetchPatientsDetails = (clinicName) => {
 
             const data = await response.json();
 
+            // Strict Isolation for Legacy Users (No clinicName)
+            if (!clinicName) {
+                // The backend returns ALL patients if no clinicName is sent.
+                // We must filter client-side to keep only those with NO clinicName.
+                return data.filter(p => !p.clinicName || p.clinicName.trim() === "");
+            }
+
             return data;
         }
 

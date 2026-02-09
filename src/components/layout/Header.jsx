@@ -73,9 +73,9 @@ const Header = () => {
           "
         >
           {/* Clinic Name */}
-          {user && (
+          {user?.clinicName && (
             <span className="text-sm font-medium text-neutral-600">
-              {user.clinicName || "Clinic Not Set"}
+              {user.clinicName}
             </span>
           )}
 

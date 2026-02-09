@@ -140,6 +140,13 @@ export default function ProviderWorkload() {
           // Since we passed [DoctorEmail] to API, it should be correct.
           // Clinic filtering is also done by API (strict if userClinic is present).
 
+          // Strict filtering for Legacy Users (no userClinic)
+          if (!userClinic) {
+            if (app.clinicName && app.clinicName.trim() !== "") {
+              continue;
+            }
+          }
+
           const rawDate = app.appointment_date || app.appointmentDate;
           if (!rawDate) continue;
 

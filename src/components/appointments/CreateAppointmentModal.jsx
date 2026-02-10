@@ -99,6 +99,8 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   ];
 
   const norm = (str) => (str || "").toLowerCase().trim();
+  const sanitizeNameInput = (value) =>
+    String(value || "").replace(/[^a-zA-Z\s'-]/g, "");
   const getFirstName = (d) => d.first_name || d.firstname || "";
   const getMiddleName = (d) => d.middle_name || d.middlename || "";
   const getLastName = (d) => d.last_name || d.lastname || "";
@@ -196,7 +198,12 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    const rawValue = e.target.value;
+    const value =
+      name === "first_name" || name === "middle_name" || name === "last_name"
+        ? sanitizeNameInput(rawValue)
+        : rawValue;
 
     setFormData((p) => ({ ...p, [name]: value }));
     setTouched((p) => ({ ...p, [name]: true }));

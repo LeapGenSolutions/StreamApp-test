@@ -163,7 +163,7 @@ function Patients() {
     const endStr = normalizeDate(endDate);
 
     const filteredAppointments = appointments.filter((appt) => {
-      const normalize = (s) => (s || "").trim().toLowerCase();
+      const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
       const userClinic = normalize(loggedInDoctor?.clinicName);
       const apptClinic = normalize(
         appt.clinicName ||

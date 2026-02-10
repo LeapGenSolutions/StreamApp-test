@@ -8,10 +8,11 @@ export const fetchAppointmentDetails = (email, clinicName = "") => {
   return async (dispatch) => {
     const fetchAppointments = async () => {
       // CASE 1: Specific Clinic (Normal Behavior)
-      if (clinicName) {
+      if (clinicName && clinicName.trim() !== "") {
+        const trimmedClinic = clinicName.replace(/\s+/g, " ").trim();
         // Ensure we don't double-slash if BACKEND_URL ends with /
         const base = (BACKEND_URL || "").replace(/\/+$/, "");
-        const url = `${base}/api/appointments/all?clinicName=${encodeURIComponent(clinicName)}`;
+        const url = `${base}/api/appointments/all?clinicName=${encodeURIComponent(trimmedClinic)}`;
 
         const response = await fetch(url);
         if (!response.ok) throw new Error('Could not fetch appointment data!');

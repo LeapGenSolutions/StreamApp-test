@@ -175,7 +175,7 @@ const AppointmentStatus = ({ date }) => {
           app.doctorEmail === DoctorEmail ||
           app.doctor_email === DoctorEmail;
 
-        const normalize = (s) => (s || "").trim().toLowerCase();
+        const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
         const userClinic = normalize(loggedInDoctor?.clinicName);
         const apptClinic = normalize(
           app.clinicName ||

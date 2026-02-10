@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -31,7 +31,6 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [appointments, setAppointments] = useState([]);
   const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [doctorColorMap, setDoctorColorMap] = useState({});
-  const [isDropdownOpen, setDropdownOpen] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
@@ -73,13 +72,14 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const normalize = (s) => (s || "").trim().toLowerCase();
-      const userClinic = normalize(loggedInDoctor?.clinicName);
+      const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const userClinicForComparison = normalize(loggedInDoctor?.clinicName);
+      const userClinicForApi = (loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim();
 
       // If we are strictly filtering by clinic, we might not require selectedDoctors
       // But preserving existing logic: fetch for selected doctors, THEN filter by clinic
 
-      if (selectedDoctors.length === 0 && !userClinic) {
+      if (selectedDoctors.length === 0 && !userClinicForComparison) {
         setAppointments([]);
         return;
       }
@@ -94,27 +94,14 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       // NOTE: This logic requires `allDoctors` to be available. 
       // I need to add `const allDoctors = useSelector((state) => state.doctors.doctors);` at top of component.
 
+      // NOTE: Removed logic that auto-fetched all clinic doctors.
+      // Now strictly respects `selectedDoctors` passed from parent/dropdown.
       let doctorsToFetch = selectedDoctors;
 
-      if (userClinic && allDoctors?.length > 0) {
-        const clinicDoctors = allDoctors.filter(doc => {
-          // Check if doctor belongs to same clinic
-          // Access clinicName from doctor object (might be doc.clinicName or in other fields)
-          // Assuming doc structure matches loggedInDoctor
-          const docClinic = normalize(doc.clinicName || doc.details?.clinicName);
-          return docClinic === userClinic;
-        });
+      console.log("DEBUG: AppointmentCalendar - selectedDoctors:", selectedDoctors);
+      console.log("DEBUG: AppointmentCalendar - doctorsToFetch:", doctorsToFetch);
 
-        if (clinicDoctors.length > 0) {
-          // Extract emails
-          const clinicEmails = clinicDoctors.map(d => d.doctor_email || d.email).filter(Boolean);
-          // Merge with selected to ensure we cover everything, or just use clinicEmails?
-          // To show "Entire website filtered based on clinicName", we should use ALL clinic emails.
-          doctorsToFetch = Array.from(new Set([...selectedDoctors, ...clinicEmails]));
-        }
-      }
-
-      const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch, userClinic);
+      const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch, userClinicForApi);
       console.log("DEBUG: fetched data type:", typeof data, "isArray:", Array.isArray(data));
       console.log("DEBUG: fetched data sample:", data);
 
@@ -133,17 +120,36 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
       // console.log("DEBUG: AppointmentCalendar - loggedInDoctor.clinicName:", loggedInDoctor?.clinicName);
 
-      const filtered = userClinic
-        ? merged.filter(appt => {
+      // Create a Set of selected doctor emails for efficient lookup (normalized)
+      const selectedDoctorEmails = new Set(
+        selectedDoctors.map(email => (email || "").trim().toLowerCase())
+      );
+
+      const filtered = merged.filter(appt => {
+        // 1. Filter by Clinic Name (Security/Scope)
+        if (userClinicForComparison) {
           const apptClinic = normalize(
             appt.clinicName ||
             appt.details?.clinicName ||
             appt.original_json?.clinicName ||
             appt.original_json?.details?.clinicName
           );
-          return apptClinic === userClinic;
-        })
-        : merged.filter(appt => !appt.clinicName || appt.clinicName.trim() === ""); // Strict filter for legacy users
+          if (apptClinic !== userClinicForComparison) return false;
+        } else {
+          // Strict filter for legacy users (must have no clinic)
+          if (appt.clinicName && appt.clinicName.trim() !== "") return false;
+        }
+
+        // 2. Filter by Selected Doctors (View preference)
+        // If selectedDoctors is empty, we might show nothing or everything? 
+        // Logic above says if empty -> return [], so we assume selectedDoctors has entries here.
+        if (selectedDoctorEmails.size > 0) {
+          const apptDoctorEmail = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
+          if (!selectedDoctorEmails.has(apptDoctorEmail)) return false;
+        }
+
+        return true;
+      });
 
       setAppointments(filtered);
     };
@@ -242,7 +248,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     );
   };
 
-  const handleDoctorUpdate = (ids, doctorList) => {
+  const handleDoctorUpdate = useCallback((ids, doctorList) => {
     setSelectedDoctors(ids);
 
     const colorMap = {};
@@ -253,9 +259,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     });
 
     setDoctorColorMap(colorMap);
-  };
+  }, []);
 
-  const handleAppointmentUpdated = (updated) => {
+  const handleAppointmentUpdated = useCallback((updated) => {
     const [hours, minutes] = updated.time.split(":").map(Number);
 
     const start = new Date(`${updated.appointment_date}T00:00:00`);
@@ -276,9 +282,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           : a
       )
     );
-  };
+  }, []);
 
-  const handleAppointmentDeleted = (deleted) => {
+  const handleAppointmentDeleted = useCallback((deleted) => {
     setAppointments((prev) =>
       prev.map((a) =>
         a.id === deleted.id ? { ...a, animate: "fade" } : a
@@ -288,7 +294,25 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     setTimeout(() => {
       setAppointments((prev) => prev.filter((a) => a.id !== deleted.id));
     }, 200);
-  };
+  }, []);
+
+  const { components } = useMemo(() => ({
+    components: {
+      event: (props) => <EventCell {...props} currentView={currentView} />,
+      toolbar: (props) => (
+        <CustomToolbar
+          {...props}
+          selectedDoctors={selectedDoctors}
+          onDoctorUpdate={handleDoctorUpdate}
+          onAddAppointment={() => setShowCreateModal(true)}
+          onAddBulkAppointment={() => setShowBulkCreateModal(true)}
+        />
+      ),
+    }
+  }), [currentView, selectedDoctors, handleDoctorUpdate]);
+  // Note: dependencies are a bit tricky. CustomToolbar uses setDropdownOpen, setShowCreateModal etc.
+  // These are state setters, so stable.
+  // We include handleDoctorUpdate which is now a stable callback.
 
   return (
     <div style={{ height: "650px", margin: "20px" }}>
@@ -310,20 +334,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           eventTimeRangeStartFormat: () => "",
           eventTimeRangeEndFormat: () => "",
         }}
-        components={{
-          event: (props) => <EventCell {...props} currentView={currentView} />,
-          toolbar: (props) => (
-            <CustomToolbar
-              {...props}
-              selectedDoctors={selectedDoctors}
-              onDoctorUpdate={handleDoctorUpdate}
-              isDropdownOpen={isDropdownOpen}
-              setDropdownOpen={setDropdownOpen}
-              onAddAppointment={() => setShowCreateModal(true)}
-              onAddBulkAppointment={() => setShowBulkCreateModal(true)}
-            />
-          ),
-        }}
+        components={components}
       />
 
       {selectedAppointment && (

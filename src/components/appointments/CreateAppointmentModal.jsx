@@ -127,13 +127,18 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     setNameMatches([]);
   };
 
+  const resetPatientSearchOnly = () => {
+    setExistingPatient(null);
+    setNameMatches([]);
+  };
+
   const handleNameInputChange = (e) => {
     const value = e.target.value;
     setNameSearchTerm(value);
 
     const term = norm(value);
     if (!term) {
-      resetPatientAndForm();
+      resetPatientSearchOnly();
       return;
     }
 
@@ -235,7 +240,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       }
     });
 
-    // ✅ Phone validation (inline)
     if (!existingPatient) {
       newTouched.phone = true;
 
@@ -387,7 +391,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     (v) => v !== undefined && v !== null && String(v).trim() !== ""
   );
 
-  // ✅ MODAL JSX (wrapped in portal)
   const modalUI = (
     <div
       className="fixed inset-0 z-[9999] bg-black/40 flex justify-end items-center"

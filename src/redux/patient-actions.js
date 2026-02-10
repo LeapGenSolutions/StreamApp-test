@@ -29,8 +29,6 @@ export const fetchPatientsDetails = (clinicName) => {
 
             dispatch(patientActions.setPatients(data));
             return data;
-
-            return data;
         }
 
         catch (error) {

@@ -169,7 +169,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       specialization: formData.specialization,
       id: appointment.id,
       doctor_email: appointment.doctor_email,
-      clinicName: appointment.clinicName || loggedInDoctor?.clinicName || "",
+      clinicName: (appointment.clinicName || loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim(),
     };
 
     // Normalize date to yyyy-mm-dd

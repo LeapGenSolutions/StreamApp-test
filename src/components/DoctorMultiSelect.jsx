@@ -34,14 +34,13 @@ const DoctorMultiSelect = ({
   const clinicName = useSelector((state) => state.me?.me?.clinicName); // Added clinicName selector
 
   useEffect(() => {
-    // Only fetch if we have a clinicName to prevent fetching ALL doctors (global leak)
-    // UPDATE: We now have strict filtering in fetchDoctors action for legacy users (no clinicName),
-    // so it is safe to fetch even if clinicName is empty.
-    if (rawDoctors.length === 0) {
+    // Always fetch when clinicName changes to ensure we have the correct doctors for the current user's clinic
+    // properties. The fetchDoctors action handles strict isolation for legacy users.
+    if (clinicName !== undefined) {
       dispatch(fetchDoctors(clinicName));
     }
     // eslint-disable-next-line
-  }, [clinicName]); // Added clinicName dependency
+  }, [clinicName, dispatch]); // Added clinicName dependency
 
   useEffect(() => {
     const loadDoctors = async () => {
@@ -64,8 +63,11 @@ const DoctorMultiSelect = ({
             if (!doc.doctor_name || !doc.doctor_email) return false;
             if (isCIAMUser) {
               if (clinicName) {
+                const normalize = (str) => (str || "").replace(/\s+/g, " ").trim().toLowerCase();
+                const normalizedClinic = normalize(clinicName);
+                const docClinic = normalize(doc.clinicName);
                 return (
-                  doc.profileComplete === true && doc.clinicName === clinicName
+                  doc.profileComplete === true && docClinic === normalizedClinic
                 );
               }
               return doc.profileComplete === true && matchesLoggedInUser(doc);

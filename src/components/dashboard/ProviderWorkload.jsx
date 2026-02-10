@@ -85,12 +85,14 @@ export default function ProviderWorkload() {
         return;
       }
 
-      const normalize = (s) => (s || "").trim().toLowerCase();
-      const userClinic = normalize(loggedInDoctor?.clinicName);
+      const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const userClinicForComparison = normalize(loggedInDoctor?.clinicName);
+      const userClinicForApi = (loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim();
 
       try {
         // Fetch appointments specifically for this doctor & clinic
-        const data = await fetchAppointmentsByDoctorEmails([DoctorEmail], userClinic);
+        // Pass the trimmed (but case-preserved) clinic name to API
+        const data = await fetchAppointmentsByDoctorEmails([DoctorEmail], userClinicForApi);
 
         let flatAppointments = [];
         if (Array.isArray(data)) {
@@ -141,10 +143,19 @@ export default function ProviderWorkload() {
           // Clinic filtering is also done by API (strict if userClinic is present).
 
           // Strict filtering for Legacy Users (no userClinic)
-          if (!userClinic) {
+          if (!userClinicForComparison) {
             if (app.clinicName && app.clinicName.trim() !== "") {
               continue;
             }
+          }
+
+          // Explicitly filter by logged-in doctor's email to ensure "Provider Workload" 
+          // only shows their specific data, even if API returned clinic-wide data.
+          const appDoctorEmail = (app.doctor_email || app.doctorEmail || "").trim().toLowerCase();
+          const currentDoctorEmail = (DoctorEmail || "").trim().toLowerCase();
+
+          if (appDoctorEmail && currentDoctorEmail && appDoctorEmail !== currentDoctorEmail) {
+            continue;
           }
 
           const rawDate = app.appointment_date || app.appointmentDate;

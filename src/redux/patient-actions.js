@@ -1,12 +1,14 @@
 import { BACKEND_URL } from "../constants";
 import { patientActions } from "./patients-slice";
 
+
 export const fetchPatientsDetails = (clinicName) => {
     return async (dispatch) => {
-        const fetchPatients = async () => {
+        try {
+            const trimmedClinic = clinicName ? clinicName.replace(/\s+/g, " ").trim() : "";
             let url = `${BACKEND_URL}/api/patients`;
-            if (clinicName) {
-                url += `?clinicName=${encodeURIComponent(clinicName)}`;
+            if (trimmedClinic) {
+                url += `?clinicName=${encodeURIComponent(trimmedClinic)}`;
             }
             const response = await fetch(url);
 
@@ -17,20 +19,23 @@ export const fetchPatientsDetails = (clinicName) => {
             const data = await response.json();
 
             // Strict Isolation for Legacy Users (No clinicName)
-            if (!clinicName) {
+            if (!trimmedClinic) {
                 // The backend returns ALL patients if no clinicName is sent.
                 // We must filter client-side to keep only those with NO clinicName.
-                return data.filter(p => !p.clinicName || p.clinicName.trim() === "");
+                const filteredData = data.filter(p => !p.clinicName || p.clinicName.trim() === "");
+                dispatch(patientActions.setPatients(filteredData));
+                return filteredData;
             }
 
+            dispatch(patientActions.setPatients(data));
             return data;
         }
 
-        try {
-            const patientsData = await fetchPatients()
-            dispatch(patientActions.setPatients(patientsData))
-        } catch (error) {
-            throw new Error('Could not fetch appointment data!');
+        catch (error) {
+            console.error("Error fetching patients:", error);
+            throw error;
         }
+
+
     }
 }

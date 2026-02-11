@@ -38,7 +38,7 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
                     call.startRecording()
                 })
             }, 5 * 60 * 1000); // every 3 minutes
-    
+
             return () => clearInterval(interval);
         } catch (error) {
             console.log("Some error here");
@@ -67,19 +67,19 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
 
         return () => {
             unsubscribers.forEach((unsub) => unsub());
-            
+
             // eslint-disable-next-line react-hooks/exhaustive-deps
             if (intervalRef.current) clearInterval(intervalRef.current);
             cyclingRef.current = false;
-        };        
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [call]);
 
     const handleCancel = async () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        if(isCallRecordingInProgress) await call.stopRecording();
+        if (isCallRecordingInProgress) await call.stopRecording();
         sendMessageToQueue(callId, username);
-        navigate(`/post-call/${callId}`, {state: { from : "video-call" }});
+        navigate(`/post-call/${callId}?username=${username}`, { state: { from: "video-call" } });
     };
 
     if (callingState !== CallingState.JOINED) {

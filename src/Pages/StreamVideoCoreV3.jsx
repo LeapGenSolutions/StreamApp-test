@@ -26,7 +26,13 @@ const StreamVideoCoreV3 = () => {
   const isInPerson = normalizedType === "inperson";
 
   const role = 'doctor'
-  const userName = me.given_name + " " + me.family_name
+  // Fix for duplicate names (e.g. "John Doe John Doe")
+  // If family name is already in given name, or they are identical, be smart about it.
+  const fName = (me.given_name || "").trim();
+  const lName = (me.family_name || "").trim();
+  const userName = (fName === lName || fName.toLowerCase().endsWith(lName.toLowerCase()))
+    ? fName
+    : `${fName} ${lName}`.trim();
   const myEmail = me.email
 
   const [client, setClient] = useState(null);
@@ -230,10 +236,10 @@ const StreamVideoCoreV3 = () => {
 
     return () => {
       isMounted = false;
-       callRef.current?.leave().catch(() => {});
+      callRef.current?.leave().catch(() => { });
     };
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, callId, role, apiKey, myEmail, patientName, userName]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, callId, role, apiKey, myEmail, patientName, userName]);
 
   return (
     <>
@@ -452,10 +458,10 @@ const StreamVideoCoreV3 = () => {
       )}
 
       {recordingReminderVisible && role === "doctor" && (
-        <div style={{ position:"fixed", bottom:"2rem", right:"2rem", backgroundColor:"#fff3cd", color:"#856404", border:"1px solid #ffeeba", borderRadius:"10px", padding:"1rem 1.5rem", boxShadow:"0 4px 12px rgba(0,0,0,0.15)", fontFamily:"'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", zIndex:2000, animation:"slideFadeInUp 0.4s ease-out" }}>
+        <div style={{ position: "fixed", bottom: "2rem", right: "2rem", backgroundColor: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: "10px", padding: "1rem 1.5rem", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", zIndex: 2000, animation: "slideFadeInUp 0.4s ease-out" }}>
           <strong>⚠️ Recording not started</strong>
-          <div style={{ marginTop:"0.5rem" }}>Please click the <b>Record</b> button to start recording this call.</div>
-          <button style={{ marginTop:"0.75rem", backgroundColor:"#ffc107", border:"none", borderRadius:"6px", padding:"0.5rem 1rem", cursor:"pointer", fontWeight:600 }} onClick={() => setRecordingReminderVisible(false)}>Dismiss</button>
+          <div style={{ marginTop: "0.5rem" }}>Please click the <b>Record</b> button to start recording this call.</div>
+          <button style={{ marginTop: "0.75rem", backgroundColor: "#ffc107", border: "none", borderRadius: "6px", padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }} onClick={() => setRecordingReminderVisible(false)}>Dismiss</button>
         </div>
       )}
     </>

@@ -87,6 +87,11 @@ const VideoCallPage = () => {
 
     if (userClinic && apptClinic !== userClinic) return false;
 
+    // Filter by logged-in doctor's email
+    const apptDoctorEmail = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
+    const userEmail = (myEmail || "").trim().toLowerCase();
+    if (userEmail && apptDoctorEmail !== userEmail) return false;
+
     return true;
   });
 

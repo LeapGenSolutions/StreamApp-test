@@ -287,7 +287,13 @@ const PatientReports = () => {
 
       <div className="space-y-4">
         {mergedAppointments.map((m) => {
-          const { appt, apptDateObj, isCompleted, durationMinutes } = m;
+          const {
+            appt,
+            history,
+            apptDateObj,
+            isCompleted,
+            durationMinutes,
+          } = m;
 
           const dateLabel =
             apptDateObj && !isNaN(apptDateObj.getTime())
@@ -326,7 +332,20 @@ const PatientReports = () => {
               {isCompleted && (
                 <button
                   title="View Documentation"
-                  onClick={() => navigate(`/post-call/${appt.id}`)}
+                  onClick={() => {
+                    const username =
+                      history?.userID ||
+                      appt.doctor_email ||
+                      doctorEmail;
+
+                    const route = username
+                      ? `/post-call/${appt.id}?username=${encodeURIComponent(
+                          username
+                        )}`
+                      : `/post-call/${appt.id}`;
+
+                    navigate(route);
+                  }}
                   className="text-blue-600 hover:text-blue-800"
                 >
                   <Eye className="w-5 h-5" />

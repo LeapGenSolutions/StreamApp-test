@@ -73,7 +73,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     last_name: "",
     dob: "",
     gender: "",
-    email: "",MONTHS_SHORT,
+    email: "",
     phone: "",
     ehr: "",
     mrn: "",

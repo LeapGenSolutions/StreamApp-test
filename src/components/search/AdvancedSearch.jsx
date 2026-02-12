@@ -2,18 +2,17 @@ import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useState } from "react";
-import { format } from "date-fns";
 
 function AdvancedSearch({ submitHandler }) {
   const [advancedSearchQuery, setAdvancedSearchQuery] = useState({
-    dateOfBirth: null,
+    dateOfBirth: "",
     phoneNumber: "",
     email: "",
   });
 
   const onResetHandler = () => {
     const resetQuery = {
-      dateOfBirth: null,
+      dateOfBirth: "",
       phoneNumber: "",
       email: "",
     };
@@ -24,9 +23,7 @@ function AdvancedSearch({ submitHandler }) {
   const onSubmitHandler = () => {
     const payload = {
       ...advancedSearchQuery,
-      dateOfBirth: advancedSearchQuery.dateOfBirth
-        ? format(new Date(advancedSearchQuery.dateOfBirth), "yyyy-MM-dd")
-        : null,
+      dateOfBirth: advancedSearchQuery.dateOfBirth || null,
     };
     submitHandler(payload);
   };
@@ -56,13 +53,7 @@ function AdvancedSearch({ submitHandler }) {
           <Label>Date of Birth</Label>
           <Input
             type="date"
-            value={
-              advancedSearchQuery.dateOfBirth
-                ? new Date(advancedSearchQuery.dateOfBirth)
-                    .toISOString()
-                    .split("T")[0]
-                : ""
-            }
+            value={advancedSearchQuery.dateOfBirth || ""}
             onChange={(e) =>
               setAdvancedSearchQuery({
                 ...advancedSearchQuery,

@@ -287,8 +287,7 @@ const AppointmentStatus = ({ date }) => {
 
   return (
     <div
-      className="bg-white rounded-xl shadow p-6 flex flex-col h-full cursor-pointer"
-      title="Click to view the Status Overview and Timeline Dashboard"
+      className="bg-white rounded-xl shadow p-6 flex flex-col h-full"
     >
       <div className="flex items-center justify-between mb-1">
         <div className="text-lg font-semibold text-gray-800">

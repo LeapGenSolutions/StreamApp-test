@@ -21,6 +21,38 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import CallFeedback from "../components/post-call/PostCallFeedback"; 
 
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const formatDobMonthYear = (rawDob) => {
+  if (!rawDob) return null;
+
+  const dateOnly = String(rawDob).split("T")[0];
+  const parts = dateOnly.split("-");
+  if (parts.length !== 3) return null;
+
+  const [yearStr, monthStr] = parts;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month)) return null;
+  if (month < 1 || month > 12) return null;
+
+  return `${MONTHS_SHORT[month - 1]} ${year}`;
+};
+
 const PostCallDocumentation = ({ onSave }) => {
   const [docTab, setDocTab] = useState("summary");
   const { callId } = useParams();
@@ -75,12 +107,7 @@ const PostCallDocumentation = ({ onSave }) => {
       null
     : null;
 
-  const dob = rawDob
-    ? new Date(rawDob).toLocaleString("en-US", {
-        month: "short",
-        year: "numeric",
-      })
-    : null;
+  const dob = formatDobMonthYear(rawDob);
 
   const firstName = selectedAppointment
     ? selectedAppointment.first_name ??

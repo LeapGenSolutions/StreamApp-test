@@ -17,21 +17,74 @@ const SeismicTimeDropdown = ({
   const wrapperRef = useRef(null); // for outside click
   const listRef = useRef(null);
 
+  const formatTimeForDisplay = (hours24, minutes) => {
+    const d = new Date();
+    d.setHours(hours24, minutes, 0, 0);
+    return d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const normalizeManualTime = (input) => {
+    const raw = String(input || "")
+      .trim()
+      .toUpperCase()
+      .replace(/\./g, "");
+
+    if (!raw) return null;
+
+    // Accept "12:45PM" and normalize to "12:45 PM"
+    const normalized = raw
+      .replace(/\s+/g, " ")
+      .replace(/^(\d{1,2}:\d{2})(AM|PM)$/, "$1 $2");
+
+    const ampmMatch = normalized.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/);
+    if (ampmMatch) {
+      const hour12 = parseInt(ampmMatch[1], 10);
+      const minute = parseInt(ampmMatch[2], 10);
+      const meridiem = ampmMatch[3];
+
+      if (hour12 < 1 || hour12 > 12 || minute < 0 || minute > 59) return null;
+
+      let hour24 = hour12 % 12;
+      if (meridiem === "PM") hour24 += 12;
+      return formatTimeForDisplay(hour24, minute);
+    }
+
+    // Accept 24-hour format like "13:45"
+    const twentyFourMatch = normalized.match(/^(\d{1,2}):(\d{2})$/);
+    if (twentyFourMatch) {
+      const hour24 = parseInt(twentyFourMatch[1], 10);
+      const minute = parseInt(twentyFourMatch[2], 10);
+
+      if (hour24 < 0 || hour24 > 23 || minute < 0 || minute > 59) return null;
+      return formatTimeForDisplay(hour24, minute);
+    }
+
+    return null;
+  };
+
   // Generate all time slots (memoized)
   const times = useMemo(() => {
     const slots = [];
-    for (let h = 8; h <= 18; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        slots.push(
-          d.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
-      }
+    const startMinutes = 0; // 12:00 AM
+    const endMinutes = 23 * 60 + 59; // 11:59 PM upper bound
+
+    for (let totalMinutes = startMinutes; totalMinutes <= endMinutes; totalMinutes += 15) {
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+
+      slots.push(
+        d.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      );
     }
     return slots;
   }, []);
@@ -65,18 +118,19 @@ const SeismicTimeDropdown = ({
       return;
     }
 
-    const parsed = new Date(`1970-01-01 ${manualValue}`);
-    if (isNaN(parsed)) {
+    const normalizedTime = normalizeManualTime(manualValue);
+    if (!normalizedTime) {
       toast?.({
         title: "Invalid time format",
-        description: "Try formats like 3:30 PM or 15:30.",
+        description: "Try formats like 3:30 PM, 12:45PM, or 15:30.",
         variant: "destructive",
       });
       return;
     }
 
-    onChange({ target: { name, value: manualValue } });
+    onChange({ target: { name, value: normalizedTime } });
     setManualMode(false);
+    setManualValue("");
     setOpen(false);
   };
 

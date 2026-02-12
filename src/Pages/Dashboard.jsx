@@ -5,13 +5,19 @@ import AppointmentStatus from "../components/dashboard/AppointmentStatus";
 import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "wouter";
+
+const toISODate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 function Dashboard() {
   const dispatch = useDispatch();
   const loggedInDoctor = useSelector((state) => state.me.me);
   const myEmail = loggedInDoctor?.email;
-  const [, navigate] = useLocation();
+  const todayISO = toISODate(new Date());
 
   useEffect(() => {
     if (myEmail) {
@@ -29,11 +35,9 @@ function Dashboard() {
         <WelcomeCard />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AppointmentStats date={new Date().toISOString().split('T')[0]} />
-        <div style={{ cursor: "pointer" }} onClick={() => navigate("/timeline")}>
-          <AppointmentStatus date={new Date().toISOString().split('T')[0]} />
-        </div>
-        <ProviderWorkload date={new Date().toISOString().split('T')[0]} />
+        <AppointmentStats date={todayISO} />
+        <AppointmentStatus date={todayISO} />
+        <ProviderWorkload date={todayISO} />
       </div>
     </div>
   );

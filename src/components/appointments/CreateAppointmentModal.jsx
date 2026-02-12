@@ -73,7 +73,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     last_name: "",
     dob: "",
     gender: "",
-    email: "",
+    email: "",MONTHS_SHORT,
     phone: "",
     ehr: "",
     mrn: "",
@@ -106,6 +106,45 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const getLastName = (d) => d.last_name || d.lastname || "";
   const getGender = (d) => d.gender || d.sex || "";
   const getPhone = (d) => d.phone || d.contactmobilephone || "";
+  const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+  const MIN_DOB_AGE_YEARS = 120;
+
+  const toISODate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayISO = toISODate(new Date());
+
+  const parseISODate = (value) => {
+    if (!DATE_REGEX.test(value || "")) return null;
+
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return parsed;
+  };
+
+  const getAge = (birthDate, referenceDate) => {
+    let age = referenceDate.getFullYear() - birthDate.getFullYear();
+    const hasBirthdayPassedThisYear =
+      referenceDate.getMonth() > birthDate.getMonth() ||
+      (referenceDate.getMonth() === birthDate.getMonth() &&
+        referenceDate.getDate() >= birthDate.getDate());
+
+    if (!hasBirthdayPassedThisYear) age -= 1;
+    return age;
+  };
 
   const resetPatientAndForm = () => {
     setExistingPatient(null);
@@ -254,6 +293,28 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         errs.phone = "Required";
       } else if (formData.phone.length !== 10) {
         errs.phone = "Invalid phone number";
+      }
+    }
+
+    if (formData.appointment_date) {
+      const appointmentDate = parseISODate(formData.appointment_date);
+
+      if (!appointmentDate) {
+        errs.appointment_date = "Invalid appointment date";
+      } else if (formData.appointment_date < todayISO) {
+        errs.appointment_date = "Appointment date cannot be in the past";
+      }
+    }
+
+    if (!existingPatient && formData.dob) {
+      const dob = parseISODate(formData.dob);
+
+      if (!dob) {
+        errs.dob = "Invalid date of birth";
+      } else if (formData.dob > todayISO) {
+        errs.dob = "Date of birth cannot be in the future";
+      } else if (getAge(dob, new Date()) > MIN_DOB_AGE_YEARS) {
+        errs.dob = "Date of birth is out of valid range";
       }
     }
 
@@ -517,7 +578,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     type="date"
                     name="appointment_date"
                     value={formData.appointment_date}
-                    min={new Date().toISOString().split("T")[0]}
+                    min={todayISO}
                     onChange={handleChange}
                     error={errors.appointment_date}
                     touched={touched.appointment_date}
@@ -587,7 +648,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     label="Date of Birth *"
                     name="dob"
                     value={formData.dob}
-                    max={new Date().toISOString().split("T")[0]}
+                    max={todayISO}
                     readOnly={!!existingPatient}
                     onChange={
                       existingPatient
@@ -745,7 +806,7 @@ const Select = ({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`border border-blue-300 rounded-md w-full p-2 text-sm bg-white ${className}`}
+      className={`border border-black-300 rounded-md w-full p-2 text-sm bg-white ${className}`}
     >
       <option value="">Select</option>
       {options.map((opt) => (

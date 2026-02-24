@@ -21,8 +21,14 @@ const Sidebar = () => {
   // Default: open on desktop, closed on mobile
   const [isOpen, setIsOpen] = useState(() => {
     if (typeof window === "undefined") return true;
-    return window.innerWidth >= 768;
+    return window.innerWidth >= 768; // desktop => open, mobile => closed
   });
+
+  // When user is on the video/meeting routes we want a compact icons-only sidebar
+  const isMeetingCompact = (() => {
+    const pathname = location || "";
+    return pathname.startsWith("/meeting-room");
+  })();
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
 
@@ -85,8 +91,15 @@ const Sidebar = () => {
   return (
     <div
       ref={sidebarRef}
-      className={`bg-neutral-800 text-white flex flex-col justify-between shadow-lg flex-shrink-0 transition-all duration-300 z-30
-        ${isOpen ? "md:w-64" : "md:w-16"} h-screen`}
+      data-sidebar
+      className={`bg-neutral-800 text-white w-full flex flex-col justify-between shadow-lg flex-shrink-0 transition-all duration-300 z-30
+        ${
+          isMeetingCompact
+            ? "h-screen md:w-16 md:h-screen" // compact icons-only during meeting
+            : isOpen
+            ? "h-screen md:w-64 md:h-screen" // when open: full height on mobile + desktop
+            : "h-auto md:w-10 md:h-screen"   // when closed: auto height on mobile, full height on desktop
+        }`}
     >
       <div className="flex-1 flex flex-col min-h-0">
 
@@ -104,7 +117,8 @@ const Sidebar = () => {
 
         {/* Desktop header */}
         <div className="hidden md:flex border-b border-neutral-700">
-          {isOpen ? (
+          {isOpen && !isMeetingCompact ? (
+            // OPEN: original clean layout
             <div className="flex items-center p-4 gap-3 w-full">
               <button onClick={toggleSidebar} className="p-2 rounded hover:bg-neutral-700">
                 <Menu className="w-5 h-5" />
@@ -128,15 +142,14 @@ const Sidebar = () => {
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4">
-
-          {/* MAIN */}
-          {isOpen && (
-            <div className="px-4 mt-4 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider">
-              Main
-            </div>
-          )}
+        {/* --- Navigation Links (hidden when collapsed) --- */}
+        <nav
+          className={`border-t border-neutral-700 md:border-t-0 w-full flex-1 overflow-y-auto pb-4 md:py-4 min-h-0
+          ${isOpen || isMeetingCompact ? "block" : "hidden"}`}
+        >
+          <div className={`${isMeetingCompact ? "hidden" : "px-4 mt-4 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider"}`}>
+            Main
+          </div>
 
           <Link href="/">
             <div
@@ -147,8 +160,8 @@ const Sidebar = () => {
                 ${isOpen ? "px-4" : "justify-center"}
                 ${isActive("/") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
             >
-              <LayoutDashboard className="w-5 h-5" />
-              {isOpen && <span className="ml-3">Dashboard</span>}
+              <LayoutDashboard className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
+              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Dashboard</span>
             </div>
           </Link>
 
@@ -161,8 +174,8 @@ const Sidebar = () => {
                 ${isOpen ? "px-4" : "justify-center"}
                 ${isActive("/appointments") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
             >
-              <Calendar className="w-5 h-5" />
-              {isOpen && <span className="ml-3">Appointments</span>}
+              <Calendar className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
+              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Appointments</span>
             </div>
           </Link>
 
@@ -175,8 +188,8 @@ const Sidebar = () => {
                 ${isOpen ? "px-4" : "justify-center"}
                 ${isActive("/video-call") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
             >
-              <Video className="w-5 h-5" />
-              {isOpen && <span className="ml-3">Video Call</span>}
+              <Video className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
+              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Video Call</span>
             </div>
           </Link>
 
@@ -189,17 +202,14 @@ const Sidebar = () => {
                 ${isOpen ? "px-4" : "justify-center"}
                 ${isActive("/patients") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
             >
-              <Users className="w-5 h-5" />
-              {isOpen && <span className="ml-3">Patients</span>}
+              <Users className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
+              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Patients</span>
             </div>
           </Link>
 
-          {/* ADMINISTRATION */}
-          {isOpen && (
-            <div className="px-4 mt-6 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider">
-              Administration
-            </div>
-          )}
+          <div className={`${isMeetingCompact ? 'hidden' : 'px-4 mt-6 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider'}`}>
+            Administration
+          </div>
 
           <Link href="/reports">
             <div
@@ -210,8 +220,8 @@ const Sidebar = () => {
                 ${isOpen ? "px-4" : "justify-center"}
                 ${isActive("/reports") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
             >
-              <FileText className="w-5 h-5" />
-              {isOpen && <span className="ml-3">Billing Reports</span>}
+              <FileText className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
+              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Billing Reports</span>
             </div>
           </Link>
 
@@ -224,16 +234,16 @@ const Sidebar = () => {
                 ${isOpen ? "px-4" : "justify-center"}
                 ${isActive("/settings") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
             >
-              <Settings className="w-5 h-5" />
-              {isOpen && <span className="ml-3">Settings</span>}
+              <Settings className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
+              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Settings</span>
             </div>
           </Link>
         </nav>
       </div>
 
-      {/* Logout */}
-      {isOpen && (
-        <div className="p-4 border-t border-neutral-700">
+      {/* --- Bottom: Logout Only (hide when sidebar closed on both mobile + desktop) --- */}
+      {isOpen && !isMeetingCompact && (
+        <div className="p-4 border-t border-neutral-700 md:block">
           <button
             onClick={handleLogout}
             className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600"

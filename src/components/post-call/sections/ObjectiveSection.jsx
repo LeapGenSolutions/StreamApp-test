@@ -1,5 +1,56 @@
 import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
+
+// --- REUSABLE POST BUTTON ---
+const PostIconButton = ({ onClick, disabled }) => {
+  const [status, setStatus] = useState("idle"); 
+
+  const handleClick = () => {
+    if (status !== "idle") return;
+    
+    onClick(
+      // onSuccess
+      () => {
+        setStatus("success");
+        setTimeout(() => setStatus("idle"), 3000);
+      },
+      // onError
+      () => {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 3000);
+      }
+    );
+  };
+
+  let bgClass = "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
+  let icon = <Send className="w-3.5 h-3.5" />;
+  let label = null;
+
+  if (disabled) {
+    bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
+  } else if (status === "success") {
+    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
+    label = <span className="text-xs font-medium">Success</span>;
+  } else if (status === "error") {
+    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
+    label = <span className="text-xs font-medium">Failed</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled || status !== "idle"}
+      title="Post to Athena"
+      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${status === "idle" ? "w-7" : ""}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+};
 
 const CopyIconButton = ({ text, label }) => {
   const [copied, setCopied] = useState(false);
@@ -33,7 +84,7 @@ const CopyIconButton = ({ text, label }) => {
   );
 };
 
-const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
+const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
   const obj = soapNotes.objective || {};
 
   const setObj = (next) => setSoapNotes({ ...soapNotes, objective: next });
@@ -50,6 +101,7 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
       {obj.vital_signs && (
         <div>
           <p className="font-bold text-black mt-1">Vital Signs:</p>
+          {/* Reverted table to original compact style (removed w-full) */}
           <table className="border border-gray-300 mt-1 text-sm">
             <thead className="bg-gray-50">
               <tr>
@@ -86,22 +138,33 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
         </div>
       )}
 
-      {/* --- Physical Exam --- */}
+      {/* --- Physical Exam - HAS POST --- */}
       {obj.physical_exams && (
         <div>
           <div className="flex items-center justify-between gap-3 mt-3">
             <p className="font-bold text-black">Physical Exam:</p>
-            <CopyIconButton
-              text={Object.entries(obj.physical_exams || {})
-                .map(([k, v]) => `${k}: ${v}`)
-                .join("\n")}
-              label="Physical Exam"
-            />
+            <div className="flex items-center">
+              <CopyIconButton
+                text={Object.entries(obj.physical_exams || {})
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join("\n")}
+                label="Physical Exam"
+              />
+              <PostIconButton 
+                onClick={(onSuccess, onError) => 
+                  onPost({ 
+                    type: "Physical Exam", 
+                    content: Object.entries(obj.physical_exams || {}).map(([k, v]) => `${k}: ${v}`).join("\n") 
+                  }, onSuccess, onError)
+                }
+                disabled={!obj.physical_exams}
+              />
+            </div>
           </div>
           <ul className="list-disc ml-6 text-[15px] leading-relaxed">
             {Object.entries(obj.physical_exams).map(([k, v]) => (
               <li key={k} className="flex items-center justify-between gap-3">
-                <span>
+                <span className="flex-1">
                   <b>{k}:</b>{" "}
                   {!isEditing ? (
                     v
@@ -127,7 +190,7 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
         </div>
       )}
 
-      {/* --- Labs --- */}
+      {/* --- Labs - NO POST --- */}
       {obj.laboratory_data?.length > 0 && (
         <div>
           <p className="font-bold text-black mt-3">Laboratory Data:</p>
@@ -135,22 +198,26 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
             {obj.laboratory_data.map((item, i) => (
               <li key={i} className="flex items-center justify-between gap-3">
                 <span>{item}</span>
-                <CopyIconButton text={item} label="Lab item" />
+                <div className="flex items-center">
+                  <CopyIconButton text={item} label="Lab item" />
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* --- Imaging --- */}
+      {/* --- Imaging - NO POST --- */}
       {obj.imaging_studies?.length > 0 && (
         <div>
           <div className="flex items-center justify-between gap-3 mt-3">
             <p className="font-bold text-black">Imaging Studies:</p>
-            <CopyIconButton
-              text={(obj.imaging_studies || []).join("\n")}
-              label="Imaging Studies"
-            />
+            <div className="flex items-center">
+              <CopyIconButton
+                text={(obj.imaging_studies || []).join("\n")}
+                label="Imaging Studies"
+              />
+            </div>
           </div>
           <ul className="list-disc ml-6 text-[15px] leading-relaxed">
             {obj.imaging_studies.map((item, i) => (
@@ -163,4 +230,4 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
   );
 };
 
-export default ObjectiveSection
+export default ObjectiveSection;

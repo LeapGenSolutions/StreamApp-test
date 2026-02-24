@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 //import { Button } from "./button";
 import { StickyNote, PenTool, Sparkles } from "lucide-react";
 
@@ -9,9 +9,33 @@ export function NotesTrigger({
   className = "" 
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [leftOffset, setLeftOffset] = useState(null);
+  const BUTTON_SIZE = 64; // px (w-16 h-16)
+  const GAP = 12; // px gap between panel and button
+
+  useEffect(() => {
+    const updatePosition = () => {
+      try {
+        const panel = document.querySelector('[data-rightpanel]');
+        if (panel) {
+          const rect = panel.getBoundingClientRect();
+          const left = Math.max(8, Math.round(rect.left - BUTTON_SIZE - GAP));
+          setLeftOffset(left);
+        } else {
+          setLeftOffset(null);
+        }
+      } catch (e) {
+        setLeftOffset(null);
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    return () => window.removeEventListener('resize', updatePosition);
+  }, []);
 
   return (
-    <div className={`fixed bottom-6 right-6 z-40 ${className}`}>
+    <div className={`fixed bottom-6 z-40 ${className}`} style={leftOffset !== null ? { left: leftOffset } : { right: '1.5rem' }}>
       {/* Sparkles Animation */}
       {isHovered && (
         <>

@@ -1,6 +1,57 @@
 import { Textarea } from "../../ui/textarea";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
+
+// --- REUSABLE POST BUTTON ---
+const PostIconButton = ({ onClick, disabled }) => {
+  const [status, setStatus] = useState("idle"); // idle | success | error
+
+  const handleClick = () => {
+    if (status !== "idle") return;
+    
+    onClick(
+      // onSuccess
+      () => {
+        setStatus("success");
+        setTimeout(() => setStatus("idle"), 3000);
+      },
+      // onError
+      () => {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 3000);
+      }
+    );
+  };
+
+  let bgClass = "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
+  let icon = <Send className="w-3.5 h-3.5" />;
+  let label = null;
+
+  if (disabled) {
+    bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
+  } else if (status === "success") {
+    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
+    label = <span className="text-xs font-medium">Success</span>;
+  } else if (status === "error") {
+    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
+    label = <span className="text-xs font-medium">Failed</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled || status !== "idle"}
+      title="Post to Athena"
+      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${status === "idle" ? "w-7" : ""}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+};
 
 const CopyIconButton = ({ text, label }) => {
   const [copied, setCopied] = useState(false);
@@ -34,7 +85,7 @@ const CopyIconButton = ({ text, label }) => {
   );
 };
 
-const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
+const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
   const subj = soapNotes.subjective || {};
 
   const setField = (key, value) => {
@@ -71,31 +122,52 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
 
       {!isEditing ? (
         <>
+          {/* Chief Complaint - HAS POST */}
           {subj.chief_complaint && (
             <>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-base font-bold">Chief Complaint:</p>
-                <CopyIconButton text={subj.chief_complaint} label="Chief Complaint" />
+                <div className="flex items-center">
+                  <CopyIconButton text={subj.chief_complaint} label="Chief Complaint" />
+                  <PostIconButton 
+                    onClick={(onSuccess, onError) => 
+                      onPost({ type: "Chief Complaint", content: subj.chief_complaint }, onSuccess, onError)
+                    }
+                    disabled={!subj.chief_complaint}
+                  />
+                </div>
               </div>
               <p className="ml-4 text-[15px] leading-relaxed">{quote(subj.chief_complaint)}</p>
             </>
           )}
 
+          {/* HPI - HAS POST */}
           {subj.hpi && (
             <>
               <div className="flex items-center justify-between gap-3 mt-2">
                 <p className="font-bold text-black">History of Present Illness:</p>
-                <CopyIconButton text={subj.hpi} label="History of Present Illness" />
+                <div className="flex items-center">
+                  <CopyIconButton text={subj.hpi} label="History of Present Illness" />
+                  <PostIconButton 
+                    onClick={(onSuccess, onError) => 
+                      onPost({ type: "History of Present Illness", content: subj.hpi }, onSuccess, onError)
+                    }
+                    disabled={!subj.hpi}
+                  />
+                </div>
               </div>
               <p className="ml-4 text-[15px] leading-relaxed">{subj.hpi}</p>
             </>
           )}
 
+          {/* Family History - NO POST */}
           {subj.family_history && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Family History Discussed:</p>
-                <CopyIconButton text={subj.family_history} label="Family History" />
+                <div className="flex items-center">
+                  <CopyIconButton text={subj.family_history} label="Family History" />
+                </div>
               </div>
               <p className="ml-4 italic text-[15px]">
                 {subj.family_history || "Not discussed"}
@@ -103,11 +175,14 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
             </>
           )}
 
+          {/* Surgical History - NO POST */}
           {subj.surgical_history && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Surgical History Discussed:</p>
-                <CopyIconButton text={subj.surgical_history} label="Surgical History" />
+                <div className="flex items-center">
+                  <CopyIconButton text={subj.surgical_history} label="Surgical History" />
+                </div>
               </div>
               <p className="ml-4 italic text-[15px]">
                 {subj.surgical_history || "Not discussed"}
@@ -115,11 +190,14 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
             </>
           )}
 
+          {/* Social History - NO POST */}
           {subj.social_history && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Social History Discussed:</p>
-                <CopyIconButton text={subj.social_history} label="Social History" />
+                <div className="flex items-center">
+                  <CopyIconButton text={subj.social_history} label="Social History" />
+                </div>
               </div>
               <p className="ml-4 italic text-[15px]">
                 {subj.social_history || "Not discussed"}
@@ -127,11 +205,20 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
             </>
           )}
 
+          {/* Review of Systems - HAS POST */}
           {subj.ros && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Review of Systems:</p>
-                <CopyIconButton text={subj.ros} label="Review of Systems" />
+                <div className="flex items-center">
+                  <CopyIconButton text={subj.ros} label="Review of Systems" />
+                  <PostIconButton 
+                    onClick={(onSuccess, onError) => 
+                      onPost({ type: "Review of Systems", content: subj.ros }, onSuccess, onError)
+                    }
+                    disabled={!subj.ros}
+                  />
+                </div>
               </div>
               <div className="space-y-1">{renderROS(subj.ros)}</div>
             </>
@@ -139,6 +226,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
         </>
       ) : (
         <div className="space-y-2">
+          {/* Editing Textareas */}
           <Textarea
             rows={2}
             placeholder="Chief Complaint..."
@@ -181,4 +269,4 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing }) => {
   );
 };
 
-export default SubjectiveSection
+export default SubjectiveSection;

@@ -326,7 +326,7 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
 
         if(isCallRecordingInProgress) await call.stopRecording();
         sendMessageToQueue(callId, username);
-        navigate(`/post-call/${callId}`, {state: { from : "video-call" }});
+        navigate(`/post-call/${callId}?username=${username}`, { state: { from: "video-call" } });
     };
 
     if (callingState !== CallingState.JOINED) {

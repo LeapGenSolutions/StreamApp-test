@@ -2,28 +2,52 @@ import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useState } from "react";
+import { format } from "date-fns";
+import { useToast } from "../../hooks/use-toast";
+
+const sanitizePhoneInput = (value) => (value || "").replace(/\D/g, "").slice(0, 10);
 
 function AdvancedSearch({ submitHandler }) {
+  const { toast } = useToast();
   const [advancedSearchQuery, setAdvancedSearchQuery] = useState({
-    dateOfBirth: "",
+    dateOfBirth: null,
     phoneNumber: "",
     email: "",
   });
+  const [phoneError, setPhoneError] = useState("");
 
   const onResetHandler = () => {
     const resetQuery = {
-      dateOfBirth: "",
+      dateOfBirth: null,
       phoneNumber: "",
       email: "",
     };
+    setPhoneError("");
     setAdvancedSearchQuery(resetQuery);
     submitHandler(resetQuery); 
   };
 
   const onSubmitHandler = () => {
+    if (
+      advancedSearchQuery.phoneNumber &&
+      advancedSearchQuery.phoneNumber.length !== 10
+    ) {
+      const errorMessage = "Please enter a valid 10-digit phone number.";
+      setPhoneError(errorMessage);
+      toast({
+        title: "Invalid phone number",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPhoneError("");
     const payload = {
       ...advancedSearchQuery,
-      dateOfBirth: advancedSearchQuery.dateOfBirth || null,
+      dateOfBirth: advancedSearchQuery.dateOfBirth
+        ? format(new Date(advancedSearchQuery.dateOfBirth), "yyyy-MM-dd")
+        : null,
     };
     submitHandler(payload);
   };
@@ -53,7 +77,13 @@ function AdvancedSearch({ submitHandler }) {
           <Label>Date of Birth</Label>
           <Input
             type="date"
-            value={advancedSearchQuery.dateOfBirth || ""}
+            value={
+              advancedSearchQuery.dateOfBirth
+                ? new Date(advancedSearchQuery.dateOfBirth)
+                    .toISOString()
+                    .split("T")[0]
+                : ""
+            }
             onChange={(e) =>
               setAdvancedSearchQuery({
                 ...advancedSearchQuery,
@@ -66,15 +96,28 @@ function AdvancedSearch({ submitHandler }) {
         <div>
           <Label>Phone Number</Label>
           <Input
+            type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={10}
             placeholder="Enter phone number..."
             value={advancedSearchQuery.phoneNumber}
             onChange={(e) =>
-              setAdvancedSearchQuery({
-                ...advancedSearchQuery,
-                phoneNumber: e.target.value,
-              })
+              {
+                const sanitizedPhone = sanitizePhoneInput(e.target.value);
+                setAdvancedSearchQuery({
+                  ...advancedSearchQuery,
+                  phoneNumber: sanitizedPhone,
+                });
+                if (!sanitizedPhone || sanitizedPhone.length === 10) {
+                  setPhoneError("");
+                }
+              }
             }
           />
+          {phoneError && (
+            <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+          )}
         </div>
 
         <div>

@@ -94,7 +94,6 @@ export const putAssessment = async (doctorEmail, appointmentId, note, practiceID
 				body: JSON.stringify({ note, practiceID }),
 			}
 		);
-
 		return await response.json();
 	} catch (error) {
 		console.error("putAssessment error:", error);
@@ -102,3 +101,21 @@ export const putAssessment = async (doctorEmail, appointmentId, note, practiceID
 	}
 };
 
+export const postAll = async (doctorEmail, appointmentId, note, practiceID) => {
+	try {
+		console.log("postAll called with:", { doctorEmail, appointmentId, note, practiceID });
+		const encodedEmail = encode(doctorEmail);
+		const response = await fetch(
+			`http://localhost:8080/api/athena/${encodedEmail}/encounters/${appointmentId}/all`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ note, practiceID }),
+			}
+		);
+		return await response.json();
+	} catch (error) {
+		console.error("postAll error:", error);
+		throw error;
+	}
+};

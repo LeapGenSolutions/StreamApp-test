@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 
+// --- REUSABLE POST BUTTON (Updated for Reposting) ---
 const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   const [localStatus, setLocalStatus] = useState("idle");
 
-  // normalize boolean statuses coming from middleware to string values
+  // normalize boolean statuses coming from middleware to string values   
   let normalizedGlobal = globalStatus;
   if (normalizedGlobal === true) normalizedGlobal = "success";
   if (normalizedGlobal === false) normalizedGlobal = "error";
 
   const handleClick = () => {
-    if (localStatus !== "idle" || globalStatus === "posting") return;
+    // Only prevent clicking if it's currently in the middle of posting
+    if (localStatus === "posting" || normalizedGlobal === "posting") return;
+    
+    setLocalStatus("posting");
     onClick(
       () => { setLocalStatus("success"); setTimeout(() => setLocalStatus("idle"), 3000); },
       () => { setLocalStatus("error"); setTimeout(() => setLocalStatus("idle"), 3000); }
@@ -29,11 +33,12 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   if (disabled || normalizedGlobal === "posting") {
     bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
   } else if (effectiveStatus === "success") {
-    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    // Keep it clickable, add hover states so they know they can repost
+    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2 hover:bg-green-100 hover:border-green-400 cursor-pointer";
     icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Success</span>;
   } else if (effectiveStatus === "error") {
-    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2 hover:bg-red-100 cursor-pointer";
     icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Failed</span>;
   }
@@ -42,7 +47,8 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
     <button
       type="button"
       onClick={handleClick}
-      disabled={disabled || globalStatus === "posting" || effectiveStatus !== "idle"}
+      // REMOVED 'effectiveStatus !== "idle"' SO THEY CAN CLICK IT AGAIN
+      disabled={disabled || normalizedGlobal === "posting"}
       title="Post to Athena"
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${effectiveStatus === "idle" ? "w-7" : ""}`}
     >
@@ -81,8 +87,29 @@ const CopyIconButton = ({ text, label }) => {
 const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionStatuses = {} }) => {
   const obj = soapNotes.objective || {};
 
+  // Track locally if the physical exam was successfully posted
+  const [hasPosted, setHasPosted] = useState(false);
+
   const setObj = (next) => setSoapNotes({ ...soapNotes, objective: next });
   const handleVitalChange = (k, v) => setObj({ ...obj, vital_signs: { ...(obj.vital_signs || {}), [k]: v } });
+
+  const handlePhysicalExamPost = (onSuccess, onError) => {
+    const isAlreadyPosted = sectionStatuses["Physical Exam"] === "success" || hasPosted;
+    const content = Object.entries(obj.physical_exams || {}).map(([k, v]) => `${k}: ${v}`).join("\n");
+
+    onPost(
+      { 
+        type: "Physical Exam", 
+        content,
+        alreadyPosted: isAlreadyPosted 
+      }, 
+      () => {
+        setHasPosted(true); // Mark as successfully posted
+        onSuccess();
+      }, 
+      onError
+    );
+  };
 
   return (
     <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
@@ -93,7 +120,6 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
           <div className="flex items-center justify-between gap-3 mt-1 mb-1">
             <p className="font-bold text-black">Vital Signs:</p>
           </div>
-          {/* REMOVED w-full HERE SO IT STAYS COMPACT */}
           <table className="border border-gray-300 mt-1 text-sm">
             <thead className="bg-gray-50">
               <tr>
@@ -130,7 +156,7 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
               <CopyIconButton text={Object.entries(obj.physical_exams || {}).map(([k, v]) => `${k}: ${v}`).join("\n")} label="Physical Exam" />
               {onPost && (
                 <PostIconButton 
-                  onClick={(onSuccess, onError) => onPost({ type: "Physical Exam", content: Object.entries(obj.physical_exams || {}).map(([k, v]) => `${k}: ${v}`).join("\n") }, onSuccess, onError)}
+                  onClick={handlePhysicalExamPost}
                   disabled={!obj.physical_exams}
                   globalStatus={sectionStatuses["Physical Exam"] || "idle"} 
                 />

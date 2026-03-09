@@ -5,13 +5,16 @@ import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   const [localStatus, setLocalStatus] = useState("idle");
 
-  // normalize boolean statuses coming from middleware to string values
+  // normalize boolean statuses coming from middleware to string values.
   let normalizedGlobal = globalStatus;
   if (normalizedGlobal === true) normalizedGlobal = "success";
   if (normalizedGlobal === false) normalizedGlobal = "error";
 
   const handleClick = () => {
-    if (localStatus !== "idle" || globalStatus === "posting") return;
+    // Only prevent clicking if it's currently in the middle of posting
+    if (localStatus === "posting" || normalizedGlobal === "posting") return;
+    
+    setLocalStatus("posting");
     onClick(
       () => { setLocalStatus("success"); setTimeout(() => setLocalStatus("idle"), 3000); },
       () => { setLocalStatus("error"); setTimeout(() => setLocalStatus("idle"), 3000); }
@@ -30,11 +33,12 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   if (disabled || normalizedGlobal === "posting") {
     bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
   } else if (effectiveStatus === "success") {
-    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    // Keep it clickable, add hover states so they know they can repost
+    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2 hover:bg-green-100 hover:border-green-400 cursor-pointer";
     icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Success</span>;
   } else if (effectiveStatus === "error") {
-    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2 hover:bg-red-100 cursor-pointer";
     icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Failed</span>;
   }
@@ -43,7 +47,8 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
     <button
       type="button"
       onClick={handleClick}
-      disabled={disabled || globalStatus === "posting" || effectiveStatus !== "idle"}
+      // REMOVED 'effectiveStatus !== "idle"' SO THEY CAN CLICK IT AGAIN
+      disabled={disabled || normalizedGlobal === "posting"}
       title="Post to Athena"
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${effectiveStatus === "idle" ? "w-7" : ""}`}
     >
@@ -87,9 +92,11 @@ const getPlanPointers = (planText = "") => {
   return planText.split(/(?<=[.!?])\s+/).map(cleanBullet).filter(Boolean);
 };
 
-// Accept sectionStatuses dictionary
 const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionStatuses = {} }) => {
   const ap = soapNotes.assessmentAndPlan || { problems: [], follow_up: "" };
+  
+  // Track locally if the doctor successfully posted this session
+  const [hasPosted, setHasPosted] = useState(false);
 
   const setProblems = (problems) => setSoapNotes({ ...soapNotes, assessmentAndPlan: { ...ap, problems } });
   const setFollowUp = (value) => setSoapNotes({ ...soapNotes, assessmentAndPlan: { ...ap, follow_up: value } });
@@ -108,6 +115,24 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sec
     return fullText.trim();
   };
 
+  const handlePostClick = (onSuccess, onError) => {
+    // Check if it's already posted via global status OR local status
+    const isAlreadyPosted = sectionStatuses["Assessment & Plan"] === "success" || hasPosted;
+
+    onPost(
+      { 
+        type: "Assessment & Plan", 
+        content: compileFullAP(),
+        alreadyPosted: isAlreadyPosted // Pass this flag to the Confirmation Modal
+      }, 
+      () => {
+        setHasPosted(true); // Mark as successfully posted
+        onSuccess();
+      }, 
+      onError
+    );
+  };
+
   return (
     <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
       <div className="flex items-center justify-between">
@@ -115,7 +140,7 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sec
         
         {onPost && !isEditing && (
           <PostIconButton 
-            onClick={(onSuccess, onError) => onPost({ type: "Assessment & Plan", content: compileFullAP() }, onSuccess, onError)}
+            onClick={handlePostClick}
             disabled={(!ap.problems || ap.problems.length === 0) && !ap.follow_up}
             globalStatus={sectionStatuses["Assessment & Plan"] || "idle"} 
           />

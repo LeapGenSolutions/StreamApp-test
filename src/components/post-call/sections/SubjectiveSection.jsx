@@ -2,17 +2,20 @@ import { Textarea } from "../../ui/textarea";
 import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 
-// --- REUSABLE POST BUTTON (Listens to Local and Global states) ---
+// --- REUSABLE POST BUTTON (Updated for Reposting) ---
 const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   const [localStatus, setLocalStatus] = useState("idle");
 
-  // normalize boolean statuses coming from middleware to string values
+  // normalize boolean statuses coming from middleware to string values.
   let normalizedGlobal = globalStatus;
   if (normalizedGlobal === true) normalizedGlobal = "success";
   if (normalizedGlobal === false) normalizedGlobal = "error";
 
   const handleClick = () => {
-    if (localStatus !== "idle" || globalStatus === "posting") return;
+    // Only prevent clicking if it's currently in the middle of posting
+    if (localStatus === "posting" || normalizedGlobal === "posting") return;
+    
+    setLocalStatus("posting");
     onClick(
       () => { setLocalStatus("success"); setTimeout(() => setLocalStatus("idle"), 3000); },
       () => { setLocalStatus("error"); setTimeout(() => setLocalStatus("idle"), 3000); }
@@ -31,11 +34,12 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   if (disabled || normalizedGlobal === "posting") {
     bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
   } else if (effectiveStatus === "success") {
-    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    // Keep it clickable, add hover states so they know they can repost
+    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2 hover:bg-green-100 hover:border-green-400 cursor-pointer";
     icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Success</span>;
   } else if (effectiveStatus === "error") {
-    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2 hover:bg-red-100 cursor-pointer";
     icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Failed</span>;
   }
@@ -44,7 +48,8 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
     <button
       type="button"
       onClick={handleClick}
-      disabled={disabled || globalStatus === "posting" || effectiveStatus !== "idle"}
+      // REMOVED 'effectiveStatus !== "idle"' SO THEY CAN CLICK IT AGAIN
+      disabled={disabled || normalizedGlobal === "posting"}
       title="Post to Athena"
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${effectiveStatus === "idle" ? "w-7" : ""}`}
     >
@@ -84,12 +89,17 @@ const CopyIconButton = ({ text, label }) => {
 const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionStatuses = {} }) => {
   const subj = soapNotes.subjective || {};
 
+  // Track locally which subjective sections have been successfully posted
+  const [postedItems, setPostedItems] = useState({});
+
   const setField = (key, value) => setSoapNotes({ ...soapNotes, subjective: { ...subj, [key]: value } });
+  
   const quote = (cc) => {
     if (!cc) return "";
     const clean = cc.trim().replace(/^["']|["']$/g, "");
     return `"${clean.charAt(0).toUpperCase() + clean.slice(1)}"`;
   };
+  
   const renderROS = (rosText) => {
     if (!rosText) return null;
     return rosText.split("\n").filter(Boolean).map((line, idx) => {
@@ -100,6 +110,24 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, section
           </p>
         );
       });
+  };
+
+  // Helper to handle the post logic, check if already posted, and update local state
+  const handleSectionPost = (type, content) => (onSuccess, onError) => {
+    const isAlreadyPosted = sectionStatuses[type] === "success" || postedItems[type];
+
+    onPost(
+      { 
+        type, 
+        content,
+        alreadyPosted: isAlreadyPosted 
+      }, 
+      () => {
+        setPostedItems(prev => ({ ...prev, [type]: true })); // Mark as successfully posted locally
+        onSuccess();
+      }, 
+      onError
+    );
   };
 
   return (
@@ -115,7 +143,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, section
                   <CopyIconButton text={subj.chief_complaint} label="Chief Complaint" />
                   {onPost && (
                     <PostIconButton 
-                      onClick={(onSuccess, onError) => onPost({ type: "Chief Complaint", content: subj.chief_complaint }, onSuccess, onError)}
+                      onClick={handleSectionPost("Chief Complaint", subj.chief_complaint)}
                       disabled={!subj.chief_complaint}
                       globalStatus={sectionStatuses["Chief Complaint"] || "idle"} 
                     />
@@ -134,7 +162,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, section
                   <CopyIconButton text={subj.hpi} label="History of Present Illness" />
                   {onPost && (
                     <PostIconButton 
-                      onClick={(onSuccess, onError) => onPost({ type: "History of Present Illness", content: subj.hpi }, onSuccess, onError)}
+                      onClick={handleSectionPost("History of Present Illness", subj.hpi)}
                       disabled={!subj.hpi}
                       globalStatus={sectionStatuses["History of Present Illness"] || "idle"} 
                     />
@@ -183,7 +211,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, section
                   <CopyIconButton text={subj.ros} label="Review of Systems" />
                   {onPost && (
                     <PostIconButton 
-                      onClick={(onSuccess, onError) => onPost({ type: "Review of Systems", content: subj.ros }, onSuccess, onError)}
+                      onClick={handleSectionPost("Review of Systems", subj.ros)}
                       disabled={!subj.ros}
                       globalStatus={sectionStatuses["Review of Systems"] || "idle"} 
                     />

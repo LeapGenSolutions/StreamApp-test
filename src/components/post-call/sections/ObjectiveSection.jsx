@@ -1,44 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 
-// --- REUSABLE POST BUTTON (Updated for Reposting) ---
-const PostIconButton = ({ onClick, disabled, globalStatus }) => {
+const PostIconButton = ({ onClick, disabled, globalStatus, postResetKey }) => {
   const [localStatus, setLocalStatus] = useState("idle");
 
-  // normalize boolean statuses coming from middleware to string values   
+  useEffect(() => {
+    setLocalStatus("idle");
+  }, [postResetKey]);
+
   let normalizedGlobal = globalStatus;
   if (normalizedGlobal === true) normalizedGlobal = "success";
   if (normalizedGlobal === false) normalizedGlobal = "error";
 
   const handleClick = () => {
-    // Only prevent clicking if it's currently in the middle of posting
     if (localStatus === "posting" || normalizedGlobal === "posting") return;
-    
+
     setLocalStatus("posting");
     onClick(
-      () => { setLocalStatus("success"); setTimeout(() => setLocalStatus("idle"), 3000); },
-      () => { setLocalStatus("error"); setTimeout(() => setLocalStatus("idle"), 3000); }
+      () => {
+        setLocalStatus("success");
+        setTimeout(() => setLocalStatus("idle"), 3000);
+      },
+      () => {
+        setLocalStatus("error");
+        setTimeout(() => setLocalStatus("idle"), 3000);
+      }
     );
   };
 
   let effectiveStatus = localStatus;
-  if (normalizedGlobal === "success" || normalizedGlobal === "error" || normalizedGlobal === "posting") {
+  if (
+    normalizedGlobal === "success" ||
+    normalizedGlobal === "error" ||
+    normalizedGlobal === "posting"
+  ) {
     effectiveStatus = normalizedGlobal;
   }
 
-  let bgClass = "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
+  let bgClass =
+    "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
   let icon = <Send className="w-3.5 h-3.5" />;
   let label = null;
 
   if (disabled || normalizedGlobal === "posting") {
     bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
   } else if (effectiveStatus === "success") {
-    // Keep it clickable, add hover states so they know they can repost
-    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2 hover:bg-green-100 hover:border-green-400 cursor-pointer";
+    bgClass =
+      "bg-green-50 text-green-700 border-green-300 w-auto px-2 hover:bg-green-100 hover:border-green-400 cursor-pointer";
     icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Success</span>;
   } else if (effectiveStatus === "error") {
-    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2 hover:bg-red-100 cursor-pointer";
+    bgClass =
+      "bg-red-50 text-red-700 border-red-300 w-auto px-2 hover:bg-red-100 cursor-pointer";
     icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Failed</span>;
   }
@@ -47,10 +60,11 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
     <button
       type="button"
       onClick={handleClick}
-      // REMOVED 'effectiveStatus !== "idle"' SO THEY CAN CLICK IT AGAIN
       disabled={disabled || normalizedGlobal === "posting"}
       title="Post to Athena"
-      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${effectiveStatus === "idle" ? "w-7" : ""}`}
+      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ml-2 ${bgClass} ${
+        effectiveStatus === "idle" ? "w-7" : ""
+      }`}
     >
       {icon}
       {label}
@@ -60,6 +74,7 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
 
 const CopyIconButton = ({ text, label }) => {
   const [copied, setCopied] = useState(false);
+
   const handleCopy = async () => {
     if (!text) return;
     try {
@@ -68,6 +83,7 @@ const CopyIconButton = ({ text, label }) => {
       setTimeout(() => setCopied(false), 1500);
     } catch {}
   };
+
   return (
     <button
       type="button"
@@ -75,38 +91,54 @@ const CopyIconButton = ({ text, label }) => {
       disabled={!text}
       title={label ? `Copy ${label}` : "Copy"}
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all whitespace-nowrap ${
-        copied ? "bg-green-50 text-green-700 border-green-300" : "bg-white text-blue-500 border-blue-200 hover:text-blue-700 hover:border-blue-400"
+        copied
+          ? "bg-green-50 text-green-700 border-green-300"
+          : "bg-white text-blue-500 border-blue-200 hover:text-blue-700 hover:border-blue-400"
       } ${copied ? "px-2 gap-1.5" : "w-7"}`}
     >
       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-      {copied && <span className="text-[10px] font-semibold uppercase tracking-wide">Copied</span>}
+      {copied && (
+        <span className="text-[10px] font-semibold uppercase tracking-wide">
+          Copied
+        </span>
+      )}
     </button>
   );
 };
 
-const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionStatuses = {} }) => {
+const ObjectiveSection = ({
+  soapNotes,
+  setSoapNotes,
+  isEditing,
+  onPost,
+  sectionStatuses = {},
+  postResetKey,
+}) => {
   const obj = soapNotes.objective || {};
-
-  // Track locally if the physical exam was successfully posted
   const [hasPosted, setHasPosted] = useState(false);
 
   const setObj = (next) => setSoapNotes({ ...soapNotes, objective: next });
-  const handleVitalChange = (k, v) => setObj({ ...obj, vital_signs: { ...(obj.vital_signs || {}), [k]: v } });
+
+  const handleVitalChange = (k, v) =>
+    setObj({ ...obj, vital_signs: { ...(obj.vital_signs || {}), [k]: v } });
 
   const handlePhysicalExamPost = (onSuccess, onError) => {
-    const isAlreadyPosted = sectionStatuses["Physical Exam"] === "success" || hasPosted;
-    const content = Object.entries(obj.physical_exams || {}).map(([k, v]) => `${k}: ${v}`).join("\n");
+    const isAlreadyPosted =
+      sectionStatuses["Physical Exam"] === "success" || hasPosted;
+    const content = Object.entries(obj.physical_exams || {})
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("\n");
 
     onPost(
-      { 
-        type: "Physical Exam", 
+      {
+        type: "Physical Exam",
         content,
-        alreadyPosted: isAlreadyPosted 
-      }, 
+        alreadyPosted: isAlreadyPosted,
+      },
       () => {
-        setHasPosted(true); // Mark as successfully posted
+        setHasPosted(true);
         onSuccess();
-      }, 
+      },
       onError
     );
   };
@@ -123,8 +155,12 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
           <table className="border border-gray-300 mt-1 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="border px-3 py-1 text-left font-bold text-black-800">Measure</th>
-                <th className="border px-3 py-1 text-left font-bold text-black-800">Value</th>
+                <th className="border px-3 py-1 text-left font-bold text-black-800">
+                  Measure
+                </th>
+                <th className="border px-3 py-1 text-left font-bold text-black-800">
+                  Value
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -138,7 +174,11 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
                         <CopyIconButton text={`${k}: ${v}`} label={k} />
                       </div>
                     ) : (
-                      <input className="border rounded px-2 py-1 text-sm w-full" value={v} onChange={(e) => handleVitalChange(k, e.target.value)} />
+                      <input
+                        className="border rounded px-2 py-1 text-sm w-full"
+                        value={v}
+                        onChange={(e) => handleVitalChange(k, e.target.value)}
+                      />
                     )}
                   </td>
                 </tr>
@@ -153,12 +193,18 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
           <div className="flex items-center justify-between gap-3 mt-3">
             <p className="font-bold text-black">Physical Exam:</p>
             <div className="flex items-center">
-              <CopyIconButton text={Object.entries(obj.physical_exams || {}).map(([k, v]) => `${k}: ${v}`).join("\n")} label="Physical Exam" />
+              <CopyIconButton
+                text={Object.entries(obj.physical_exams || {})
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join("\n")}
+                label="Physical Exam"
+              />
               {onPost && (
-                <PostIconButton 
+                <PostIconButton
                   onClick={handlePhysicalExamPost}
                   disabled={!obj.physical_exams}
-                  globalStatus={sectionStatuses["Physical Exam"] || "idle"} 
+                  globalStatus={sectionStatuses["Physical Exam"] || "idle"}
+                  postResetKey={postResetKey}
                 />
               )}
             </div>
@@ -168,8 +214,22 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
               <li key={k} className="flex items-center justify-between gap-3">
                 <span className="flex-1">
                   <b>{k}:</b>{" "}
-                  {!isEditing ? v : (
-                    <input className="border rounded px-2 py-1 text-sm w-full max-w-xl" value={v} onChange={(e) => setObj({ ...obj, physical_exams: { ...(obj.physical_exams || {}), [k]: e.target.value } })} />
+                  {!isEditing ? (
+                    v
+                  ) : (
+                    <input
+                      className="border rounded px-2 py-1 text-sm w-full max-w-xl"
+                      value={v}
+                      onChange={(e) =>
+                        setObj({
+                          ...obj,
+                          physical_exams: {
+                            ...(obj.physical_exams || {}),
+                            [k]: e.target.value,
+                          },
+                        })
+                      }
+                    />
                   )}
                 </span>
               </li>
@@ -185,7 +245,9 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
             {obj.laboratory_data.map((item, i) => (
               <li key={i} className="flex items-center justify-between gap-3">
                 <span>{item}</span>
-                <div className="flex items-center"><CopyIconButton text={item} label="Lab item" /></div>
+                <div className="flex items-center">
+                  <CopyIconButton text={item} label="Lab item" />
+                </div>
               </li>
             ))}
           </ul>
@@ -196,10 +258,17 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
         <div>
           <div className="flex items-center justify-between gap-3 mt-3">
             <p className="font-bold text-black">Imaging Studies:</p>
-            <div className="flex items-center"><CopyIconButton text={(obj.imaging_studies || []).join("\n")} label="Imaging Studies" /></div>
+            <div className="flex items-center">
+              <CopyIconButton
+                text={(obj.imaging_studies || []).join("\n")}
+                label="Imaging Studies"
+              />
+            </div>
           </div>
           <ul className="list-disc ml-6 text-[15px] leading-relaxed">
-            {obj.imaging_studies.map((item, i) => <li key={i}>{item}</li>)}
+            {obj.imaging_studies.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
           </ul>
         </div>
       )}
@@ -207,4 +276,4 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost, sectionS
   );
 };
 
-export default ObjectiveSection;
+export default ObjectiveSection

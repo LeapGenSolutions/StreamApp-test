@@ -8,6 +8,7 @@ import ObjectiveSection from "./sections/ObjectiveSection";
 import AssessmentPlanSection from "./sections/AssessmentPlanSection";
 import OrdersSection from "./sections/OrdersSection";
 import { X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useToast } from "../../hooks/use-toast";
 
 const SECTION_TITLES = [
   "Procedure Information",
@@ -356,6 +357,7 @@ const ProcedureNotesSection = ({ content }) => {
 };
 
 const Soap = ({ appointmentId, username, appointment }) => {
+  const { toast } = useToast();
   const [soapNotes, setSoapNotes] = useState({
     patient: "",
     subjective: {},
@@ -577,14 +579,17 @@ const Soap = ({ appointmentId, username, appointment }) => {
       setSectionStatuses((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((k) => {
-          if (next[k] === "posting") next[k] = "success";
+          if (next[k] === "posting") next[k] = "error";
         });
         return next;
       });
-      setMainPostStatus("success");
-      setIsFullyPosted(true);
+      setMainPostStatus("error");
+      toast({
+        title: "Failed to verify SOAP post",
+        description: "The server response did not include section results.",
+      });
     },
-    onError: () => {
+    onError: (error) => {
       setSectionStatuses((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((k) => {
@@ -593,6 +598,10 @@ const Soap = ({ appointmentId, username, appointment }) => {
         return next;
       });
       setMainPostStatus("error");
+      toast({
+        title: "Failed to post SOAP",
+        description: error?.message || "SOAP post failed",
+      });
     },
   });
 
@@ -619,8 +628,12 @@ const Soap = ({ appointmentId, username, appointment }) => {
         pendingPost.onSuccess?.();
         setPendingPost(null);
       },
-      onError: () => {
+      onError: (error) => {
         pendingPost.onError?.();
+        toast({
+          title: `Failed to post ${pendingPost.data?.type || "section"}`,
+          description: error?.message || "SOAP section post failed",
+        });
         setPendingPost(null);
       },
     });
@@ -864,7 +877,17 @@ const Soap = ({ appointmentId, username, appointment }) => {
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
+          <div className="pt-4 border-t border-gray-300 space-y-3">
+            {isAthenaAppointment && isFullyPosted && !isEditing && (
+              <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>
+                  SOAP note posted to Athena. Edit the note and save to enable reposting.
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
             {!isEditing ? (
               <>
                 <Button
@@ -911,6 +934,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
                 </Button>
               </>
             )}
+            </div>
           </div>
         </>
       ) : activeTab === "procedure" ? (

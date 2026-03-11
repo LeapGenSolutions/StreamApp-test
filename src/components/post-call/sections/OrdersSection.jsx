@@ -19,6 +19,7 @@ import {
   postReferral,
   postVaccine,
 } from "../../../api/orders";
+import { useToast } from "../../../hooks/use-toast";
 
 const normalizeOrderValue = (value) => String(value || "").trim().toLowerCase();
 
@@ -34,6 +35,13 @@ const getOrderKey = (order = {}) => {
     normalizeOrderValue(notes),
   ].join("|");
 };
+
+const getOrderLabel = (order = {}) =>
+  order.selected_order_name ||
+  order.clinical_intent ||
+  order.name ||
+  order.order_type ||
+  "Order";
 
 const POSTED_BADGE_DURATION_MS = 3000;
 
@@ -100,6 +108,7 @@ const OrdersSection = ({
   practiceId,
   canPostToAthena = true,
 }) => {
+  const { toast } = useToast();
   const emptyConfirmModal = {
     open: false,
     type: null,
@@ -259,8 +268,10 @@ const OrdersSection = ({
       throw new Error(`Unsupported order type: ${order.order_type}`);
     }
 
-    if (!res || res.error) {
-      throw new Error(res?.error || "Order post failed");
+    if (!res || res.error || res.message || res.detailedmessage) {
+      throw new Error(
+        res?.error || res?.message || res?.detailedmessage || "Order post failed"
+      );
     }
 
     return res;
@@ -300,6 +311,13 @@ const OrdersSection = ({
       orderResult.detailedmessage ||
       "Order post failed"
     );
+  };
+
+  const showOrderFailureToast = (order, message) => {
+    toast({
+      title: `Failed to post ${getOrderLabel(order)}`,
+      description: message || "Order post failed",
+    });
   };
 
   const getActiveIndexes = () => {
@@ -358,6 +376,15 @@ const OrdersSection = ({
         practiceId
       );
 
+      if (result?.error || result?.message || result?.detailedmessage) {
+        throw new Error(
+          result?.error ||
+            result?.message ||
+            result?.detailedmessage ||
+            "Failed to post all orders"
+        );
+      }
+
       const newStatusMap = {};
       const newResultMap = {};
       indexes.forEach((index, batchIndex) => {
@@ -381,12 +408,35 @@ const OrdersSection = ({
         };
       });
 
+      const failedIndexes = indexes.filter(
+        (index) => newStatusMap[index] === "failed"
+      );
+
       setBatchModal((prev) => ({
         ...prev,
         posting: false,
         statusMap: newStatusMap,
         resultMap: newResultMap,
       }));
+
+      if (failedIndexes.length) {
+        const firstFailedIndex = failedIndexes[0];
+        const firstFailedOrder = editableOrders[firstFailedIndex];
+        const firstFailedMessage = getBatchItemError(
+          newResultMap[firstFailedIndex]
+        );
+
+        toast({
+          title:
+            failedIndexes.length === indexes.length
+              ? "Failed to post orders"
+              : "Some orders failed to post",
+          description:
+            failedIndexes.length === 1
+              ? `${getOrderLabel(firstFailedOrder)}: ${firstFailedMessage}`
+              : `${failedIndexes.length} orders failed. First error: ${firstFailedMessage}`,
+        });
+      }
     } catch (error) {
       const failedMap = {};
       const failedResultMap = {};
@@ -405,6 +455,11 @@ const OrdersSection = ({
         statusMap: failedMap,
         resultMap: failedResultMap,
       }));
+
+      toast({
+        title: "Failed to post orders",
+        description: error?.message || "Failed to post all orders",
+      });
     }
   };
 
@@ -433,6 +488,10 @@ const OrdersSection = ({
           },
         },
       }));
+      showOrderFailureToast(
+        editableOrders[index],
+        error?.message || "Order post failed"
+      );
     }
   };
 
@@ -485,8 +544,12 @@ const OrdersSection = ({
                     );
                     markOrderPosted(confirmModal.order);
                     confirmModal.onSuccess?.();
-                  } catch {
-                    confirmModal.onError?.();
+                  } catch (error) {
+                    confirmModal.onError?.(error);
+                    showOrderFailureToast(
+                      confirmModal.order,
+                      error?.message || "Order post failed"
+                    );
                   }
                 } else {
                   handleRemove(confirmModal.order.__key);

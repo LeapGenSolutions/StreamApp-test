@@ -20,6 +20,31 @@ const SECTION_TITLES = [
   "Provider Attestation",
 ];
 
+const createInitialSoapNotes = () => ({
+  patient: "",
+  subjective: {},
+  objective: {},
+  assessmentAndPlan: {},
+});
+
+const cloneSoapNotes = (notes = createInitialSoapNotes()) => {
+  if (typeof window !== "undefined" && typeof window.structuredClone === "function") {
+    return window.structuredClone(notes);
+  }
+
+  return JSON.parse(JSON.stringify(notes));
+};
+
+const hasMeaningfulPhysicalExam = (objective = {}) =>
+  Object.values(objective?.physical_exams || {}).some((value) =>
+    String(value || "").trim()
+  );
+
+const sanitizeSoapNotesForAthenaPost = (notes = createInitialSoapNotes()) => ({
+  ...notes,
+  objective: hasMeaningfulPhysicalExam(notes.objective) ? notes.objective : {},
+});
+
 const ConfirmationModal = ({
   onCancel,
   onConfirm,
@@ -358,12 +383,8 @@ const ProcedureNotesSection = ({ content }) => {
 
 const Soap = ({ appointmentId, username, appointment }) => {
   const { toast } = useToast();
-  const [soapNotes, setSoapNotes] = useState({
-    patient: "",
-    subjective: {},
-    objective: {},
-    assessmentAndPlan: {},
-  });
+  const [soapNotes, setSoapNotes] = useState(createInitialSoapNotes);
+  const [draftSoapNotes, setDraftSoapNotes] = useState(createInitialSoapNotes);
   const [procedureNotes, setProcedureNotes] = useState("");
   const [ordersData, setOrdersData] = useState({ orders: [], confirmed: false });
   const [isEditing, setIsEditing] = useState(false);
@@ -503,7 +524,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
       }
     } catch {}
 
-    setSoapNotes({
+    const nextSoapNotes = {
       patient: patientMatch?.[1] || "",
       subjective: {
         chief_complaint: (reasonMatch?.[1] || "").trim(),
@@ -515,13 +536,23 @@ const Soap = ({ appointmentId, username, appointment }) => {
       },
       objective: objectiveJSON,
       assessmentAndPlan: assessmentPlanJSON,
-    });
-  }, [data, isLoading, stripControlChars]);
+    };
+
+    setSoapNotes(nextSoapNotes);
+
+    if (!isEditing) {
+      setDraftSoapNotes(cloneSoapNotes(nextSoapNotes));
+    }
+  }, [data, isEditing, isLoading, stripControlChars]);
 
   const mutation = useMutation({
-    mutationFn: (updatedNotes) =>
+    mutationFn: ({ updatedNotes }) =>
       updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      const nextSoapNotes = cloneSoapNotes(variables?.nextSoapNotes);
+
+      setSoapNotes(nextSoapNotes);
+      setDraftSoapNotes(cloneSoapNotes(nextSoapNotes));
       refetch();
       setIsEditing(false);
       setIsFullyPosted(false);
@@ -657,6 +688,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
 
   const handleInitialConfirmEdit = () => {
     setPostFlowStage("idle");
+    setDraftSoapNotes(cloneSoapNotes(soapNotes));
     setIsEditing(true);
   };
 
@@ -673,15 +705,16 @@ const Soap = ({ appointmentId, username, appointment }) => {
   const handleReviewPost = () => {
     setMainPostStatus("posting");
 
+    const athenaSoapNotes = sanitizeSoapNotesForAthenaPost(soapNotes);
     const activeStatuses = {};
     if (soapNotes.subjective.chief_complaint) activeStatuses.reason = "posting";
     if (soapNotes.subjective.hpi) activeStatuses.subjective = "posting";
     if (soapNotes.subjective.ros) activeStatuses.ros = "posting";
-    if (soapNotes.objective && Object.keys(soapNotes.objective).length) {
+    if (hasMeaningfulPhysicalExam(athenaSoapNotes.objective)) {
       activeStatuses.objective = "posting";
     }
 
-    const ap = soapNotes.assessmentAndPlan;
+    const ap = athenaSoapNotes.assessmentAndPlan;
     if ((ap?.problems && ap.problems.length > 0) || ap?.follow_up) {
       activeStatuses.assessmentPlan = "posting";
     }
@@ -699,7 +732,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
 
     setSectionStatuses({ ...activeStatuses, ...humanMap });
 
-    const fullRaw = buildFullRaw(soapNotes);
+    const fullRaw = buildFullRaw(athenaSoapNotes);
     mainPostMutation.mutate({
       content: fullRaw,
       username,
@@ -769,13 +802,14 @@ const Soap = ({ appointmentId, username, appointment }) => {
   };
 
   const handleSave = async () => {
-    const rawOut = buildFullRaw(soapNotes);
-    mutation.mutate(rawOut);
+    const nextSoapNotes = cloneSoapNotes(draftSoapNotes);
+    const rawOut = buildFullRaw(nextSoapNotes);
+    mutation.mutate({ updatedNotes: rawOut, nextSoapNotes });
   };
 
   const handleCancel = () => {
+    setDraftSoapNotes(cloneSoapNotes(soapNotes));
     setIsEditing(false);
-    refetch();
   };
 
   const handleOrdersUpdate = (updatedOrders) => {
@@ -850,8 +884,8 @@ const Soap = ({ appointmentId, username, appointment }) => {
             )}
 
             <SubjectiveSection
-              soapNotes={soapNotes}
-              setSoapNotes={setSoapNotes}
+              soapNotes={isEditing ? draftSoapNotes : soapNotes}
+              setSoapNotes={isEditing ? setDraftSoapNotes : setSoapNotes}
               isEditing={isEditing}
               onPost={isAthenaAppointment ? handleInitiatePost : undefined}
               sectionStatuses={sectionStatuses}
@@ -859,8 +893,8 @@ const Soap = ({ appointmentId, username, appointment }) => {
             />
 
             <ObjectiveSection
-              soapNotes={soapNotes}
-              setSoapNotes={setSoapNotes}
+              soapNotes={isEditing ? draftSoapNotes : soapNotes}
+              setSoapNotes={isEditing ? setDraftSoapNotes : setSoapNotes}
               isEditing={isEditing}
               onPost={isAthenaAppointment ? handleInitiatePost : undefined}
               sectionStatuses={sectionStatuses}
@@ -868,8 +902,8 @@ const Soap = ({ appointmentId, username, appointment }) => {
             />
 
             <AssessmentPlanSection
-              soapNotes={soapNotes}
-              setSoapNotes={setSoapNotes}
+              soapNotes={isEditing ? draftSoapNotes : soapNotes}
+              setSoapNotes={isEditing ? setDraftSoapNotes : setSoapNotes}
               isEditing={isEditing}
               onPost={isAthenaAppointment ? handleInitiatePost : undefined}
               sectionStatuses={sectionStatuses}
@@ -891,7 +925,10 @@ const Soap = ({ appointmentId, username, appointment }) => {
             {!isEditing ? (
               <>
                 <Button
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setDraftSoapNotes(cloneSoapNotes(soapNotes));
+                    setIsEditing(true);
+                  }}
                   className="bg-yellow-600 text-white hover:bg-yellow-700"
                 >
                   Edit

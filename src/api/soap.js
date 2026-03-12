@@ -3,7 +3,17 @@ import { postAll, postVisitReason, putAssessment, putHPI, putPhysicalExam, putRe
 
 // GET works with ?userID=
 export const fetchSoapNotes = async (apptId, userID) => {
-  const response = await fetch(`${BACKEND_URL}api/soap-notes/${apptId}?userID=${userID}`);
+  const params = new URLSearchParams({
+    userID: userID || "",
+    _: String(Date.now()),
+  });
+
+  const response = await fetch(
+    `${BACKEND_URL}api/soap-notes/${apptId}?${params.toString()}`,
+    {
+      cache: "no-store",
+    }
+  );
   if (!response.ok) {
     const error = await response.text();
     console.error(" Failed to fetch SOAP notes:", error);

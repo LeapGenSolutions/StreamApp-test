@@ -2,12 +2,12 @@ import { BACKEND_URL } from "../constants";
 
 const encode = (val) => encodeURIComponent((val || "").toLowerCase());
 
-export const postImaging = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postImaging = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/imaging`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/imaging`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -22,12 +22,12 @@ export const postImaging = async (doctorEmail, appointmentId, data, practiceId) 
     }
 };
 
-export const postLab = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postLab = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/lab`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/lab`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -42,12 +42,12 @@ export const postLab = async (doctorEmail, appointmentId, data, practiceId) => {
     }
 };
 
-export const postProcedure = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postProcedure = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/procedure`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/procedure`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -62,12 +62,12 @@ export const postProcedure = async (doctorEmail, appointmentId, data, practiceId
     }
 };
 
-export const postOther = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postOther = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/other`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/other`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -82,12 +82,12 @@ export const postOther = async (doctorEmail, appointmentId, data, practiceId) =>
     }
 };
 
-export const postPatientInfo = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postPatientInfo = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/patientinfo`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/patientinfo`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -102,12 +102,12 @@ export const postPatientInfo = async (doctorEmail, appointmentId, data, practice
     }
 };
 
-export const postPrescription = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postPrescription = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/prescription`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/prescription`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -122,12 +122,12 @@ export const postPrescription = async (doctorEmail, appointmentId, data, practic
     }
 };
 
-export const postReferral = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postReferral = async (doctorEmail, encounterId, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/referral`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/referral`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -142,12 +142,12 @@ export const postReferral = async (doctorEmail, appointmentId, data, practiceId)
     }
 };
 
-export const postVaccine = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postVaccine = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/vaccine`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/vaccine`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -162,12 +162,12 @@ export const postVaccine = async (doctorEmail, appointmentId, data, practiceId) 
     }
 };
 
-export const postDME = async (doctorEmail, appointmentId, data, practiceId) => {
+export const postDME = async (doctorEmail, encounterId,appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
         data = { ...data, practiceId };
         const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/dme`,
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/${encounterId}/orders/dme`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -178,28 +178,6 @@ export const postDME = async (doctorEmail, appointmentId, data, practiceId) => {
         return await response.json();
     } catch (error) {
         console.error("postDME error:", error);
-        throw error;
-    }
-};
-
-export const postAllOrders = async (doctorEmail, appointmentId, orders, practiceId) => {
-    try {
-        const encodedEmail = encode(doctorEmail);
-        const response = await fetch(
-            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/all`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    practiceId,
-                    orders,
-                }),
-            }
-        );
-
-        return await response.json();
-    } catch (error) {
-        console.error("postAllOrders error:", error);
         throw error;
     }
 };

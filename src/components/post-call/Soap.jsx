@@ -812,13 +812,6 @@ const Soap = ({ appointmentId, username, appointment }) => {
     setIsEditing(false);
   };
 
-  const handleOrdersUpdate = (updatedOrders) => {
-    setOrdersData((prev) => ({
-      ...prev,
-      orders: updatedOrders,
-    }));
-  };
-
   if (isLoading) return <LoadingCard message="Loading SOAP..." />;
   if (error) return <LoadingCard />;
 
@@ -979,12 +972,11 @@ const Soap = ({ appointmentId, username, appointment }) => {
       ) : (
         <OrdersSection
           ordersData={ordersData}
-          onOrdersUpdate={handleOrdersUpdate}
           doctorEmail={appointment?.doctor_email}
           encounterId={appointment?.athena_encounter_id}
           practiceId={appointment?.athena_practice_id}
-          canPostToAthena={isAthenaAppointment}
           appointmentId={appointment?.id}
+          canPostToAthena={isAthenaAppointment}
         />
       )}
     </div>

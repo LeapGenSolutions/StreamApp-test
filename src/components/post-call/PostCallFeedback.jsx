@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { updatePostCallFeedbackByAppointment } from "../../api/postCallFeedback";
 
-const CallFeedback = ({ username, appointmentId }) => {
+const CallFeedback = ({ username, appointmentId, canSubmit = true }) => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     overallExperience: 0,
@@ -91,6 +91,10 @@ const CallFeedback = ({ username, appointmentId }) => {
       setShowForm(true);
     }
   };
+
+  if (!canSubmit) {
+    return null;
+  }
 
   return (
     <div className="relative">

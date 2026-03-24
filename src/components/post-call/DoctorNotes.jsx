@@ -6,7 +6,12 @@ import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
-const DoctorNotes = ({ appointmentId, username }) => {
+const DoctorNotes = ({
+    appointmentId,
+    username,
+    canCreate = true,
+    canEditExisting = true,
+}) => {
     const [notes, setNotes] = useState(null);
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({
@@ -43,6 +48,10 @@ const DoctorNotes = ({ appointmentId, username }) => {
     }, [appointmentId, username]);
 
     const handleSave = async () => {
+        if ((!notes && !canCreate) || (notes && !canEditExisting)) {
+            return;
+        }
+
         setSaving(true);
         setError(null);
         try {
@@ -77,10 +86,16 @@ const DoctorNotes = ({ appointmentId, username }) => {
     if (!notes && !editMode) {
         return (
             <div className="max-w-xl mx-auto bg-white rounded shadow p-6 border border-blue-100 text-center">
-                <div className="mb-4 text-gray-500">No doctor notes saved during video call.<br />You can now add new notes.</div>
-                <Button size="sm" className="bg-blue-500 text-white" onClick={() => setEditMode(true)}>
-                    Add Doctor Notes
-                </Button>
+                <div className="mb-4 text-gray-500">
+                    No doctor notes saved during video call.
+                    <br />
+                    {canCreate ? "You can now add new notes." : "You have read-only access here."}
+                </div>
+                {canCreate && (
+                    <Button size="sm" className="bg-blue-500 text-white" onClick={() => setEditMode(true)}>
+                        Add Doctor Notes
+                    </Button>
+                )}
             </div>
         );
     }
@@ -91,7 +106,9 @@ const DoctorNotes = ({ appointmentId, username }) => {
                 <>
                     <div className="flex justify-between items-center mb-2">
                         <h2 className="text-lg font-semibold text-blue-800 flex items-center gap-2">Doctor Notes</h2>
-                        <Button size="sm" onClick={() => setEditMode(true)} className="bg-blue-500 text-white">Edit</Button>
+                        {canEditExisting && (
+                            <Button size="sm" onClick={() => setEditMode(true)} className="bg-blue-500 text-white">Edit</Button>
+                        )}
                     </div>
                     <div className="mb-2">
                         <span className="font-medium text-gray-700">Title:</span> {notes.data.title}

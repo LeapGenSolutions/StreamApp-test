@@ -9,14 +9,35 @@ import {
   Settings,
   LayoutDashboard,
   Menu,
+  ShieldCheck,
 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import Logo from "../../assets/Logo"; // Seismic Connect logo
+import { useAnyPermission, usePermission } from "../../hooks/use-permission";
 
 const Sidebar = () => {
   const [location, navigate] = useLocation();
   const { instance, accounts } = useMsal();
   const sidebarRef = useRef(null);
+  const canViewDashboard = usePermission("dashboard.view_appointments", "read");
+  const canViewAppointments = usePermission("appointments.select_providers", "read");
+  const canViewVideoCall = useAnyPermission([
+    { required: "video_call.upcoming", level: "read" },
+    { required: "video_call.history", level: "read" },
+    { required: "video_call.add", level: "read" },
+  ]);
+  const canViewPatients = usePermission("patients.info", "read");
+  const canViewReports = useAnyPermission([
+    { required: "reports.billing_analytics", level: "read" },
+    { required: "reports.billing_history", level: "read" },
+    { required: "reports.estimated_billing", level: "read" },
+  ]);
+  const canViewSettings = useAnyPermission([
+    { required: "settings.ehr_integration", level: "read" },
+    { required: "settings.payment_billing", level: "read" },
+  ]);
+  const canManageRbac = usePermission("admin.manage_rbac", "read");
+  const hasAdminLinks = canViewReports || canViewSettings || canManageRbac;
 
   // Default: open on desktop, closed on mobile
   const [isOpen, setIsOpen] = useState(() => {
@@ -98,7 +119,7 @@ const Sidebar = () => {
             ? "h-screen md:w-16 md:h-screen" // compact icons-only during meeting
             : isOpen
             ? "h-screen md:w-64 md:h-screen" // when open: full height on mobile + desktop
-            : "h-auto md:w-10 md:h-screen"   // when closed: auto height on mobile, full height on desktop
+            : "h-auto md:w-20 md:h-screen"   // when closed: icon rail on desktop, compact header on mobile
         }`}
     >
       <div className="flex-1 flex flex-col min-h-0">
@@ -145,111 +166,145 @@ const Sidebar = () => {
         {/* --- Navigation Links (hidden when collapsed) --- */}
         <nav
           className={`border-t border-neutral-700 md:border-t-0 w-full flex-1 overflow-y-auto pb-4 md:py-4 min-h-0
-          ${isOpen || isMeetingCompact ? "block" : "hidden"}`}
+          ${isOpen || isMeetingCompact ? "block" : "hidden md:block"}`}
         >
-          <div className={`${isMeetingCompact ? "hidden" : "px-4 mt-4 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider"}`}>
+          <div className={`${isMeetingCompact || !isOpen ? "hidden" : "px-4 mt-4 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider"}`}>
             Main
           </div>
 
-          <Link href="/">
-            <div
-              onClick={handleNavClick}
-              title={!isOpen ? "Dashboard" : undefined}
-              aria-label="Dashboard"
-              className={`flex items-center py-3 cursor-pointer
-                ${isOpen ? "px-4" : "justify-center"}
-                ${isActive("/") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
-            >
-              <LayoutDashboard className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
-              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Dashboard</span>
-            </div>
-          </Link>
+          {canViewDashboard && (
+            <Link href="/">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Dashboard" : undefined}
+                aria-label="Dashboard"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <LayoutDashboard className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Dashboard</span>
+              </div>
+            </Link>
+          )}
 
-          <Link href="/appointments">
-            <div
-              onClick={handleNavClick}
-              title={!isOpen ? "Appointments" : undefined}
-              aria-label="Appointments"
-              className={`flex items-center py-3 cursor-pointer
-                ${isOpen ? "px-4" : "justify-center"}
-                ${isActive("/appointments") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
-            >
-              <Calendar className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
-              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Appointments</span>
-            </div>
-          </Link>
+          {canViewAppointments && (
+            <Link href="/appointments">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Appointments" : undefined}
+                aria-label="Appointments"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/appointments") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <Calendar className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Appointments</span>
+              </div>
+            </Link>
+          )}
 
-          <Link href="/video-call">
-            <div
-              onClick={handleNavClick}
-              title={!isOpen ? "Video Call" : undefined}
-              aria-label="Video Call"
-              className={`flex items-center py-3 cursor-pointer
-                ${isOpen ? "px-4" : "justify-center"}
-                ${isActive("/video-call") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
-            >
-              <Video className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
-              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Video Call</span>
-            </div>
-          </Link>
+          {canViewVideoCall && (
+            <Link href="/video-call">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Video Call" : undefined}
+                aria-label="Video Call"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/video-call") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <Video className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Video Call</span>
+              </div>
+            </Link>
+          )}
 
-          <Link href="/patients">
-            <div
-              onClick={handleNavClick}
-              title={!isOpen ? "Patients" : undefined}
-              aria-label="Patients"
-              className={`flex items-center py-3 cursor-pointer
-                ${isOpen ? "px-4" : "justify-center"}
-                ${isActive("/patients") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
-            >
-              <Users className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
-              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Patients</span>
-            </div>
-          </Link>
+          {canViewPatients && (
+            <Link href="/patients">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Patients" : undefined}
+                aria-label="Patients"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/patients") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <Users className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Patients</span>
+              </div>
+            </Link>
+          )}
 
-          <div className={`${isMeetingCompact ? 'hidden' : 'px-4 mt-6 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider'}`}>
-            Administration
-          </div>
-
-          <Link href="/reports">
-            <div
-              onClick={handleNavClick}
-              title={!isOpen ? "Billing Reports" : undefined}
-              aria-label="Billing Reports"
-              className={`flex items-center py-3 cursor-pointer
-                ${isOpen ? "px-4" : "justify-center"}
-                ${isActive("/reports") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
-            >
-              <FileText className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
-              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Billing Reports</span>
+          {hasAdminLinks && (
+            <div className={`${isMeetingCompact || !isOpen ? 'hidden' : 'px-4 mt-6 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider'}`}>
+              Administration
             </div>
-          </Link>
+          )}
 
-          <Link href="/settings">
-            <div
-              onClick={handleNavClick}
-              title={!isOpen ? "Settings" : undefined}
-              aria-label="Settings"
-              className={`flex items-center py-3 cursor-pointer
-                ${isOpen ? "px-4" : "justify-center"}
-                ${isActive("/settings") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
-            >
-              <Settings className={`w-5 h-5 ${isMeetingCompact ? 'mx-auto' : 'mr-3'}`} />
-              <span className={`${isMeetingCompact ? 'hidden' : ''}`}>Settings</span>
-            </div>
-          </Link>
+          {canViewReports && (
+            <Link href="/reports">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Billing Reports" : undefined}
+                aria-label="Billing Reports"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/reports") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <FileText className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Billing Reports</span>
+              </div>
+            </Link>
+          )}
+
+          {canViewSettings && (
+            <Link href="/settings">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Settings" : undefined}
+                aria-label="Settings"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/settings") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <Settings className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Settings</span>
+              </div>
+            </Link>
+          )}
+
+          {canManageRbac && (
+            <Link href="/admin/rbac">
+              <div
+                onClick={handleNavClick}
+                title={!isOpen ? "Admin Settings" : undefined}
+                aria-label="Admin Settings"
+                className={`flex items-center py-3 cursor-pointer
+                  ${isOpen ? "px-4" : "justify-center"}
+                  ${isActive("/admin/rbac") ? "bg-blue-600 text-white" : "text-neutral-300 hover:bg-neutral-700"}`}
+              >
+                <ShieldCheck className={`w-5 h-5 ${isMeetingCompact || !isOpen ? 'mx-auto' : 'mr-3'}`} />
+                <span className={`${isMeetingCompact || !isOpen ? 'hidden' : ''}`}>Admin Settings</span>
+              </div>
+            </Link>
+          )}
         </nav>
       </div>
 
-      {/* --- Bottom: Logout Only (hide when sidebar closed on both mobile + desktop) --- */}
-      {isOpen && !isMeetingCompact && (
-        <div className="p-4 border-t border-neutral-700 md:block">
+      {/* --- Bottom: Logout --- */}
+      {!isMeetingCompact && (
+        <div className={`border-t border-neutral-700 md:block ${isOpen ? "p-4" : "p-3"}`}>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600"
+            title={!isOpen ? "Logout" : undefined}
+            aria-label="Logout"
+            className={`flex items-center justify-center w-full text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600 ${
+              isOpen ? "px-4 py-2" : "px-0 py-2"
+            }`}
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
+            <LogOut className={`w-4 h-4 ${isOpen ? "mr-2" : ""}`} />
+            <span className={isOpen ? "" : "hidden"}>Logout</span>
           </button>
         </div>
       )}

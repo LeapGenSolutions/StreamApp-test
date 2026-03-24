@@ -12,6 +12,7 @@ import { PageNavigation } from "../components/ui/page-navigation";
 import { format, isToday } from "date-fns";
 import { fetchCallHistory } from "../api/callHistory";
 import { formatUsDate } from "../lib/dateUtils";
+import { usePermission } from "../hooks/use-permission";
 
 const PatientReports = () => {
   const { patientId } = useParams();
@@ -25,6 +26,8 @@ const PatientReports = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
+  const canJoinCallPermission = usePermission("patients.join_call", "write");
+  const canViewPostCall = usePermission("patients.post_call_doc", "read");
 
   const patient = useMemo(
     () => patients.find((p) => String(p.patient_id) === String(patientId)),
@@ -133,8 +136,14 @@ const PatientReports = () => {
     const status = (meta.appt.status || "").toLowerCase();
     const cancelled = status === "cancelled" || status === "canceled";
 
-    return isToday(dt) && dt > now && !cancelled && !meta.isCompleted;
-  }, [nextUpcoming, now]);
+    return (
+      canJoinCallPermission &&
+      isToday(dt) &&
+      dt > now &&
+      !cancelled &&
+      !meta.isCompleted
+    );
+  }, [canJoinCallPermission, nextUpcoming, now]);
 
   const firstName =
     patient?.firstname ||
@@ -329,7 +338,7 @@ const PatientReports = () => {
                 )}
               </div>
 
-              {isCompleted && (
+              {isCompleted && canViewPostCall && (
                 <button
                   title="View Documentation"
                   onClick={() => {

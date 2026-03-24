@@ -10,6 +10,7 @@ import CallHistory from "./CallHistory";
 import { useToast } from "../hooks/use-toast";
 import { PageNavigation } from "../components/ui/page-navigation";
 import CreateAppointmentModal from "../components/appointments/CreateAppointmentModal";
+import { usePermission } from "../hooks/use-permission";
 
 const VideoCallPage = () => {
   const [room, setRoom] = useState("");
@@ -28,6 +29,10 @@ const VideoCallPage = () => {
   const clinicName = useSelector((state) => state.me.me.clinicName);
   const appointments = useSelector((state) => state.appointments.appointments);
   const { toast } = useToast();
+  const canViewUpcoming = usePermission("video_call.upcoming", "read");
+  const canViewHistory = usePermission("video_call.history", "read");
+  const canAddVideoCall = usePermission("video_call.add", "write");
+  const canStartVideoCallPermission = usePermission("video_call.start", "write");
 
   const today = format(new Date(), "yyyy-MM-dd");
   const isAppointmentSelected = Boolean(appointmentId);
@@ -131,6 +136,19 @@ const VideoCallPage = () => {
 
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role") || "doctor";
+
+  useEffect(() => {
+    if (role !== "doctor") return;
+
+    if (activeTab === "upcoming" && !canViewUpcoming && canViewHistory) {
+      setActiveTab("history");
+    }
+
+    if (activeTab === "history" && !canViewHistory && canViewUpcoming) {
+      setActiveTab("upcoming");
+    }
+  }, [activeTab, canViewHistory, canViewUpcoming, role]);
+
   useEffect(() => {
     if (appointmentType === "in-person") {
       setShowShareLink(false);
@@ -234,7 +252,7 @@ const VideoCallPage = () => {
         showBackButton={true}
         showDate={false}
         rightSlot={
-          role === "doctor" && activeTab === "upcoming" ? (
+          role === "doctor" && activeTab === "upcoming" && canAddVideoCall ? (
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 shadow-sm"
@@ -251,7 +269,7 @@ const VideoCallPage = () => {
             <div className="space-y-4">
               {/* Tabs */}
               <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500 mb-4">
-                {role === "doctor" && (
+                {role === "doctor" && canViewUpcoming && (
                   <button
                     onClick={() => setActiveTab("upcoming")}
                     className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "upcoming"
@@ -275,7 +293,7 @@ const VideoCallPage = () => {
                   </button>
                 )}
 
-                {role === "doctor" && (
+                {role === "doctor" && canViewHistory && (
                   <button
                     onClick={() => setActiveTab("history")}
                     className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "history"
@@ -289,7 +307,7 @@ const VideoCallPage = () => {
               </div>
 
               {/* Upcoming tab */}
-              {activeTab === "upcoming" && (
+              {activeTab === "upcoming" && canViewUpcoming && (
                 <div className="space-y-4">
                   <div className="grid gap-2">
                     <label
@@ -423,7 +441,7 @@ const VideoCallPage = () => {
                     </div>
                   </div>
 
-                  {canStartVideoCall && (
+                  {canStartVideoCall && canStartVideoCallPermission && (
                     <div className="flex justify-end space-x-2 mt-4">
                       <button
                         onClick={() => joinAsDoctor(room)}
@@ -500,7 +518,7 @@ const VideoCallPage = () => {
               )}
 
               {/* History tab */}
-              {activeTab === "history" && (
+              {activeTab === "history" && canViewHistory && (
                 <div className="space-y-4">
                   <CallHistory />
                 </div>

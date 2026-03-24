@@ -9,6 +9,7 @@ import DeleteAppointmentModal from "./DeleteAppointmentModal";
 import CancelAppointmentModal from "./CancelAppointmentModal";
 import { Pencil, Trash2, XCircle } from "lucide-react";
 import { formatUsDate } from "../../lib/dateUtils";
+import { usePermission } from "../../hooks/use-permission";
 
 const normalizeStatus = (status) => {
   const value = (status || "").toString().trim().toLowerCase();
@@ -54,6 +55,11 @@ const AppointmentModal = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showDOB, setShowDOB] = useState(false);
+  const canModifyAppointments = usePermission("appointments.modify", "write");
+  const canDeleteAppointments = usePermission("appointments.delete", "write");
+  const canJoinCall = usePermission("appointments.join_call", "write");
+  const canViewPatientReports = usePermission("appointments.patient_reports", "read");
+  const canViewPostCall = usePermission("appointments.post_call_doc", "read");
 
   useEffect(() => {
     if (selectedAppointment?.id) {
@@ -117,9 +123,17 @@ const AppointmentModal = ({
   const isNotCompleted = normalizedStatus !== "completed";
 
   const canCancel =
-    isFutureSlot && isNotSeismified && isNotCancelled && isNotCompleted;
+    canModifyAppointments &&
+    isFutureSlot &&
+    isNotSeismified &&
+    isNotCancelled &&
+    isNotCompleted;
   const canEdit =
-    isFutureSlot && isNotSeismified && isNotCancelled && isNotCompleted;
+    canModifyAppointments &&
+    isFutureSlot &&
+    isNotSeismified &&
+    isNotCancelled &&
+    isNotCompleted;
 
 
   const formatTime = () => {
@@ -190,7 +204,7 @@ const AppointmentModal = ({
                 </button>
               )}
 
-              {!selectedAppointment.seismified && (
+              {!selectedAppointment.seismified && canDeleteAppointments && (
                 <button
                   onClick={() => setShowDeleteModal(true)}
                   className="text-red-500 hover:text-red-700 transition"
@@ -206,13 +220,17 @@ const AppointmentModal = ({
 
             <p>
               <span className="font-semibold">Patient:</span>{" "}
-              <Link
-                to={`/patients/${selectedAppointment.patient_id}`}
-                target="_blank"
-                className="text-blue-600 hover:underline hover:text-blue-800 transition-colors"
-              >
-                {selectedAppointment.full_name}
-              </Link>
+              {canViewPatientReports ? (
+                <Link
+                  to={`/patients/${selectedAppointment.patient_id}`}
+                  target="_blank"
+                  className="text-blue-600 hover:underline hover:text-blue-800 transition-colors"
+                >
+                  {selectedAppointment.full_name}
+                </Link>
+              ) : (
+                <span>{selectedAppointment.full_name}</span>
+              )}
             </p>
 
             <p><span className="font-semibold">Time:</span> {formatTime()}</p>
@@ -293,21 +311,23 @@ const AppointmentModal = ({
           </div>
 
           <div className="mt-6 text-right space-x-1">
-            {isNotCancelled && (
+            {isNotCancelled && canJoinCall && (
               <button onClick={handleJoinClick} className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">Join</button>
             )}
 
-            <button
-              onClick={handlePostCallClick}
-              disabled={!selectedAppointment.seismified}
-              className={`py-2 px-4 rounded font-medium ${
-                selectedAppointment.seismified
-                  ? "bg-zinc-600 hover:bg-zinc-700 text-white"
-                  : "bg-gray-300 text-gray-600 cursor-not-allowed"
-              }`}
-            >
-              Post Call Documentation
-            </button>
+            {canViewPostCall && (
+              <button
+                onClick={handlePostCallClick}
+                disabled={!selectedAppointment.seismified}
+                className={`py-2 px-4 rounded font-medium ${
+                  selectedAppointment.seismified
+                    ? "bg-zinc-600 hover:bg-zinc-700 text-white"
+                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                }`}
+              >
+                Post Call Documentation
+              </button>
+            )}
 
             <button
               onClick={() => setSelectedAppointment(null)}

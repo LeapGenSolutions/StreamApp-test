@@ -16,6 +16,12 @@ function capitalizeFirst(str = "") {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+function buildAppointmentSummaryLabel(patientName, status, seismified) {
+  const normalizedStatus = capitalizeFirst(status || "Unknown");
+  const seismicLabel = seismified ? "Seismified" : "Not Seismified";
+  return `${patientName} (${normalizedStatus} • ${seismicLabel})`;
+}
+
 const locales = { "en-US": enUS };
 
 const localizer = dateFnsLocalizer({
@@ -31,6 +37,8 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [appointments, setAppointments] = useState([]);
   const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [doctorColorMap, setDoctorColorMap] = useState({});
+  const [isSelectionInitialized, setIsSelectionInitialized] = useState(false);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
@@ -38,14 +46,31 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [currentView, setCurrentView] = useState("day");
 
   const loggedInDoctor = useSelector((state) => state.me.me);
-  const allDoctors = useSelector((state) => state.doctors.doctors || []);
 
   useEffect(() => {
     if (onAdd) onAdd(() => setShowCreateModal(true));
     if (onAddBulk) onAddBulk(() => setShowBulkCreateModal(true));
   }, [onAdd, onAddBulk]);
 
-  // Removed conflicting auto-select effect; DoctorMultiSelect handles this.
+  useEffect(() => {
+    const email = (loggedInDoctor?.email || "").trim().toLowerCase();
+    const hasProfileContext =
+      email.length > 0 || typeof loggedInDoctor?.clinicName === "string";
+
+    if (!hasProfileContext || isSelectionInitialized) {
+      return;
+    }
+
+    if (email) {
+      setSelectedDoctors([email]);
+      setDoctorColorMap((current) => ({
+        ...current,
+        [email]: current[email] || getColorFromName(email),
+      }));
+    }
+
+    setIsSelectionInitialized(true);
+  }, [loggedInDoctor?.email, loggedInDoctor?.clinicName, isSelectionInitialized]);
 
   const applySeismified = async (list) => {
     const ids = (Array.isArray(list) ? list : [])
@@ -71,54 +96,39 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   };
 
   useEffect(() => {
+    if (!isSelectionInitialized) {
+      return;
+    }
+
+    let isActive = true;
+
     const fetchData = async () => {
       const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
       const userClinicForComparison = normalize(loggedInDoctor?.clinicName);
       const userClinicForApi = (loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim();
 
-      // If we are strictly filtering by clinic, we might not require selectedDoctors
-      // But preserving existing logic: fetch for selected doctors, THEN filter by clinic
-
       if (selectedDoctors.length === 0 && !userClinicForComparison) {
-        setAppointments([]);
+        if (isActive) {
+          setAppointments([]);
+          setIsCalendarLoading(false);
+        }
         return;
       }
 
-      // Pass clinicName to the API fetcher (if it supports it) or just fetch and filter client-side
+      setIsCalendarLoading(true);
 
-      // Fetch all doctors from Redux to find matches for the clinic
-      // We need to access the full list of doctors to filter by clinic
-      // However, `rawDoctors` is not available in this scope. 
-      // We should use `useSelector` to get `state.doctors.doctors`.
-
-      // NOTE: This logic requires `allDoctors` to be available. 
-      // I need to add `const allDoctors = useSelector((state) => state.doctors.doctors);` at top of component.
-
-      // NOTE: Removed logic that auto-fetched all clinic doctors.
-      // Now strictly respects `selectedDoctors` passed from parent/dropdown.
-      let doctorsToFetch = selectedDoctors;
-
-      console.log("DEBUG: AppointmentCalendar - selectedDoctors:", selectedDoctors);
-      console.log("DEBUG: AppointmentCalendar - doctorsToFetch:", doctorsToFetch);
+      const doctorsToFetch = selectedDoctors;
 
       const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch, userClinicForApi);
-      console.log("DEBUG: fetched data type:", typeof data, "isArray:", Array.isArray(data));
-      console.log("DEBUG: fetched data sample:", data);
 
       let flatData = data;
-      // Handle potential nested structure if data is array of day-objects
       if (Array.isArray(data) && data.length > 0 && data[0].data && Array.isArray(data[0].data)) {
-        console.log("DEBUG: Detected nested data structure, flattening...");
         flatData = data.flatMap(day => day.data || []);
       } else if (!Array.isArray(data) && data.data && Array.isArray(data.data)) {
-        // Handle single object wrapper
-        console.log("DEBUG: Detected single object wrapper, extracting data...");
         flatData = data.data;
       }
 
       const merged = await applySeismified(flatData);
-
-      // console.log("DEBUG: AppointmentCalendar - loggedInDoctor.clinicName:", loggedInDoctor?.clinicName);
 
       // Create a Set of selected doctor emails for efficient lookup (normalized)
       const selectedDoctorEmails = new Set(
@@ -151,11 +161,23 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         return true;
       });
 
-      setAppointments(filtered);
+      if (isActive) {
+        setAppointments(filtered);
+        setIsCalendarLoading(false);
+      }
     };
 
-    fetchData();
-  }, [selectedDoctors, loggedInDoctor, allDoctors]);
+    fetchData().catch(() => {
+      if (isActive) {
+        setAppointments([]);
+        setIsCalendarLoading(false);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isSelectionInitialized, selectedDoctors, loggedInDoctor?.clinicName]);
 
   const events = appointments.map((appt) => {
     const doctorKey = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
@@ -168,10 +190,15 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
     const end = new Date(start.getTime() + 30 * 60000);
 
-    const seismicLabel = appt.seismified ? "Seismified" : "Not Seismified";
+    const summaryLabel = buildAppointmentSummaryLabel(
+      appt.full_name,
+      appt.status,
+      appt.seismified
+    );
 
     return {
-      title: `${appt.full_name} (${capitalizeFirst(appt.status)} • ${seismicLabel})`,
+      title: summaryLabel,
+      summaryLabel,
       start,
       end,
       allDay: false,
@@ -208,15 +235,18 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
     const seismiText = event.seismified ? "Seismified" : "Not Seismified";
     const icon = event.seismified ? "◉" : "○";
-
     const tooltip = `${event.full_name} • ${status} • ${seismiText}\n${timeRange}`;
+    const eventLabel = event.summaryLabel || buildAppointmentSummaryLabel(
+      event.full_name,
+      event.status,
+      event.seismified
+    );
 
     if (currentView === "day") {
       return (
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
-          <b>{event.full_name}</b>
-          <span style={{ marginLeft: 6 }}>({seismiText})</span>
+          <b>{eventLabel}</b>
           <div style={{ fontSize: "11px", opacity: 0.9 }}>{timeRange}</div>
         </div>
       );
@@ -226,7 +256,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       return (
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
-          <b>{event.full_name}</b>
+          <b>{eventLabel}</b>
         </div>
       );
     }
@@ -235,7 +265,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       return (
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
-          {event.full_name}
+          {eventLabel}
         </div>
       );
     }
@@ -243,7 +273,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     return (
       <div title={tooltip}>
         <span style={{ marginRight: 6 }}>{icon}</span>
-        <b>{event.full_name}</b>
+        <b>{eventLabel}</b>
       </div>
     );
   };
@@ -314,8 +344,21 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   // These are state setters, so stable.
   // We include handleDoctorUpdate which is now a stable callback.
 
+  if (!isSelectionInitialized) {
+    return (
+      <div className="m-5 flex h-[650px] items-center justify-center rounded-lg border border-gray-200 bg-white text-sm text-gray-500">
+        Loading your appointment calendar...
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: "650px", margin: "20px" }}>
+      {isCalendarLoading ? (
+        <div className="mb-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+          Refreshing appointments...
+        </div>
+      ) : null}
       <Calendar
         localizer={localizer}
         events={events}
@@ -367,8 +410,16 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
               const eventColor = doctorColorMap[doctorKey] || "#E5E7EB";
 
               const newEvent = {
-                title: `${updated.full_name} (${updated.status} • ${updated.seismified ? "Seismified" : "Not Seismified"
-                  })`,
+                title: buildAppointmentSummaryLabel(
+                  updated.full_name,
+                  updated.status,
+                  updated.seismified
+                ),
+                summaryLabel: buildAppointmentSummaryLabel(
+                  updated.full_name,
+                  updated.status,
+                  updated.seismified
+                ),
                 start,
                 end,
                 allDay: false,

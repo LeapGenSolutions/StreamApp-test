@@ -1,10 +1,12 @@
 import { Bell } from "lucide-react";
 import { useSelector } from "react-redux";
 import { Link, useLocation } from "wouter";
+import { normalizeRole } from "../../lib/rbac";
 
 const Header = () => {
   const [location] = useLocation();
   const user = useSelector((state) => state.me.me);
+  const displayRole = normalizeRole(user?.role) || "Staff";
 
   const isActive = (path) => location === path;
 
@@ -104,7 +106,7 @@ const Header = () => {
               </p>
               {/* Hide role on very small screens to save height */}
               <p className="text-xs text-neutral-500">
-                {user?.role || "Staff"}
+                {displayRole}
               </p>
             </div>
           </div>
@@ -115,4 +117,3 @@ const Header = () => {
 };
 
 export default Header
-

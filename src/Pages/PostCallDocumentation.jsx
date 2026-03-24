@@ -20,6 +20,7 @@ import EmotionalConnect from "../components/post-call/EmotionalConnect";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import CallFeedback from "../components/post-call/PostCallFeedback"; 
+import { useAnyPermission, usePermission } from "../hooks/use-permission";
 
 const PostCallDocumentation = ({ onSave }) => {
   const [docTab, setDocTab] = useState("summary");
@@ -34,6 +35,21 @@ const PostCallDocumentation = ({ onSave }) => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const searchParams = useSearchParams()[0];
   const username = searchParams.get("username");
+  const canViewPostCall = usePermission("post_call.view_all", "read");
+  const canViewSoap = usePermission("post_call.edit_soap_notes", "read");
+  const canEditSoap = usePermission("post_call.edit_soap_notes", "write");
+  const canViewBilling = usePermission("post_call.edit_billing_codes", "read");
+  const canEditBilling = usePermission("post_call.edit_billing_codes", "write");
+  const canViewDoctorNotes = useAnyPermission([
+    { required: "post_call.add_doctor_notes", level: "read" },
+    { required: "post_call.edit_doctor_notes", level: "read" },
+  ]);
+  const canCreateDoctorNotes = usePermission("post_call.add_doctor_notes", "write");
+  const canEditDoctorNotes = usePermission("post_call.edit_doctor_notes", "write");
+  const canManageFeedback = useAnyPermission([
+    { required: "post_call.add_feedback", level: "write" },
+    { required: "post_call.edit_feedback", level: "write" },
+  ]);
 
   useEffect(() => {
     if (username) {
@@ -97,15 +113,26 @@ const PostCallDocumentation = ({ onSave }) => {
     : null;
 
   const documentationTabs = [
-    { id: "summary", label: "Summary" },
-    { id: "transcript", label: "Transcript" },
-    { id: "soap", label: "SOAP" },
-    { id: "recommendations", label: "Recommendations" },
-    { id: "billing", label: "Billing" },
-    { id: "clusters", label: "Clusters" },
-    { id: "doctorNotes", label: "Doctor Notes" },
-    { id: "emotionalConnect", label: "Emotional Connect" },
-  ];
+    canViewPostCall && { id: "summary", label: "Summary" },
+    canViewPostCall && { id: "transcript", label: "Transcript" },
+    canViewSoap && { id: "soap", label: "SOAP" },
+    canViewPostCall && { id: "recommendations", label: "Recommendations" },
+    canViewBilling && { id: "billing", label: "Billing" },
+    canViewPostCall && { id: "clusters", label: "Clusters" },
+    canViewDoctorNotes && { id: "doctorNotes", label: "Doctor Notes" },
+    canViewPostCall && { id: "emotionalConnect", label: "Emotional Connect" },
+  ].filter(Boolean);
+
+  useEffect(() => {
+    if (documentationTabs.length === 0) {
+      return;
+    }
+
+    const hasCurrentTab = documentationTabs.some((tab) => tab.id === docTab);
+    if (!hasCurrentTab) {
+      setDocTab(documentationTabs[0].id);
+    }
+  }, [docTab, documentationTabs]);
 
   return (
     <>
@@ -124,9 +151,11 @@ const PostCallDocumentation = ({ onSave }) => {
         )}
 
         {/* Call Feedback entry point (your change) */}
-        <div className="ml-auto">
-          <CallFeedback username={username} appointmentId={callId} />
-        </div>
+        {canManageFeedback && (
+          <div className="ml-auto">
+            <CallFeedback username={username} appointmentId={callId} />
+          </div>
+        )}
       </div>
 
       <Card className="mt-8">
@@ -217,7 +246,13 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "soap" && (
-            <Soap username={username} appointmentId={callId} appointment={selectedAppointment} />
+            <Soap
+              username={username}
+              appointmentId={callId}
+              appointment={selectedAppointment}
+              canEdit={canEditSoap}
+              canPostToAthena={canEditSoap}
+            />
           )}
 
           {docTab === "recommendations" && (
@@ -225,7 +260,11 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "billing" && (
-            <Billing username={username} appointmentId={callId} />
+            <Billing
+              username={username}
+              appointmentId={callId}
+              canEdit={canEditBilling}
+            />
           )}
 
           {docTab === "clusters" && (
@@ -233,7 +272,12 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "doctorNotes" && (
-            <DoctorNotes username={username} appointmentId={callId} />
+            <DoctorNotes
+              username={username}
+              appointmentId={callId}
+              canCreate={canCreateDoctorNotes}
+              canEditExisting={canEditDoctorNotes}
+            />
           )}
 
           {docTab === "emotionalConnect" && selectedAppointment && (

@@ -19,13 +19,23 @@ import Documentation from "./Pages/Documentation";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
-import { Provider, useDispatch } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import { store } from "./redux/store";
 import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
+import BillingReports from "./Pages/BillingReports";
+import BillingHistory from "./Pages/BillingHistory";
+import AthenaIntegration from "./Pages/AthenaIntegration";
+import PaymentBilling from "./Pages/PaymentBilling";
+import RBACManagement from "./Pages/RBACManagement";
+import AuthorizedRoute from "./components/auth/AuthorizedRoute";
+import AccessDenied from "./components/auth/AccessDenied";
+import { normalizeRole } from "./lib/rbac";
+
+const queryClient = new QueryClient();
 
 function decodeJwt(token) {
   try {
@@ -47,10 +57,11 @@ function decodeJwt(token) {
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
+  const isPatientView = role === "patient";
 
   return (
     <div className="h-screen flex overflow-hidden">
-      {role !== "patient" && <Sidebar />}
+      {!isPatientView && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto bg-neutral-50 p-6">
@@ -63,15 +74,105 @@ function Router() {
             {/* Timeline Route */}
             <Route path="/timeline" component={TimelineDashboard} />
             {/* Protected Routes */}
-            <Route path="/" component={Dashboard} />
-            <Route path="/appointments" component={Appointments} />
-            <Route path="/video-call" component={VideoRecorder} />
-            <Route path="/patients" component={Patients} />
-            <Route path="/patients/:patientId" component={PatientReports} />
-            <Route path="/reports" component={Reports} />
-            <Route path="/settings" component={Settings} />
-            <Route path="/meeting-room/:callId" component={StreamVideoCoreV3} />
-            <Route path="/post-call/:callId" component={PostCallDocumentation} />
+            <AuthorizedRoute
+              path="/"
+              component={Dashboard}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/appointments"
+              component={Appointments}
+              required="appointments.select_providers"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/video-call"
+              component={VideoRecorder}
+              checks={[
+                { required: "video_call.upcoming", level: "read" },
+                { required: "video_call.history", level: "read" },
+                { required: "video_call.add", level: "read" },
+              ]}
+            />
+            <AuthorizedRoute
+              path="/patients"
+              component={Patients}
+              required="patients.info"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/patients/:patientId"
+              component={PatientReports}
+              checks={[
+                { required: "patients.info", level: "read" },
+                { required: "patients.clinical_summary", level: "read" },
+                { required: "patients.previous_calls", level: "read" },
+              ]}
+            />
+            <AuthorizedRoute
+              path="/reports"
+              component={Reports}
+              checks={[
+                { required: "reports.billing_analytics", level: "read" },
+                { required: "reports.billing_history", level: "read" },
+                { required: "reports.estimated_billing", level: "read" },
+              ]}
+            />
+            <AuthorizedRoute
+              path="/reports/billing-analytics"
+              component={BillingReports}
+              required="reports.billing_analytics"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/reports/billing-history"
+              component={BillingHistory}
+              required="reports.billing_history"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/settings"
+              component={Settings}
+              checks={[
+                { required: "settings.ehr_integration", level: "read" },
+                { required: "settings.payment_billing", level: "read" },
+              ]}
+            />
+            <AuthorizedRoute
+              path="/settings/ehr-integration"
+              component={AthenaIntegration}
+              required="settings.ehr_integration"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/settings/payment-billing"
+              component={PaymentBilling}
+              required="settings.payment_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/admin/rbac"
+              component={RBACManagement}
+              required="admin.manage_rbac"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/meeting-room/:callId"
+              component={StreamVideoCoreV3}
+              allow={isPatientView}
+              checks={[
+                { required: "appointments.join_call", level: "write" },
+                { required: "patients.join_call", level: "write" },
+                { required: "video_call.start", level: "write" },
+              ]}
+            />
+            <AuthorizedRoute
+              path="/post-call/:callId"
+              component={PostCallDocumentation}
+              required="post_call.view_all"
+              level="read"
+            />
             <Route component={NotFound} />
           </Switch>
           <ChatbotWindow/>
@@ -83,77 +184,105 @@ function Router() {
 
 function Main() {
   const isAuthenticated = useIsAuthenticated();
-  const [tokenBypass, setTokenBypass] = useState(false)
+  const [tokenBypass, setTokenBypass] = useState(false);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
   const { instance, accounts } = useMsal();
-  const [hasRole, setHasRole] = useState(false)
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
+  const me = useSelector((state) => state.me.me);
+  const hasAppRole = Boolean(normalizeRole(me?.role));
 
-  const queryClient = new QueryClient();
-
-  function requestProfileData() {
+  async function requestProfileData() {
+    setIsAuthorizing(true);
     // Silently acquires an access token which is then attached to a request for MS Graph data
-    instance
-      .acquireTokenSilent({
+    try {
+      const response = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
-      })
-      .then((response) => {
-        dispatch(setMyDetails(response.idTokenClaims))
-        if (response.idTokenClaims.roles && response.idTokenClaims.roles.includes("SeismicDoctors")) {
-          setHasRole(true)
-        }
       });
+
+      await dispatch(setMyDetails(response.idTokenClaims));
+    } finally {
+      setIsAuthorizing(false);
+    }
   }
 
   useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = queryParams.get("token");
-    const storedToken = sessionStorage.getItem("bypassToken");
-    const activeToken = tokenFromUrl || storedToken;
-    if (activeToken) {
-      if (tokenFromUrl) {
-        sessionStorage.setItem("bypassToken", tokenFromUrl);
-      }
-      const claims = decodeJwt(activeToken);
-      if (claims) {
-        const rolesFromToken = claims.roles || claims["roles"] || claims["role"] || [];
-        const normalizedRoles = Array.isArray(rolesFromToken)
-          ? rolesFromToken
-          : [rolesFromToken].filter(Boolean);
+    let isMounted = true;
 
-        dispatch(setMyDetails(claims));
-        if (normalizedRoles.includes("SeismicDoctors")) {
-          setHasRole(true);
+    async function hydrateUser() {
+      setIsAuthorizing(true);
+      try {
+        const queryParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = queryParams.get("token");
+        const storedToken = sessionStorage.getItem("bypassToken");
+        const activeToken = tokenFromUrl || storedToken;
+
+        if (activeToken) {
+          if (tokenFromUrl) {
+            sessionStorage.setItem("bypassToken", tokenFromUrl);
+          }
+
+          const claims = decodeJwt(activeToken);
+          if (claims && isMounted) {
+            await dispatch(setMyDetails(claims));
+            setTokenBypass(true);
+          }
+          return;
+        }
+
+        if (isAuthenticated) {
+          await requestProfileData();
+        }
+      } finally {
+        if (isMounted) {
+          setIsAuthorizing(false);
         }
       }
-      setTokenBypass(true);
-    } else if (isAuthenticated) {
-      requestProfileData()
     }
+
+    hydrateUser();
+
+    return () => {
+      isMounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated])
+  }, [isAuthenticated]);
+
+  const accessDenied = (
+    <AccessDenied
+      title="Access pending"
+      description="Your account is authenticated, but no completed Seismic app role is assigned yet."
+    />
+  );
+
   return (
     <>
-      {hasRole || tokenBypass ? <AuthenticatedTemplate>
+      {tokenBypass ? (
         <QueryClientProvider client={queryClient}>
           <Router />
           <Toaster />
         </QueryClientProvider>
-      </AuthenticatedTemplate> :
+      ) : isAuthorizing && isAuthenticated ? (
         <AuthenticatedTemplate>
-          Sign is successful but you dont previlaged role to view this app. Try contacting your admin
+          <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
+            Loading your access profile...
+          </div>
         </AuthenticatedTemplate>
-      }
-            {(!isAuthenticated && !tokenBypass) &&
+      ) : hasAppRole ? (
+        <AuthenticatedTemplate>
+          <QueryClientProvider client={queryClient}>
+            <Router />
+            <Toaster />
+          </QueryClientProvider>
+        </AuthenticatedTemplate>
+      ) : (
+        <AuthenticatedTemplate>{accessDenied}</AuthenticatedTemplate>
+      )}
+      {(!isAuthenticated && !tokenBypass) &&
         <UnauthenticatedTemplate>
           <AuthPage />
         </UnauthenticatedTemplate>
       }
-      {tokenBypass && 
-      <QueryClientProvider client={queryClient}>
-        <Router />
-        <Toaster />
-      </QueryClientProvider>}
     </>
   )
 }

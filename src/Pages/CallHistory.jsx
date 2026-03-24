@@ -8,6 +8,7 @@ import { fetchCallHistory } from "../api/callHistory";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchDoctors } from "../redux/doctors-actions";
 import DoctorMultiSelect from "../components/DoctorMultiSelect";
+import { usePermission } from "../hooks/use-permission";
 
 const norm = (str) =>
   (str || "").toString().toLowerCase().trim().replace(/\s+/g, "");
@@ -31,7 +32,7 @@ const cleanName = (name) => {
   return name;
 };
 
-const CallHistoryCard = ({ entry }) => (
+const CallHistoryCard = ({ entry, canViewPostCall }) => (
   <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-6 py-4 flex items-center gap-6">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-2 gap-x-6 text-sm text-gray-900 flex-1">
       <div>
@@ -70,20 +71,22 @@ const CallHistoryCard = ({ entry }) => (
       </div>
     </div>
 
-    <button
-      onClick={() =>
-        navigate(`/post-call/${entry.appointmentID}?username=${entry.userID}`, {
-          state: {
-            startTime: entry.startTime,
-            endTime: entry.endTime,
-          },
-        })
-      }
-      title="View Post-Call Documentation"
-      className="text-blue-600 hover:text-blue-800 ml-auto"
-    >
-      <Eye className="w-5 h-5" />
-    </button>
+    {canViewPostCall && (
+      <button
+        onClick={() =>
+          navigate(`/post-call/${entry.appointmentID}?username=${entry.userID}`, {
+            state: {
+              startTime: entry.startTime,
+              endTime: entry.endTime,
+            },
+          })
+        }
+        title="View Post-Call Documentation"
+        className="text-blue-600 hover:text-blue-800 ml-auto"
+      >
+        <Eye className="w-5 h-5" />
+      </button>
+    )}
   </div>
 );
 
@@ -105,6 +108,7 @@ function CallHistory() {
   const clinicName = useSelector(
     (state) => state.me.me.clinicName
   );
+  const canViewPostCall = usePermission("post_call.view_all", "read");
 
   const dropdownRef = useRef(null);
 
@@ -244,7 +248,11 @@ function CallHistory() {
 
         {!isLoading && filteredData.length > 0 ? (
           filteredData.map((entry) => (
-            <CallHistoryCard key={entry.id} entry={entry} />
+            <CallHistoryCard
+              key={entry.id}
+              entry={entry}
+              canViewPostCall={canViewPostCall}
+            />
           ))
         ) : (
           <div className="p-6 text-center text-sm text-gray-500 bg-gray-50 border rounded-lg">

@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { Video, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import { useSelector } from "react-redux";
+import HasPermission from "../auth/HasPermission";
 
 const WelcomeCard = () => {
   // Use the same user source as Header
@@ -37,22 +38,26 @@ const WelcomeCard = () => {
 
           {/* Buttons */}
           <div className="mt-6 flex flex-wrap gap-4">
-            <Link href="/appointments">
-              <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
-                <Calendar className="h-4 w-4" />
-                View Appointments
-              </Button>
-            </Link>
+            <HasPermission required="appointments.select_providers" level="read">
+              <Link href="/appointments">
+                <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
+                  <Calendar className="h-4 w-4" />
+                  View Appointments
+                </Button>
+              </Link>
+            </HasPermission>
 
-            <Link href="/video-call">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 text-blue-600 border-blue-600 hover:bg-blue-50"
-              >
-                <Video className="h-4 w-4" />
-                Start Video Call
-              </Button>
-            </Link>
+            <HasPermission required="dashboard.start_video_call" level="write">
+              <Link href="/video-call">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 text-blue-600 border-blue-600 hover:bg-blue-50"
+                >
+                  <Video className="h-4 w-4" />
+                  Start Video Call
+                </Button>
+              </Link>
+            </HasPermission>
           </div>
         </div>
       </CardContent>

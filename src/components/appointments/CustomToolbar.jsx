@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import TeamsDatePicker from "../TeamsDatePicker";
+import { usePermission } from "../../hooks/use-permission";
 
 const viewOptions = [
   { value: "day", label: "Day" },
@@ -29,6 +30,7 @@ const CustomToolbar = ({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
+  const canAddAppointment = usePermission("appointments.add", "write");
 
   const viewMenuRef = useRef(null);
   const datePickerRef = useRef(null);
@@ -177,15 +179,21 @@ const CustomToolbar = ({
 
       <div className="relative flex justify-end" ref={addMenuRef}>
         <button
-          disabled={isPastDate()}
-          title={isPastDate() ? "Appointments cannot be added for past dates" : ""}
+          disabled={isPastDate() || !canAddAppointment}
+          title={
+            isPastDate()
+              ? "Appointments cannot be added for past dates"
+              : !canAddAppointment
+              ? "You do not have permission to add appointments"
+              : ""
+          }
           onClick={() => {
-            if (!isPastDate()) {
+            if (!isPastDate() && canAddAppointment) {
               setShowAddMenu((prev) => !prev);
             }
           }}
           className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-md
-            ${isPastDate()
+            ${isPastDate() || !canAddAppointment
               ? "bg-gray-300 cursor-default text-gray-600"
               : "bg-blue-600 text-white hover:bg-blue-700"
             }
@@ -193,7 +201,7 @@ const CustomToolbar = ({
         >
           + Add <ChevronDown size={14} />
         </button>
-        {showAddMenu && !isPastDate() && (
+        {showAddMenu && !isPastDate() && canAddAppointment && (
           <div className="absolute right-0 mt-1 w-40 bg-white rounded-md border border-blue-200 shadow-md z-20 text-sm">
             <button
               className="block w-full text-left px-3 py-2 hover:bg-blue-100"

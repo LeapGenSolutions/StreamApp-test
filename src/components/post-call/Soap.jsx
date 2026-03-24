@@ -381,7 +381,13 @@ const ProcedureNotesSection = ({ content }) => {
   );
 };
 
-const Soap = ({ appointmentId, username, appointment }) => {
+const Soap = ({
+  appointmentId,
+  username,
+  appointment,
+  canEdit = true,
+  canPostToAthena = true,
+}) => {
   const { toast } = useToast();
   const [soapNotes, setSoapNotes] = useState(createInitialSoapNotes);
   const [draftSoapNotes, setDraftSoapNotes] = useState(createInitialSoapNotes);
@@ -817,7 +823,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
 
   return (
     <div className="relative space-y-6 text-gray-900 leading-snug">
-      {isAthenaAppointment && pendingPost && (
+      {isAthenaAppointment && canPostToAthena && pendingPost && (
         <ConfirmationModal
           onCancel={handleCancelPost}
           onConfirm={handleConfirmPost}
@@ -827,7 +833,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
         />
       )}
 
-      {isAthenaAppointment && postFlowStage === "confirming" && (
+      {isAthenaAppointment && canPostToAthena && postFlowStage === "confirming" && (
         <InitialPostModal
           onCancel={handleInitialConfirmCancel}
           onEdit={handleInitialConfirmEdit}
@@ -835,7 +841,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
         />
       )}
 
-      {isAthenaAppointment && postFlowStage === "reviewing" && (
+      {isAthenaAppointment && canPostToAthena && postFlowStage === "reviewing" && (
         <ReviewPage
           soapNotes={soapNotes}
           onCancel={handleReviewCancel}
@@ -880,7 +886,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
               soapNotes={isEditing ? draftSoapNotes : soapNotes}
               setSoapNotes={isEditing ? setDraftSoapNotes : setSoapNotes}
               isEditing={isEditing}
-              onPost={isAthenaAppointment ? handleInitiatePost : undefined}
+              onPost={isAthenaAppointment && canPostToAthena ? handleInitiatePost : undefined}
               sectionStatuses={sectionStatuses}
               postResetKey={postResetKey}
             />
@@ -889,7 +895,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
               soapNotes={isEditing ? draftSoapNotes : soapNotes}
               setSoapNotes={isEditing ? setDraftSoapNotes : setSoapNotes}
               isEditing={isEditing}
-              onPost={isAthenaAppointment ? handleInitiatePost : undefined}
+              onPost={isAthenaAppointment && canPostToAthena ? handleInitiatePost : undefined}
               sectionStatuses={sectionStatuses}
               postResetKey={postResetKey}
             />
@@ -898,14 +904,14 @@ const Soap = ({ appointmentId, username, appointment }) => {
               soapNotes={isEditing ? draftSoapNotes : soapNotes}
               setSoapNotes={isEditing ? setDraftSoapNotes : setSoapNotes}
               isEditing={isEditing}
-              onPost={isAthenaAppointment ? handleInitiatePost : undefined}
+              onPost={isAthenaAppointment && canPostToAthena ? handleInitiatePost : undefined}
               sectionStatuses={sectionStatuses}
               postResetKey={postResetKey}
             />
           </div>
 
           <div className="pt-4 border-t border-gray-300 space-y-3">
-            {isAthenaAppointment && isFullyPosted && !isEditing && (
+            {isAthenaAppointment && canPostToAthena && isFullyPosted && !isEditing && (
               <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>
@@ -917,16 +923,18 @@ const Soap = ({ appointmentId, username, appointment }) => {
             <div className="flex justify-end gap-3">
             {!isEditing ? (
               <>
-                <Button
-                  onClick={() => {
-                    setDraftSoapNotes(cloneSoapNotes(soapNotes));
-                    setIsEditing(true);
-                  }}
-                  className="bg-yellow-600 text-white hover:bg-yellow-700"
-                >
-                  Edit
-                </Button>
-                {isAthenaAppointment && (
+                {canEdit && (
+                  <Button
+                    onClick={() => {
+                      setDraftSoapNotes(cloneSoapNotes(soapNotes));
+                      setIsEditing(true);
+                    }}
+                    className="bg-yellow-600 text-white hover:bg-yellow-700"
+                  >
+                    Edit
+                  </Button>
+                )}
+                {isAthenaAppointment && canPostToAthena && (
                   <Button
                     onClick={handleMainPostClick}
                     disabled={isFullyPosted}
@@ -976,7 +984,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
           encounterId={appointment?.athena_encounter_id}
           practiceId={appointment?.athena_practice_id}
           appointmentId={appointment?.id}
-          canPostToAthena={isAthenaAppointment}
+          canPostToAthena={isAthenaAppointment && canPostToAthena}
         />
       )}
     </div>

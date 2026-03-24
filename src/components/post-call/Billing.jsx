@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import LoadingCard from "./LoadingCard"; 
 
-const Billing = ({ appointmentId, username }) => {
+const Billing = ({ appointmentId, username, canEdit = true }) => {
   const queryKey = ["billing-codes", appointmentId, username];
   const [isEditing, setIsEditing] = useState(false);
   const [billingCodes, setBillingCodes] = useState("");
@@ -77,12 +77,14 @@ useEffect(() => {
       {!isEditing && (
         <>
           <ReactMarkdown>{displayBillingCodes}</ReactMarkdown>
-          <button
-            onClick={handleEditClick}
-            className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
-          >
-            Edit
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleEditClick}
+              className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+            >
+              Edit
+            </button>
+          )}
         </>
       )}
 

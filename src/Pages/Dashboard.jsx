@@ -5,6 +5,7 @@ import AppointmentStatus from "../components/dashboard/AppointmentStatus";
 import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { useDispatch, useSelector } from "react-redux";
+import HasPermission from "../components/auth/HasPermission";
 
 const toISODate = (date) => {
   const year = date.getFullYear();
@@ -35,9 +36,15 @@ function Dashboard() {
         <WelcomeCard />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AppointmentStats date={todayISO} />
-        <AppointmentStatus date={todayISO} />
-        <ProviderWorkload date={todayISO} />
+        <HasPermission required="dashboard.todays_schedule" level="read">
+          <AppointmentStats date={todayISO} />
+        </HasPermission>
+        <HasPermission required="dashboard.status_overview" level="read">
+          <AppointmentStatus date={todayISO} />
+        </HasPermission>
+        <HasPermission required="dashboard.provider_workload" level="read">
+          <ProviderWorkload date={todayISO} />
+        </HasPermission>
       </div>
     </div>
   );

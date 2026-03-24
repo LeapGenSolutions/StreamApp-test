@@ -28,6 +28,7 @@ import { PageNavigation } from "../components/ui/page-navigation";
 import CreateAppointmentModal from "../components/appointments/CreateAppointmentModal";
 import { checkAppointments } from "../api/callHistory";
 import { formatUsDate } from "../lib/dateUtils";
+import HasPermission from "../components/auth/HasPermission";
 
 const toISODate = (date) => {
   const year = date.getFullYear();
@@ -310,12 +311,14 @@ function Patients() {
         subtitle="View, search, and organize all patients."
         showDate={false}
         rightSlot={
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 text-white"
-          >
-            + Add Patient
-          </Button>
+          <HasPermission required="appointments.add" level="write">
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-blue-600 text-white"
+            >
+              + Add Patient
+            </Button>
+          </HasPermission>
         }
       />
 
@@ -510,13 +513,15 @@ function Patients() {
 
                       {/* ACTIONS */}
                       <TableCell className="text-right whitespace-nowrap">
-                        <Link
-                          href={`/patients/${p.patient_id}`}
-                          title="View Patient Reports"
-                          className="inline-flex items-center justify-center text-blue-600"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
+                        <HasPermission required="patients.clinical_summary" level="read">
+                          <Link
+                            href={`/patients/${p.patient_id}`}
+                            title="View Patient Reports"
+                            className="inline-flex items-center justify-center text-blue-600"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </HasPermission>
                       </TableCell>
                     </TableRow>
                   );

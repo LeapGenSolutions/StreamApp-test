@@ -27,7 +27,7 @@ const DoctorMultiSelect = ({
   const [tempSelection, setTempSelection] = useState([]);
   const [defaultSelection, setDefaultSelection] = useState([]);
   const dropdownRef = useRef(null);
-  const hasPreselected = useRef(false);
+  const hasCapturedDefault = useRef(false);
   const rawDoctors = useSelector((state) => state.doctors?.doctors || []);
   const dispatch = useDispatch();
 
@@ -92,22 +92,20 @@ const DoctorMultiSelect = ({
           });
 
         setDoctorOptions(enriched);
-
-        if (email && !hasPreselected.current && selectedDoctors.length === 0) {
-          const match = enriched.find((doc) => doc.email === email);
-          if (match) {
-            onDoctorSelect([match.email], [match]);
-            setDefaultSelection([match.email]);
-            hasPreselected.current = true;
-          }
-        }
       } catch (err) {
         console.error("Error fetching doctors:", err);
       }
     };
 
     loadDoctors();
-  }, [email, onDoctorSelect, selectedDoctors.length, rawDoctors, clinicName]);
+  }, [email, rawDoctors, clinicName]);
+
+  useEffect(() => {
+    if (selectedDoctors.length > 0 && !hasCapturedDefault.current) {
+      setDefaultSelection(selectedDoctors);
+      hasCapturedDefault.current = true;
+    }
+  }, [selectedDoctors]);
 
   useEffect(() => {
     if (isDropdownOpen) {

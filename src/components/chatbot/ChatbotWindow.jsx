@@ -2,10 +2,12 @@ import { useRef, useState, useEffect, useCallback} from "react";
 import { createPortal } from "react-dom";
 import { CHATBOT_URL } from "../../constants";
 import { useLocation } from "wouter";
+import { usePermission } from "../../hooks/use-permission";
 
 
 
 const ChatbotWindow = () => {
+    const canAccessChatbot = usePermission("chatbot.access", "read");
     const [open, setOpen] = useState(false);
     const [minimized, setMinimized] = useState(false);
     const [iframeKey, setIframeKey] = useState(Date.now()); // for reload/close
@@ -17,9 +19,7 @@ const ChatbotWindow = () => {
     const [windowSize, setWindowSize] = useState({ width: 320, height: 400 });
     const [isResizing, setIsResizing] = useState(false);
     const chatbotWindowRef = useRef(null);
-    // store the starting values to avoid jumps when starting resize
     const resizeStartRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
-    // toggle depending on where the handle lives; we placed it in top-left
     const HANDLE_TOP_LEFT = true;
 
     const onPointerDownResize = useCallback((e) => {
@@ -286,6 +286,10 @@ const ChatbotWindow = () => {
     );
 
     // Render floating controls into document.body to avoid layout/transform issues
+    if (!canAccessChatbot) {
+        return null;
+    }
+
     if (typeof document === "undefined") {
         return null;
     }

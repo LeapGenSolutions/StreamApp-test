@@ -169,6 +169,10 @@ const formatAccessCountSummary = (levels = []) => {
 };
 
 const getOverrideOptionsForPermission = (permissionKey) => {
+  if (permissionKey === "admin.manage_rbac") {
+    return ["write", "read", "none"];
+  }
+
   const permissionDefaults = PERMISSION_CATALOG[permissionKey] || {};
   const supportedLevels = new Set(
     Object.values(permissionDefaults).filter((level) => level && level !== "none")
@@ -1409,7 +1413,11 @@ function RBACManagement() {
                                             [permissionKey]: event.target.value,
                                           }))
                                         }
-                                        className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className={`h-10 w-full rounded-md border px-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                          overrideChoices.length === 0
+                                            ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                                            : "border-gray-300 bg-white text-gray-900"
+                                        }`}
                                       >
                                         <option value="" disabled>
                                           {overrideChoices.length > 0

@@ -18,8 +18,25 @@ async function parseResponse(response, defaultMessage) {
   return data;
 }
 
+function buildHeaders(headers = {}) {
+  const nextHeaders = { ...headers };
+  const backendToken =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("backendToken")
+      : null;
+
+  if (backendToken) {
+    nextHeaders.Authorization = `Bearer ${backendToken}`;
+  }
+
+  return nextHeaders;
+}
+
 async function request(path, options = {}, defaultMessage = "RBAC request failed") {
-  const response = await fetch(api(path), options);
+  const response = await fetch(api(path), {
+    ...options,
+    headers: buildHeaders(options.headers),
+  });
   return parseResponse(response, defaultMessage);
 }
 
@@ -131,5 +148,65 @@ export async function assignRole(payload) {
       body: JSON.stringify(payload),
     },
     "Failed to assign RBAC role"
+  );
+}
+
+export async function fetchPendingApprovals() {
+  return request(
+    "/api/approvals/pending",
+    {},
+    "Failed to fetch pending approvals"
+  );
+}
+
+export async function approveUser(userId) {
+  return request(
+    `/api/approvals/${encodeURIComponent(userId)}/approve`,
+    {
+      method: "PUT",
+    },
+    "Failed to approve user"
+  );
+}
+
+export async function rejectUser(userId) {
+  return request(
+    `/api/approvals/${encodeURIComponent(userId)}/reject`,
+    {
+      method: "PUT",
+    },
+    "Failed to reject user"
+  );
+}
+
+export async function fetchInvitations() {
+  return request(
+    "/api/invitations",
+    {},
+    "Failed to fetch invitations"
+  );
+}
+
+export async function sendInvitation(payload) {
+  return request(
+    "/api/invitations",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+    "Failed to send invitation"
+  );
+}
+
+export async function revokeInvitation(invitationId) {
+  return request(
+    `/api/invitations/${encodeURIComponent(invitationId)}`,
+    {
+      method: "DELETE",
+    },
+    "Failed to revoke invitation"
   );
 }

@@ -81,6 +81,7 @@ const setMyDetails = (details) => {
       specialty: doctorDoc?.specialty || doctorDoc?.specialization,
       clinicName: doctorDoc?.clinicName || "",
       profileComplete: doctorDoc?.profileComplete,
+      approvalStatus: doctorDoc?.approvalStatus || (doctorDoc?.profileComplete ? "approved" : null),
       customPermissions: doctorDoc?.customPermissions || null,
       effectivePermissions: computeEffectivePermissions(
         normalizedRole,

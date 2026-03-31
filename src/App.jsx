@@ -1,39 +1,42 @@
 import { Switch, Route } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
+import { useEffect, useState } from "react";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import { Toaster } from "./components/ui/toaster";
-import PostCallDocumentation from "./Pages/PostCallDocumentation";
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
+import AuthorizedRoute from "./components/auth/AuthorizedRoute";
+import AccessDenied from "./components/auth/AccessDenied";
+import PostCallDocumentation from "./Pages/PostCallDocumentation";
 import Dashboard from "./Pages/Dashboard";
 import Appointments from "./Pages/Appointments";
 import Patients from "./Pages/Patients";
 import PatientReports from "./Pages/PatientReports";
 import Reports from "./Pages/Reports";
+import BillingReports from "./Pages/BillingReports";
+import BillingHistory from "./Pages/BillingHistory";
+import BillCalculation from "./Pages/BillCalculation";
+import InvoicePreview from "./Pages/InvoicePreview";
 import Settings from "./Pages/Settings";
+import AthenaIntegration from "./Pages/AthenaIntegration";
+import PaymentBilling from "./Pages/PaymentBilling";
+import RBACManagement from "./Pages/RBACManagement";
 import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import AboutUs from "./Pages/AboutUs";
 import Connect from "./Pages/Connect";
 import ContactUs from "./Pages/ContactUs";
 import Documentation from "./Pages/Documentation";
-import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { useEffect, useState } from "react";
-import { loginRequest } from "./authConfig";
-import { Provider, useDispatch, useSelector } from "react-redux";
-import { store } from "./redux/store";
 import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
-import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
-import BillingReports from "./Pages/BillingReports";
-import BillingHistory from "./Pages/BillingHistory";
-import AthenaIntegration from "./Pages/AthenaIntegration";
-import PaymentBilling from "./Pages/PaymentBilling";
-import RBACManagement from "./Pages/RBACManagement";
-import AuthorizedRoute from "./components/auth/AuthorizedRoute";
-import AccessDenied from "./components/auth/AccessDenied";
+import { loginRequest } from "./authConfig";
+import setMyDetails from "./redux/me-actions";
+import { store } from "./redux/store";
 import { normalizeRole } from "./lib/rbac";
+import { BACKEND_URL } from "./constants";
 
 const queryClient = new QueryClient();
 
@@ -45,19 +48,72 @@ function decodeJwt(token) {
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
         .join("")
     );
     return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error("Failed to decode JWT from URL token:", e);
+  } catch (error) {
+    console.error("Failed to decode JWT from URL token:", error);
     return null;
   }
+}
+
+async function verifyStandaloneSession(idToken) {
+  const claims = decodeJwt(idToken);
+  if (!claims) {
+    throw new Error("Invalid ID token");
+  }
+
+  const response = await fetch(`${BACKEND_URL}api/standalone/auth/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      idToken,
+      email: claims.email || claims.emails?.[0] || "",
+      userId: claims.sub || claims.oid || "",
+    }),
+  });
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || "Failed to verify standalone session");
+  }
+
+  if (data?.token) {
+    sessionStorage.setItem("backendToken", data.token);
+  }
+
+  return claims;
 }
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
   const isPatientView = role === "patient";
+  const appointmentsRouteChecks = [
+    { required: "appointments.select_providers", level: "read" },
+    { required: "appointments.add", level: "write" },
+    { required: "appointments.modify", level: "write" },
+    { required: "appointments.delete", level: "write" },
+    { required: "appointments.patient_reports", level: "read" },
+    { required: "appointments.join_call", level: "write" },
+    { required: "appointments.post_call_doc", level: "read" },
+  ];
+  const patientsRouteChecks = [
+    { required: "patients.info", level: "read" },
+    { required: "patients.clinical_summary", level: "read" },
+    { required: "patients.upcoming_appointment", level: "write" },
+    { required: "patients.join_call", level: "write" },
+    { required: "patients.previous_calls", level: "read" },
+    { required: "patients.post_call_doc", level: "read" },
+  ];
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -66,25 +122,21 @@ function Router() {
         <Header />
         <main className="flex-1 overflow-y-auto bg-neutral-50 p-6">
           <Switch>
-            {/* Public Routes */}
             <Route path="/about" component={AboutUs} />
             <Route path="/connect" component={Connect} />
             <Route path="/contact" component={ContactUs} />
             <Route path="/documentation" component={Documentation} />
-            {/* Timeline Route */}
             <Route path="/timeline" component={TimelineDashboard} />
-            {/* Protected Routes */}
+
             <AuthorizedRoute
               path="/"
               component={Dashboard}
-              required="dashboard.view_appointments"
-              level="read"
+              allow
             />
             <AuthorizedRoute
               path="/appointments"
               component={Appointments}
-              required="appointments.select_providers"
-              level="read"
+              checks={appointmentsRouteChecks}
             />
             <AuthorizedRoute
               path="/video-call"
@@ -98,8 +150,7 @@ function Router() {
             <AuthorizedRoute
               path="/patients"
               component={Patients}
-              required="patients.info"
-              level="read"
+              checks={patientsRouteChecks}
             />
             <AuthorizedRoute
               path="/patients/:patientId"
@@ -126,8 +177,32 @@ function Router() {
               level="read"
             />
             <AuthorizedRoute
+              path="/billing-reports"
+              component={BillingReports}
+              required="reports.billing_analytics"
+              level="read"
+            />
+            <AuthorizedRoute
               path="/reports/billing-history"
               component={BillingHistory}
+              required="reports.billing_history"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/billing-history"
+              component={BillingHistory}
+              required="reports.billing_history"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/bill-calculation"
+              component={BillCalculation}
+              required="reports.estimated_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/invoice/:invoiceId"
+              component={InvoicePreview}
               required="reports.billing_history"
               level="read"
             />
@@ -146,7 +221,19 @@ function Router() {
               level="read"
             />
             <AuthorizedRoute
+              path="/athena-integration"
+              component={AthenaIntegration}
+              required="settings.ehr_integration"
+              level="read"
+            />
+            <AuthorizedRoute
               path="/settings/payment-billing"
+              component={PaymentBilling}
+              required="settings.payment_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/payment-billing"
               component={PaymentBilling}
               required="settings.payment_billing"
               level="read"
@@ -175,7 +262,7 @@ function Router() {
             />
             <Route component={NotFound} />
           </Switch>
-          <ChatbotWindow/>
+          <ChatbotWindow />
         </main>
       </div>
     </div>
@@ -193,12 +280,16 @@ function Main() {
 
   async function requestProfileData() {
     setIsAuthorizing(true);
-    // Silently acquires an access token which is then attached to a request for MS Graph data
     try {
       const response = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
       });
+
+      const scopedToken = response.idToken || response.accessToken || "";
+      if (scopedToken) {
+        sessionStorage.setItem("authToken", scopedToken);
+      }
 
       await dispatch(setMyDetails(response.idTokenClaims));
     } finally {
@@ -220,12 +311,19 @@ function Main() {
         if (activeToken) {
           if (tokenFromUrl) {
             sessionStorage.setItem("bypassToken", tokenFromUrl);
+            sessionStorage.setItem("authToken", tokenFromUrl);
           }
 
-          const claims = decodeJwt(activeToken);
-          if (claims && isMounted) {
+          try {
+            const claims = await verifyStandaloneSession(activeToken);
             await dispatch(setMyDetails(claims));
-            setTokenBypass(true);
+            if (isMounted) {
+              setTokenBypass(true);
+            }
+          } catch (error) {
+            console.error("Standalone session verification failed:", error);
+            sessionStorage.removeItem("bypassToken");
+            sessionStorage.removeItem("backendToken");
           }
           return;
         }
@@ -254,14 +352,46 @@ function Main() {
       description="Your account is authenticated, but no completed Seismic app role is assigned yet."
     />
   );
+  const registrationDenied = (
+    <AccessDenied
+      title="Registration incomplete"
+      description="Please complete your standalone registration before opening the Seismic app."
+    />
+  );
+  const pendingApprovalDenied = (
+    <AccessDenied
+      title="Approval pending"
+      description="Your account is waiting for clinic administrator approval."
+    />
+  );
+  const rejectedApprovalDenied = (
+    <AccessDenied
+      title="Access not approved"
+      description="Your account has not been approved for Seismic app access."
+    />
+  );
 
   return (
     <>
       {tokenBypass ? (
-        <QueryClientProvider client={queryClient}>
-          <Router />
-          <Toaster />
-        </QueryClientProvider>
+        isAuthorizing ? (
+          <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
+            Loading your access profile...
+          </div>
+        ) : me?.profileComplete !== true ? (
+          registrationDenied
+        ) : me?.approvalStatus === "pending" ? (
+          pendingApprovalDenied
+        ) : me?.approvalStatus === "rejected" ? (
+          rejectedApprovalDenied
+        ) : hasAppRole ? (
+          <QueryClientProvider client={queryClient}>
+            <Router />
+            <Toaster />
+          </QueryClientProvider>
+        ) : (
+          accessDenied
+        )
       ) : isAuthorizing && isAuthenticated ? (
         <AuthenticatedTemplate>
           <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
@@ -278,17 +408,17 @@ function Main() {
       ) : (
         <AuthenticatedTemplate>{accessDenied}</AuthenticatedTemplate>
       )}
-      {(!isAuthenticated && !tokenBypass) &&
+
+      {!isAuthenticated && !tokenBypass && (
         <UnauthenticatedTemplate>
           <AuthPage />
         </UnauthenticatedTemplate>
-      }
+      )}
     </>
-  )
+  );
 }
 
 function App() {
-
   return (
     <Provider store={store}>
       <div className="App">

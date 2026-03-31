@@ -51,6 +51,16 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const loggedInDoctor = useSelector((state) => state.me.me);
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
     if (loggedInDoctor?.clinicName) {
       dispatch(fetchPatientsDetails(loggedInDoctor.clinicName));
     } else {
@@ -472,9 +482,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       <div
         className="
           bg-white shadow-xl rounded-xl 
-          w-[960px] max-h-[90vh]
-          mr-16 mt-10 mb-6 
-          overflow-y-auto h-full 
+          w-[960px] max-w-[calc(100vw-2rem)] h-[90vh]
+          mr-4 md:mr-16 my-6 
+          overflow-hidden
           flex flex-col 
           border border-black-200
         "
@@ -489,7 +499,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
           </button>
         </div>
 
-        <div className="flex h-full">
+        <div className="flex flex-1 min-h-0">
           <div className="w-[40%] border-r border-black-200 p-4 overflow-y-auto">
             <h3 className="text-md font-semibold text-blue-700 mb-3">
               Find Existing Patient

@@ -31,6 +31,7 @@ const CustomToolbar = ({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const canAddAppointment = usePermission("appointments.add", "write");
+  const canSelectProviders = usePermission("appointments.select_providers", "read");
 
   const viewMenuRef = useRef(null);
   const datePickerRef = useRef(null);
@@ -169,12 +170,14 @@ const CustomToolbar = ({
           )}
         </div>
 
-        <DoctorMultiSelect
-          selectedDoctors={selectedDoctors}
-          onDoctorSelect={handleSelectDoctors}
-          isDropdownOpen={isDropdownOpen}
-          setDropdownOpen={setDropdownOpen}
-        />
+        {canSelectProviders && (
+          <DoctorMultiSelect
+            selectedDoctors={selectedDoctors}
+            onDoctorSelect={handleSelectDoctors}
+            isDropdownOpen={isDropdownOpen}
+            setDropdownOpen={setDropdownOpen}
+          />
+        )}
       </div>
 
       <div className="relative flex justify-end" ref={addMenuRef}>

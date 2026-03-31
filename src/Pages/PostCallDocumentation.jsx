@@ -1,25 +1,20 @@
 import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "wouter";
+import { navigate } from "wouter/use-browser-location";
+import { useDispatch, useSelector } from "react-redux";
+import { ArrowLeft, User, Calendar as CalendarIcon, IdCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import Transcript from "../components/post-call/Transcript";
 import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
-import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
-import { navigate } from "wouter/use-browser-location";
-import { useSearchParams } from "wouter";
-import {
-  ArrowLeft,
-  User,
-  Calendar as CalendarIcon,
-  IdCard,
-} from "lucide-react";
 import EmotionalConnect from "../components/post-call/EmotionalConnect";
-import { useDispatch, useSelector } from "react-redux";
+import CallFeedback from "../components/post-call/PostCallFeedback";
+import { fetchCallHistory, fetchDoctorsFromHistory } from "../api/callHistory";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-import CallFeedback from "../components/post-call/PostCallFeedback"; 
 import { useAnyPermission, usePermission } from "../hooks/use-permission";
 
 const PostCallDocumentation = ({ onSave }) => {
@@ -28,13 +23,14 @@ const PostCallDocumentation = ({ onSave }) => {
   const [prevPage, setPrevPage] = useState(null);
   const dispatch = useDispatch();
 
-  const appointments = useSelector(
-    (state) => state.appointments.appointments
-  );
-
+  const appointments = useSelector((state) => state.appointments.appointments);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const searchParams = useSearchParams()[0];
   const username = searchParams.get("username");
+  const clinicName = useSelector((state) => state.me?.me?.clinicName || "");
+  const currentUserEmail = useSelector((state) => state.me?.me?.email || "");
+  const [resolvedUsername, setResolvedUsername] = useState(username || "");
+
   const canViewPostCall = usePermission("post_call.view_all", "read");
   const canViewSoap = usePermission("post_call.edit_soap_notes", "read");
   const canEditSoap = usePermission("post_call.edit_soap_notes", "write");
@@ -52,16 +48,87 @@ const PostCallDocumentation = ({ onSave }) => {
   ]);
 
   useEffect(() => {
-    if (username) {
-      dispatch(fetchAppointmentDetails(username));
+    setResolvedUsername(username || "");
+  }, [username]);
+
+  useEffect(() => {
+    if (resolvedUsername) {
+      dispatch(fetchAppointmentDetails(resolvedUsername));
     }
-  }, [dispatch, username]);
+  }, [dispatch, resolvedUsername]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+    const resolveCallOwner = async () => {
+      const candidateEmails = new Set(
+        [
+          username,
+          currentUserEmail,
+          selectedAppointment?.doctor_email,
+          selectedAppointment?.doctorEmail,
+          selectedAppointment?.userID,
+        ]
+          .map(normalizeEmail)
+          .filter(Boolean)
+      );
+
+      try {
+        if (clinicName) {
+          const clinicUsers = await fetchDoctorsFromHistory(clinicName);
+          (Array.isArray(clinicUsers) ? clinicUsers : []).forEach((user) => {
+            const email = normalizeEmail(
+              user?.doctor_email || user?.email || user?.id
+            );
+            if (email) {
+              candidateEmails.add(email);
+            }
+          });
+        }
+
+        if (candidateEmails.size === 0) {
+          return;
+        }
+
+        const history = await fetchCallHistory(Array.from(candidateEmails));
+        const matchingEntry = (Array.isArray(history) ? history : [])
+          .filter((entry) => String(entry?.appointmentID) === String(callId))
+          .sort(
+            (a, b) =>
+              new Date(b?.endTime || b?.startTime || 0) -
+              new Date(a?.endTime || a?.startTime || 0)
+          )[0];
+
+        const matchingUser = normalizeEmail(matchingEntry?.userID);
+
+        if (isActive && matchingUser) {
+          setResolvedUsername(matchingUser);
+        }
+      } catch {
+        // Keep the route username if a better match cannot be resolved.
+      }
+    };
+
+    resolveCallOwner();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    callId,
+    clinicName,
+    currentUserEmail,
+    selectedAppointment?.doctor_email,
+    selectedAppointment?.doctorEmail,
+    selectedAppointment?.userID,
+    username,
+  ]);
 
   useEffect(() => {
     if (appointments?.length > 0) {
-      const found = appointments.find(
-        (app) => String(app.id) === String(callId)
-      );
+      const found = appointments.find((app) => String(app.id) === String(callId));
       setSelectedAppointment(found || null);
     }
   }, [appointments, callId]);
@@ -136,24 +203,20 @@ const PostCallDocumentation = ({ onSave }) => {
 
   return (
     <>
-      {/* Top bar: Back button + Call Feedback */}
       <div className="flex justify-between items-start mb-4">
         {prevPage !== "video-call" && (
           <button
             onClick={handleback}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
-              text-white bg-blue-600 border border-blue-700 rounded-lg 
-              hover:bg-blue-700 transition-colors duration-200"
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             Back
           </button>
         )}
 
-        {/* Call Feedback entry point (your change) */}
         {canManageFeedback && (
           <div className="ml-auto">
-            <CallFeedback username={username} appointmentId={callId} />
+            <CallFeedback username={resolvedUsername} appointmentId={callId} />
           </div>
         )}
       </div>
@@ -165,9 +228,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
         {selectedAppointment && (
           <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 mx-6 md:mx-auto md:max-w-5xl">
-            <h2 className="text-2xl font-semibold mb-4 text-gray-700">
-              Patient Info
-            </h2>
+            <h2 className="text-2xl font-semibold mb-4 text-gray-700">Patient Info</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-gray-800">
               <p className="flex items-center gap-2">
@@ -185,17 +246,13 @@ const PostCallDocumentation = ({ onSave }) => {
               <p className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-500">First Name:</span>
-                <span className="font-medium text-gray-900">
-                  {firstName ?? "—"}
-                </span>
+                <span className="font-medium text-gray-900">{firstName ?? "—"}</span>
               </p>
 
               <p className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-500">Last Name:</span>
-                <span className="font-medium text-gray-900">
-                  {lastName ?? "—"}
-                </span>
+                <span className="font-medium text-gray-900">{lastName ?? "—"}</span>
               </p>
             </div>
 
@@ -229,7 +286,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
           {docTab === "summary" && (
             <Summary
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               patientId={
                 selectedAppointment?.patient_id ||
@@ -242,12 +299,12 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "transcript" && (
-            <Transcript username={username} appointmentId={callId} />
+            <Transcript username={resolvedUsername} appointmentId={callId} />
           )}
 
           {docTab === "soap" && (
             <Soap
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               appointment={selectedAppointment}
               canEdit={canEditSoap}
@@ -256,24 +313,24 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "recommendations" && (
-            <Reccomendations username={username} appointmentId={callId} />
+            <Reccomendations username={resolvedUsername} appointmentId={callId} />
           )}
 
           {docTab === "billing" && (
             <Billing
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               canEdit={canEditBilling}
             />
           )}
 
           {docTab === "clusters" && (
-            <Clusters username={username} appointmentId={callId} />
+            <Clusters username={resolvedUsername} appointmentId={callId} />
           )}
 
           {docTab === "doctorNotes" && (
             <DoctorNotes
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               canCreate={canCreateDoctorNotes}
               canEditExisting={canEditDoctorNotes}
@@ -282,7 +339,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
           {docTab === "emotionalConnect" && selectedAppointment && (
             <EmotionalConnect
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               appointment={selectedAppointment}
             />

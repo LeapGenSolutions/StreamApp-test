@@ -47,7 +47,14 @@ const CallHistoryCard = ({ entry, canViewPostCall }) => (
 
       <div>
         <span className="font-semibold">Date:</span>
-        <span className="ml-2">{entry.startTime?.split("T")[0]}</span>
+        <span className="ml-2">
+          {entry.startTime ? (() => {
+            const d = new Date(entry.startTime);
+            return isNaN(d.getTime()) 
+              ? entry.startTime.split("T")[0] 
+              : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          })() : ""}
+        </span>
       </div>
 
       <div>
@@ -143,8 +150,6 @@ function CallHistory() {
     const searchValue = norm(patientSearch);
 
     data = data.filter((item) => {
-      // Use norm(item.userID) to be consistent with robust string handling.
-      // selectedDoctors generally contains lowercased emails.
       const providerMatch = selectedDoctors.includes(norm(item.userID));
 
       const d = dateOnly(item.startTime);

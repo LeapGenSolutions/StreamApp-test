@@ -19,14 +19,29 @@ const Sidebar = () => {
   const [location, navigate] = useLocation();
   const { instance, accounts } = useMsal();
   const sidebarRef = useRef(null);
-  const canViewDashboard = usePermission("dashboard.view_appointments", "read");
-  const canViewAppointments = usePermission("appointments.select_providers", "read");
+  const canViewDashboard = true;
+  const canViewAppointments = useAnyPermission([
+    { required: "appointments.select_providers", level: "read" },
+    { required: "appointments.add", level: "write" },
+    { required: "appointments.modify", level: "write" },
+    { required: "appointments.delete", level: "write" },
+    { required: "appointments.patient_reports", level: "read" },
+    { required: "appointments.join_call", level: "write" },
+    { required: "appointments.post_call_doc", level: "read" },
+  ]);
   const canViewVideoCall = useAnyPermission([
     { required: "video_call.upcoming", level: "read" },
     { required: "video_call.history", level: "read" },
     { required: "video_call.add", level: "read" },
   ]);
-  const canViewPatients = usePermission("patients.info", "read");
+  const canViewPatients = useAnyPermission([
+    { required: "patients.info", level: "read" },
+    { required: "patients.clinical_summary", level: "read" },
+    { required: "patients.upcoming_appointment", level: "write" },
+    { required: "patients.join_call", level: "write" },
+    { required: "patients.previous_calls", level: "read" },
+    { required: "patients.post_call_doc", level: "read" },
+  ]);
   const canViewReports = useAnyPermission([
     { required: "reports.billing_analytics", level: "read" },
     { required: "reports.billing_history", level: "read" },

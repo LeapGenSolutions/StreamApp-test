@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  RefreshCw,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -37,11 +38,17 @@ import {
 } from "../components/ui/alert-dialog";
 import { fetchDoctorsFromHistory } from "../api/callHistory";
 import {
+  approveUser,
   assignRole,
   createRole,
   deleteRole,
+  fetchInvitations,
+  fetchPendingApprovals,
   fetchRoles,
   manageRbacOverrides,
+  rejectUser,
+  revokeInvitation,
+  sendInvitation,
   updateRole,
 } from "../api/rbac";
 import {
@@ -55,6 +62,7 @@ import {
   SYSTEM_ROLES,
 } from "../lib/rbac";
 import { useToast } from "../hooks/use-toast";
+import { usePermission } from "../hooks/use-permission";
 
 const SECTION_LABELS = {
   dashboard: "Dashboard",
@@ -85,6 +93,8 @@ const OVERRIDE_OPTIONS = ["write", "read", "none"];
 const TAB_OPTIONS = [
   { id: "permissions", label: "User Permissions" },
   { id: "roles", label: "Role Management" },
+  { id: "approvals", label: "Pending Approvals" },
+  // { id: "invites", label: "Invite Users" },
 ];
 
 const SYSTEM_ROLE_METADATA = {
@@ -146,6 +156,13 @@ const getDisplayName = (user) =>
   [user.firstName, user.lastName].filter(Boolean).join(" ") ||
   user.email ||
   user.id;
+
+const getInitials = (name) => {
+  if (!name) return "?";
+  const parts = name.split(" ");
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
 
 const getRoleAccessLevel = (roleName, permissionKey, rolePermissionsByName = {}) => {
   const basePermissions =
@@ -231,6 +248,23 @@ const asRoleList = (value) => {
 
 const getRolePayload = (value, fallback) =>
   value?.role || value?.data || value?.resource || fallback;
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "—";
+  }
+
+  return parsedDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
 
 const createRoleDraft = (baseRole = "Staff", permissionsByRole = {}) => {
   const normalizedBaseRole = normalizeRole(baseRole) || "Staff";
@@ -346,23 +380,38 @@ function RBACManagement() {
   const loggedInEmail = useSelector((state) =>
     (state.me?.me?.email || "").trim().toLowerCase()
   );
+  const canWriteAdminSettings = usePermission("admin.manage_rbac", "write");
   const [activeTab, setActiveTab] = useState("permissions");
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [rolesError, setRolesError] = useState("");
+  const [approvalsError, setApprovalsError] = useState("");
+  const [invitationsError, setInvitationsError] = useState("");
+  const [refreshingApprovals, setRefreshingApprovals] = useState(false);
   const [draftLevels, setDraftLevels] = useState({});
   const [selectedAssignmentRole, setSelectedAssignmentRole] = useState("");
   const [assigningRole, setAssigningRole] = useState(false);
   const [savingPermissionKey, setSavingPermissionKey] = useState("");
   const [savingRole, setSavingRole] = useState(false);
+  const [sendingInvitation, setSendingInvitation] = useState(false);
+  const [approvingUserId, setApprovingUserId] = useState("");
+  const [rejectingUserId, setRejectingUserId] = useState("");
+  const [revokingInvitationId, setRevokingInvitationId] = useState("");
   const [deletingRoleId, setDeletingRoleId] = useState("");
   const [rolePendingDelete, setRolePendingDelete] = useState(null);
+  const [approvalPendingReject, setApprovalPendingReject] = useState(null);
   const [deleteReplacementRole, setDeleteReplacementRole] = useState("");
   const [editorMode, setEditorMode] = useState("");
+  const [invitationForm, setInvitationForm] = useState({
+    email: "",
+    roleName: "",
+  });
   const [roleForm, setRoleForm] = useState(() => createRoleDraft());
   const [collapsedSections, setCollapsedSections] = useState(() =>
     Object.keys(SECTION_LABELS).reduce((acc, key) => {
@@ -377,6 +426,14 @@ function RBACManagement() {
     }, {})
   );
   const { toast } = useToast();
+
+  const showReadOnlyToast = () => {
+    toast({
+      title: "Read-only access",
+      description:
+        "You can review admin settings, but only users with write access can make changes.",
+    });
+  };
 
   useEffect(() => {
     document.title = "Admin Settings - Seismic Connect";
@@ -431,11 +488,20 @@ function RBACManagement() {
       setLoading(true);
       setLoadError("");
       setRolesError("");
+      setApprovalsError("");
+      setInvitationsError("");
 
       try {
-        const [usersResult, rolesResult] = await Promise.allSettled([
+        const [
+          usersResult,
+          rolesResult,
+          approvalsResult,
+          invitationsResult,
+        ] = await Promise.allSettled([
           fetchDoctorsFromHistory(loggedInClinicName || undefined),
           fetchRoles(loggedInClinicName || ""),
+          fetchPendingApprovals(),
+          fetchInvitations(),
         ]);
 
         if (usersResult.status !== "fulfilled") {
@@ -449,6 +515,20 @@ function RBACManagement() {
           setRolesError(
             rolesResult.reason?.message ||
               "Role endpoints are not available yet. Custom roles will show once the backend is deployed."
+          );
+        }
+
+        if (approvalsResult.status !== "fulfilled") {
+          setApprovalsError(
+            approvalsResult.reason?.message ||
+              "Pending approvals could not be loaded right now."
+          );
+        }
+
+        if (invitationsResult.status !== "fulfilled") {
+          setInvitationsError(
+            invitationsResult.reason?.message ||
+              "Invitations could not be loaded right now."
           );
         }
 
@@ -487,6 +567,16 @@ function RBACManagement() {
 
         setRoles(loadedRoles);
         setUsers(normalizedUsers);
+        setPendingApprovals(
+          approvalsResult.status === "fulfilled" && Array.isArray(approvalsResult.value)
+            ? approvalsResult.value
+            : []
+        );
+        setInvitations(
+          invitationsResult.status === "fulfilled" && Array.isArray(invitationsResult.value)
+            ? invitationsResult.value
+            : []
+        );
       } catch (error) {
         setLoadError(error?.message || "Failed to load users for RBAC management.");
       } finally {
@@ -603,7 +693,58 @@ function RBACManagement() {
     }));
   };
 
+  const refreshUsersSnapshot = async () => {
+    try {
+      const fetchedUsers = await fetchDoctorsFromHistory(loggedInClinicName || undefined);
+      const normalizedClinicName = normalizeClinicName(loggedInClinicName);
+      const rolePermissions = buildRolePermissionsByName(roles);
+
+      const normalizedUsers = (Array.isArray(fetchedUsers) ? fetchedUsers : [])
+        .filter((user) => {
+          if (normalizedClinicName) {
+            return normalizeClinicName(user.clinicName) === normalizedClinicName;
+          }
+
+          const userEmail = (user.doctor_email || user.email || user.id || "")
+            .trim()
+            .toLowerCase();
+          return userEmail === loggedInEmail;
+        })
+        .map((user) => {
+          const roleName = getUserRole(user);
+
+          return {
+            ...user,
+            role: roleName,
+            effectivePermissions: computeEffectivePermissions(
+              roleName,
+              user.customPermissions,
+              rolePermissions[roleName] || null
+            ),
+          };
+        })
+        .sort((a, b) =>
+          getDisplayName(a).localeCompare(getDisplayName(b), undefined, {
+            sensitivity: "base",
+          })
+        );
+
+      setUsers(normalizedUsers);
+    } catch (error) {
+      toast({
+        title: "Failed to refresh users",
+        description:
+          error?.message || "User lists could not be refreshed right now.",
+      });
+    }
+  };
+
   const applyOverride = async (permissionKey) => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
     const nextLevel = draftLevels[permissionKey];
 
     if (selectedUsers.length === 0) {
@@ -680,6 +821,11 @@ function RBACManagement() {
   };
 
   const applyRoleAssignment = async () => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
     if (selectedUsers.length === 0) {
       toast({
         title: "No users selected",
@@ -738,6 +884,15 @@ function RBACManagement() {
   };
 
   const openRoleEditor = (mode, role = null) => {
+    if (!canWriteAdminSettings && mode !== "view") {
+      setEditorMode("view");
+      if (role) {
+        setRoleForm(createRoleDraftFromDoc(role));
+      }
+      showReadOnlyToast();
+      return;
+    }
+
     setEditorMode(mode);
 
     if (mode === "create") {
@@ -788,6 +943,11 @@ function RBACManagement() {
   };
 
   const saveRoleDefinition = async () => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
     const trimmedRoleName = roleForm.roleName.trim();
 
     if (!trimmedRoleName) {
@@ -874,6 +1034,11 @@ function RBACManagement() {
   };
 
   const removeRoleDefinition = async () => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
     if (!rolePendingDelete) {
       return;
     }
@@ -948,11 +1113,215 @@ function RBACManagement() {
     }
   };
 
+  const handleApprovePendingUser = async (user) => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
+    setApprovingUserId(user.userId);
+
+    try {
+      const response = await approveUser(user.userId);
+      const approvedUser = response?.user || {
+        ...user,
+        approvalStatus: "approved",
+        prodAccessGranted: true,
+      };
+
+      setPendingApprovals((current) =>
+        current.filter((entry) => entry.userId !== user.userId)
+      );
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.userId === user.userId
+            ? {
+                ...entry,
+                ...approvedUser,
+              }
+            : entry
+        )
+      );
+
+      toast({
+        title: "User approved",
+        description: `${getDisplayName(user)} can now access the app.`,
+      });
+      await refreshUsersSnapshot();
+    } catch (error) {
+      toast({
+        title: "Failed to approve user",
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setApprovingUserId("");
+    }
+  };
+
+  const handleRejectPendingUser = async (user) => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
+    setRejectingUserId(user.userId);
+
+    try {
+      const response = await rejectUser(user.userId);
+      const rejectedUser = response?.user || {
+        ...user,
+        approvalStatus: "rejected",
+        prodAccessGranted: false,
+      };
+
+      setPendingApprovals((current) =>
+        current.filter((entry) => entry.userId !== user.userId)
+      );
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.userId === user.userId
+            ? {
+                ...entry,
+                ...rejectedUser,
+              }
+            : entry
+        )
+      );
+
+      toast({
+        title: "User rejected",
+        description: `${getDisplayName(user)} no longer has a pending approval request.`,
+      });
+      setApprovalPendingReject(null);
+      await refreshUsersSnapshot();
+    } catch (error) {
+      toast({
+        title: "Failed to reject user",
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setRejectingUserId("");
+    }
+  };
+
+  const refreshPendingApprovals = async () => {
+    setRefreshingApprovals(true);
+    setApprovalsError("");
+
+    try {
+      const approvals = await fetchPendingApprovals();
+      setPendingApprovals(Array.isArray(approvals) ? approvals : []);
+      toast({
+        title: "Pending approvals refreshed",
+        description: "Latest approval requests are now shown.",
+      });
+    } catch (error) {
+      const message =
+        error?.message || "Pending approvals could not be refreshed right now.";
+      setApprovalsError(message);
+      toast({
+        title: "Refresh failed",
+        description: message,
+      });
+    } finally {
+      setRefreshingApprovals(false);
+    }
+  };
+
+  const handleSendInvitation = async () => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
+    const normalizedEmail = invitationForm.email.trim().toLowerCase();
+    const roleName = invitationForm.roleName;
+
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      toast({
+        title: "Valid email required",
+        description: "Add the teammate email before sending the invitation.",
+      });
+      return;
+    }
+
+    if (!roleName) {
+      toast({
+        title: "Role required",
+        description: "Choose a role for the invited teammate.",
+      });
+      return;
+    }
+
+    const selectedRole = roleInventory.find(
+      (role) => normalizeRole(role.roleName) === normalizeRole(roleName)
+    );
+
+    setSendingInvitation(true);
+
+    try {
+      const response = await sendInvitation({
+        email: normalizedEmail,
+        roleName,
+        skipNpiValidation: Boolean(selectedRole?.skipNpiValidation),
+      });
+
+      if (response?.invitation) {
+        setInvitations((current) => [response.invitation, ...current]);
+      }
+
+      setInvitationForm({
+        email: "",
+        roleName: "",
+      });
+
+      toast({
+        title: "Invitation sent",
+        description: `An invitation was sent to ${normalizedEmail}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to send invitation",
+        description: error?.message || "Please check the SMTP settings and try again.",
+      });
+    } finally {
+      setSendingInvitation(false);
+    }
+  };
+
+  const handleRevokeInvitation = async (invitation) => {
+    if (!canWriteAdminSettings) {
+      showReadOnlyToast();
+      return;
+    }
+
+    setRevokingInvitationId(invitation.id);
+
+    try {
+      await revokeInvitation(invitation.id);
+      setInvitations((current) => current.filter((entry) => entry.id !== invitation.id));
+      toast({
+        title: "Invitation revoked",
+        description: `${invitation.invitedEmail} can no longer use that invitation.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to revoke invitation",
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setRevokingInvitationId("");
+    }
+  };
+
   const isRoleReadOnly =
-    editorMode === "view" || roleForm.type === "system" || !editorMode;
+    !canWriteAdminSettings ||
+    editorMode === "view" ||
+    roleForm.type === "system" ||
+    !editorMode;
 
   return (
-    <div className="space-y-6 px-4 pb-6">
+    <div className="space-y-3 px-2 pb-4">
       <AlertDialog
         open={Boolean(rolePendingDelete)}
         onOpenChange={(open) => {
@@ -1017,6 +1386,7 @@ function RBACManagement() {
               type="button"
               onClick={removeRoleDefinition}
               disabled={
+                !canWriteAdminSettings ||
                 Boolean(deletingRoleId) ||
                 ((rolePendingDelete?.userCount || 0) > 0 && !deleteReplacementRole)
               }
@@ -1028,33 +1398,79 @@ function RBACManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={Boolean(approvalPendingReject)}
+        onOpenChange={(open) => {
+          if (!open && !rejectingUserId) {
+            setApprovalPendingReject(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject pending user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {approvalPendingReject
+                ? `${getDisplayName(approvalPendingReject)} will lose this pending request and stay blocked from app access until re-approved later.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(rejectingUserId)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              onClick={() =>
+                approvalPendingReject
+                  ? handleRejectPendingUser(approvalPendingReject)
+                  : null
+              }
+              disabled={!canWriteAdminSettings || Boolean(rejectingUserId)}
+              className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+            >
+              {rejectingUserId ? "Rejecting..." : "Reject User"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <PageNavigation
         title="Admin Settings"
         subtitle={
           loggedInClinicName
-            ? `Showing users and roles from ${loggedInClinicName}.`
-            : "Showing only your own user record."
+            ? `Manage clinical team access, custom roles, and security permissions across ${loggedInClinicName}.`
+            : "Manage your personal user record and clinical access."
         }
       />
 
-      <div className="inline-flex flex-wrap gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
-        {TAB_OPTIONS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              activeTab === tab.id
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {!canWriteAdminSettings ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Admin Settings is in read-only mode for this user. Existing access can be reviewed, but it cannot be changed.
+        </div>
+      ) : null}
+
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          {TAB_OPTIONS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap pb-4 px-2 border-b-2 font-medium text-[15px] transition-colors ${
+                activeTab === tab.id
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      {activeTab === "permissions" || activeTab === "roles" ? (
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <Card className="border border-gray-200 shadow-sm">
           <CardHeader className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -1082,6 +1498,7 @@ function RBACManagement() {
                 <select
                   value={selectedAssignmentRole}
                   onChange={(event) => setSelectedAssignmentRole(event.target.value)}
+                  disabled={!canWriteAdminSettings}
                   className="h-10 w-full rounded-md border border-blue-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Choose a role</option>
@@ -1094,7 +1511,11 @@ function RBACManagement() {
                 <Button
                   type="button"
                   onClick={applyRoleAssignment}
-                  disabled={assigningRole || selectedUsers.length === 0}
+                  disabled={
+                    !canWriteAdminSettings ||
+                    assigningRole ||
+                    selectedUsers.length === 0
+                  }
                   className="w-full bg-blue-600 text-white hover:bg-blue-700"
                 >
                   {assigningRole ? "Applying role..." : "Apply role"}
@@ -1145,17 +1566,24 @@ function RBACManagement() {
                             return (
                               <label
                                 key={userId}
-                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent p-2 hover:border-blue-100 hover:bg-blue-50/40"
+                                className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
+                                  selectedUserIds.includes(userId)
+                                    ? "border-blue-300 bg-blue-50/60 shadow-sm"
+                                    : "border-transparent hover:bg-gray-50"
+                                }`}
                               >
                                 <Checkbox
                                   checked={selectedUserIds.includes(userId)}
                                   onCheckedChange={() => toggleUser(userId)}
                                 />
-                                <div className="min-w-0">
-                                  <div className="truncate text-sm font-medium text-gray-900">
+                                <div className="flex bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-inner shrink-0 items-center justify-center rounded-full h-10 w-10 text-[13px] tracking-wider font-semibold">
+                                  {getInitials(getDisplayName(user))}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-sm font-semibold text-slate-800">
                                     {getDisplayName(user)}
                                   </div>
-                                  <div className="truncate text-xs text-gray-500">
+                                  <div className="truncate text-[11px] text-slate-500 font-medium">
                                     {user.email || user.id}
                                   </div>
                                 </div>
@@ -1171,7 +1599,7 @@ function RBACManagement() {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {rolesError ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               {rolesError}
@@ -1182,7 +1610,7 @@ function RBACManagement() {
             <>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card className="border border-gray-200 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-blue-50 p-3 text-blue-600">
                       <Users className="h-5 w-5" />
                     </div>
@@ -1198,7 +1626,7 @@ function RBACManagement() {
                 </Card>
 
                 <Card className="border border-gray-200 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
                       <ShieldCheck className="h-5 w-5" />
                     </div>
@@ -1216,7 +1644,7 @@ function RBACManagement() {
                 </Card>
 
                 <Card className="border border-gray-200 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-amber-50 p-3 text-amber-600">
                       <SlidersHorizontal className="h-5 w-5" />
                     </div>
@@ -1399,7 +1827,10 @@ function RBACManagement() {
                                     <div className="space-y-3">
                                       <select
                                         value={draftLevels[permissionKey] || ""}
-                                        disabled={overrideChoices.length === 0}
+                                        disabled={
+                                          !canWriteAdminSettings ||
+                                          overrideChoices.length === 0
+                                        }
                                         title={
                                           overrideChoices.length > 0
                                             ? selectedLevels.length > 1
@@ -1450,6 +1881,7 @@ function RBACManagement() {
                                       <Button
                                         onClick={() => applyOverride(permissionKey)}
                                         disabled={
+                                          !canWriteAdminSettings ||
                                           savingPermissionKey === permissionKey ||
                                           !draftLevels[permissionKey] ||
                                           overrideChoices.length === 0
@@ -1477,7 +1909,7 @@ function RBACManagement() {
             <>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card className="border border-gray-200 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-blue-50 p-3 text-blue-600">
                       <BriefcaseBusiness className="h-5 w-5" />
                     </div>
@@ -1493,7 +1925,7 @@ function RBACManagement() {
                 </Card>
 
                 <Card className="border border-gray-200 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
                       <Plus className="h-5 w-5" />
                     </div>
@@ -1509,7 +1941,7 @@ function RBACManagement() {
                 </Card>
 
                 <Card className="border border-gray-200 shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-amber-50 p-3 text-amber-600">
                       <Users className="h-5 w-5" />
                     </div>
@@ -1536,6 +1968,7 @@ function RBACManagement() {
                   <Button
                     type="button"
                     onClick={() => openRoleEditor("create")}
+                    disabled={!canWriteAdminSettings}
                     className="bg-blue-600 text-white hover:bg-blue-700"
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -1543,72 +1976,77 @@ function RBACManagement() {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Base</TableHead>
-                        <TableHead>Users</TableHead>
-                        <TableHead>Registration</TableHead>
-                        <TableHead className="w-[220px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {roleInventory.map((role) => (
-                        <TableRow key={role.id || role.roleName}>
-                          <TableCell className="font-medium text-gray-900">
-                            <div>{role.roleName}</div>
-                            {role.description ? (
-                              <div className="mt-1 text-xs text-gray-500">
-                                {role.description}
-                              </div>
-                            ) : null}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {role.type === "system" ? "System" : "Custom"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{role.baseRoleClonedFrom || "—"}</TableCell>
-                          <TableCell>{role.userCount || 0}</TableCell>
-                          <TableCell>{role.showInRegistration ? "Yes" : "No"}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  openRoleEditor(
-                                    role.type === "system" ? "view" : "edit",
-                                    role
-                                  )
-                                }
-                              >
-                                {role.type === "system" ? "View" : "Edit"}
-                              </Button>
-                              {role.type !== "system" ? (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setRolePendingDelete(role);
-                                    setDeleteReplacementRole("");
-                                  }}
-                                  disabled={deletingRoleId === role.id}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  {deletingRoleId === role.id ? "Deleting..." : "Delete"}
-                                </Button>
-                              ) : null}
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {roleInventory.map((role) => (
+                      <div
+                        key={role.id || role.roleName}
+                        className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h3 className="text-lg font-semibold text-slate-900">{role.roleName}</h3>
+                              <Badge variant="secondary" className="mt-2 tracking-wide text-[10px] uppercase bg-slate-100 text-slate-600 border-none">
+                                {role.type === "system" ? "System Role" : "Custom Role"}
+                              </Badge>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            <div className="flex h-11 w-11 flex-shrink-0 flex-col items-center justify-center rounded-full bg-blue-50 text-blue-600 shadow-inner">
+                              <Users className="h-5 w-5" />
+                            </div>
+                          </div>
+                          
+                          <div className="mt-6 space-y-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-500 font-medium tracking-tight">Active Users</span>
+                              <span className="font-semibold text-slate-900">{role.userCount || 0}</span>
+                            </div>
+                            {role.type !== "system" && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500 font-medium tracking-tight">Base Role</span>
+                                <span className="font-medium text-slate-700">{role.baseRoleClonedFrom || "—"}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-500 font-medium tracking-tight">Registration</span>
+                              <span className="font-medium text-slate-700">{role.showInRegistration ? "Visible" : "Hidden"}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto flex items-center gap-2 border-t border-slate-100 bg-slate-50/50 p-4 rounded-b-2xl">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1 bg-white border-slate-200 text-sm font-semibold hover:bg-slate-50 hover:text-blue-700 transition"
+                            onClick={() =>
+                              openRoleEditor(
+                                role.type === "system" || !canWriteAdminSettings
+                                  ? "view"
+                                  : "edit",
+                                role
+                              )
+                            }
+                          >
+                            {role.type === "system" || !canWriteAdminSettings ? "View Details" : "Edit Details"}
+                          </Button>
+                          {role.type !== "system" ? (
+                            <Button
+                              type="button"
+                              className="px-3 shadow-none bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition"
+                              onClick={() => {
+                                setRolePendingDelete(role);
+                                setDeleteReplacementRole("");
+                              }}
+                              disabled={!canWriteAdminSettings || deletingRoleId === role.id}
+                              title="Delete Role"
+                            >
+                              <Trash2 className="h-[18px] w-[18px]" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1642,7 +2080,7 @@ function RBACManagement() {
                       Select a role from the table or create a new one to edit permission defaults.
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <label className="text-sm font-medium text-gray-700">
@@ -1829,6 +2267,292 @@ function RBACManagement() {
           )}
         </div>
       </div>
+      ) : activeTab === "approvals" ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="rounded-full bg-blue-50 p-3 text-blue-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Pending Users
+                  </div>
+                  <div className="text-2xl font-semibold text-gray-900">
+                    {pendingApprovals.length}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Clinic
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {loggedInClinicName || "Current clinic"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Review Flow
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Approve or reject access
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {approvalsError ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              {approvalsError}
+            </div>
+          ) : null}
+
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-base">Pending Approvals</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={refreshPendingApprovals}
+                disabled={refreshingApprovals}
+              >
+                <RefreshCw
+                  className={`mr-2 h-4 w-4 ${refreshingApprovals ? "animate-spin" : ""}`}
+                />
+                {refreshingApprovals ? "Refreshing..." : "Refresh"}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                <div className="text-sm text-gray-500">Loading pending approvals...</div>
+              ) : pendingApprovals.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                  No users are waiting for approval right now.
+                </div>
+              ) : (
+                pendingApprovals.map((user) => (
+                  <div
+                    key={user.userId || user.id}
+                    className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/50 to-white p-4 shadow-sm transition-all hover:shadow-md md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="absolute left-0 top-0 h-full w-1.5 bg-blue-500"></div>
+                    <div className="flex items-center gap-4 pl-2">
+                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[15px] font-bold text-blue-700 shadow-inner">
+                         {getInitials(getDisplayName(user))}
+                       </div>
+                       <div>
+                         <div className="text-base font-bold text-slate-900 flex items-center gap-2">
+                           {getDisplayName(user)}
+                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] uppercase tracking-wider">{getUserRole(user)}</Badge>
+                         </div>
+                         <div className="mt-1 text-sm font-medium text-slate-600">
+                           {(user.email || user.id || "").trim()}
+                         </div>
+                         <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                           <span>Registered {formatDateTime(user.updatedAt || user.created_at)}</span>
+                           {user.invitedBy && <span>• Invited by {user.invitedBy}</span>}
+                         </div>
+                       </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-3 md:pl-0 pl-16">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setApprovalPendingReject(user)}
+                        disabled={
+                          !canWriteAdminSettings ||
+                          approvingUserId === user.userId ||
+                          rejectingUserId === user.userId
+                        }
+                        className="border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 font-semibold shadow-sm transition-all"
+                      >
+                        {rejectingUserId === user.userId ? "Rejecting..." : "Reject"}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => handleApprovePendingUser(user)}
+                        disabled={
+                          !canWriteAdminSettings ||
+                          approvingUserId === user.userId ||
+                          rejectingUserId === user.userId
+                        }
+                        className="bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow-sm transition-all px-6"
+                      >
+                        {approvingUserId === user.userId ? "Approving..." : "Approve Access"}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="rounded-full bg-blue-50 p-3 text-blue-600">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Pending Invitations
+                  </div>
+                  <div className="text-2xl font-semibold text-gray-900">
+                    {invitations.length}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
+                  <BriefcaseBusiness className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Role Options
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {availableRoleOptions.length} active roles
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Clinic
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {loggedInClinicName || "Current clinic"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {invitationsError ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              {invitationsError}
+            </div>
+          ) : null}
+
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Invite Team Members</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+              <Input
+                value={invitationForm.email}
+                onChange={(event) =>
+                  setInvitationForm((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                disabled={!canWriteAdminSettings}
+                placeholder="teammate@example.com"
+              />
+              <select
+                value={invitationForm.roleName}
+                onChange={(event) =>
+                  setInvitationForm((current) => ({
+                    ...current,
+                    roleName: event.target.value,
+                  }))
+                }
+                disabled={!canWriteAdminSettings}
+                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Choose a role</option>
+                {availableRoleOptions.map((roleName) => (
+                  <option key={roleName} value={roleName}>
+                    {roleName}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                onClick={handleSendInvitation}
+                disabled={!canWriteAdminSettings || sendingInvitation}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {sendingInvitation ? "Sending..." : "Send Invitation"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Pending Invitations</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                <div className="text-sm text-gray-500">Loading invitations...</div>
+              ) : invitations.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                  No active invitations have been sent yet.
+                </div>
+              ) : (
+                invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {invitation.invitedEmail}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {invitation.roleName}
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Sent: {formatDateTime(invitation.createdAt)}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleRevokeInvitation(invitation)}
+                      disabled={!canWriteAdminSettings || revokingInvitationId === invitation.id}
+                    >
+                      {revokingInvitationId === invitation.id ? "Revoking..." : "Revoke"}
+                    </Button>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

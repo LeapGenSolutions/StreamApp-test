@@ -79,4 +79,17 @@ describe("rbac utilities", () => {
       { required: "settings.payment_billing", level: "write" },
     ])).toBe(true);
   });
+
+  test("supports a staff bootstrap admin override that only leaves admin settings visible", () => {
+    const permissions = computeEffectivePermissions("Staff", {
+      overrides: buildPermissionsMap({
+        "admin.manage_rbac": "write",
+      }),
+    });
+
+    expect(hasPermission(permissions, "admin.manage_rbac", "write")).toBe(true);
+    expect(hasPermission(permissions, "dashboard.view_appointments", "read")).toBe(false);
+    expect(hasPermission(permissions, "appointments.select_providers", "read")).toBe(false);
+    expect(hasPermission(permissions, "patients.info", "read")).toBe(false);
+  });
 });

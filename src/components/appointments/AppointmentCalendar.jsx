@@ -9,6 +9,7 @@ import { fetchAppointmentsByDoctorEmails, checkAppointments } from "../../api/ca
 import CreateAppointmentModal from "./CreateAppointmentModal";
 import { useSelector } from "react-redux";
 import CreateBulkAppointments from "./createBulkAppointments";
+import { usePermission } from "../../hooks/use-permission";
 
 import { getColorFromName } from "../../constants/colors";
 
@@ -46,6 +47,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [currentView, setCurrentView] = useState("day");
 
   const loggedInDoctor = useSelector((state) => state.me.me);
+  const canSelectProviders = usePermission("appointments.select_providers", "read");
 
   useEffect(() => {
     if (onAdd) onAdd(() => setShowCreateModal(true));
@@ -61,7 +63,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       return;
     }
 
-    if (email) {
+    if (email && canSelectProviders) {
       setSelectedDoctors([email]);
       setDoctorColorMap((current) => ({
         ...current,
@@ -70,7 +72,15 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     }
 
     setIsSelectionInitialized(true);
-  }, [loggedInDoctor?.email, loggedInDoctor?.clinicName, isSelectionInitialized]);
+  }, [canSelectProviders, loggedInDoctor?.email, loggedInDoctor?.clinicName, isSelectionInitialized]);
+
+  useEffect(() => {
+    if (canSelectProviders) {
+      return;
+    }
+
+    setSelectedDoctors([]);
+  }, [canSelectProviders]);
 
   const applySeismified = async (list) => {
     const ids = (Array.isArray(list) ? list : [])

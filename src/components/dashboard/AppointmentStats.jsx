@@ -1,13 +1,38 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
-import { FaUserMd, FaVideo } from "react-icons/fa";
 import { format } from "date-fns";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
+
+const normalizeToken = (value = "") =>
+  String(value).toLowerCase().trim().replace(/[\s_-]/g, "");
+
+const isCancelledStatus = (status = "") => {
+  const normalized = normalizeToken(status);
+  return normalized === "cancelled" || normalized === "canceled";
+};
+
+const isInPersonType = (type = "") => {
+  const normalized = normalizeToken(type);
+  return normalized === "inperson" || normalized === "office";
+};
+
+const isVirtualType = (type = "") => {
+  const normalized = normalizeToken(type);
+  return (
+    normalized === "virtual" ||
+    normalized === "online" ||
+    normalized === "telehealth" ||
+    normalized === "video"
+  );
+};
+
+const normalizeText = (value = "") => String(value || "").trim().toLowerCase();
 
 const AppointmentStats = ({ date: propDate }) => {
   const loggedInDoctor = useSelector((state) => state.me.me);
   const appointments = useSelector((state) => state.appointments.appointments);
   const dispatch = useDispatch();
+
   const [stats, setStats] = useState({
     totalAppointments: 0,
     inPersonAppointments: 0,
@@ -15,37 +40,29 @@ const AppointmentStats = ({ date: propDate }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Logged-in doctor identifiers (used for filtering)
-  const DoctorEmail =
-    loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
-
+  const doctorEmail = loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
   const doctorUniqueId =
-    loggedInDoctor?.doctor_id ||
-    loggedInDoctor?.id ||
-    loggedInDoctor?.oid ||
-    null;
+    loggedInDoctor?.doctor_id || loggedInDoctor?.id || loggedInDoctor?.oid || null;
+  const clinicName = loggedInDoctor?.clinicName || loggedInDoctor?.clinic_name || "";
 
-  // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
   const localTodayKey = new Date().toLocaleDateString("en-CA");
   const utcTodayKey = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
-    if (DoctorEmail) {
-      dispatch(fetchAppointmentDetails(DoctorEmail, loggedInDoctor?.clinicName));
+    if (doctorEmail) {
+      dispatch(fetchAppointmentDetails(doctorEmail, clinicName));
     }
-  }, [dispatch, DoctorEmail, loggedInDoctor?.clinicName]);
+  }, [dispatch, doctorEmail, clinicName]);
 
-  // Always normalize "today" to a yyyy-MM-dd STRING (local calendar day)
   const todayKey =
     typeof propDate === "string"
       ? propDate === utcTodayKey && localTodayKey !== utcTodayKey
         ? localTodayKey
         : propDate
       : propDate instanceof Date
-        ? format(propDate, "yyyy-MM-dd")
-        : localTodayKey;
+      ? format(propDate, "yyyy-MM-dd")
+      : localTodayKey;
 
-  // Safely build a local Date from yyyy-MM-dd for display
   let formattedDate = "";
   {
     const [year, month, day] = todayKey.split("-").map(Number);
@@ -53,11 +70,10 @@ const AppointmentStats = ({ date: propDate }) => {
     formattedDate = format(localDate, "MMMM d, yyyy");
   }
 
-  // Compute stats only for the logged-in doctor
   useEffect(() => {
     setIsLoading(true);
 
-    if (!Array.isArray(appointments) || (!DoctorEmail && !doctorUniqueId)) {
+    if (!Array.isArray(appointments) || (!doctorEmail && !doctorUniqueId)) {
       setStats({
         totalAppointments: 0,
         inPersonAppointments: 0,
@@ -67,12 +83,14 @@ const AppointmentStats = ({ date: propDate }) => {
       return;
     }
 
-    const todayAppointments = appointments.filter((app) => {
-      let appDateKey = app.appointment_date;
+    const normalizedDoctorId = String(doctorUniqueId ?? "").trim();
+    const normalizedDoctorEmail = String(doctorEmail ?? "").trim().toLowerCase();
+    const normalizedClinicName = normalizeText(clinicName);
 
-      // Normalize appointment date to yyyy-MM-dd WITHOUT timezone shifting
-      if (typeof appDateKey === 'string') {
-        // Handles "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ssZ"
+    const todayAppointments = appointments.filter((app) => {
+      let appDateKey = app.appointment_date ?? app.appointmentDate ?? app.date ?? "";
+
+      if (typeof appDateKey === "string") {
         appDateKey = appDateKey.slice(0, 10);
       } else if (appDateKey instanceof Date) {
         appDateKey = format(appDateKey, "yyyy-MM-dd");
@@ -80,59 +98,63 @@ const AppointmentStats = ({ date: propDate }) => {
         appDateKey = "";
       }
 
-      const isToday = appDateKey === todayKey;
+      const appDoctorIdValues = [app.doctorId, app.doctor_id]
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean);
+      const appDoctorEmailValues = [app.doctorEmail, app.doctor_email]
+        .map((value) => String(value ?? "").trim().toLowerCase())
+        .filter(Boolean);
 
-      // robust doctor matching (same pattern as other components)
-      const isSameDoctor =
-        (doctorUniqueId &&
-          (app.doctorId === doctorUniqueId ||
-            app.doctor_id === doctorUniqueId)) ||
-        (DoctorEmail &&
-          (app.doctorEmail === DoctorEmail ||
-            app.doctor_email === DoctorEmail));
-
-      const normalize = (s) => (s || "").trim().toLowerCase();
-      const userClinic = normalize(loggedInDoctor?.clinicName);
-      const apptClinic = normalize(
+      const appClinicName = normalizeText(
         app.clinicName ||
-        app.details?.clinicName ||
-        app.original_json?.clinicName ||
-        app.original_json?.details?.clinicName
+          app.clinic_name ||
+          app.details?.clinicName ||
+          app.details?.clinic_name ||
+          app.original_json?.clinicName ||
+          app.original_json?.clinic_name ||
+          app.original_json?.details?.clinicName ||
+          app.original_json?.details?.clinic_name
       );
-      const matchesClinic = !userClinic || apptClinic === userClinic;
 
-      return isToday && isSameDoctor && matchesClinic && app.status !== "cancelled";
+      const isSameDoctorById =
+        normalizedDoctorId && appDoctorIdValues.includes(normalizedDoctorId);
+      const isSameDoctorByEmail =
+        normalizedDoctorEmail && appDoctorEmailValues.includes(normalizedDoctorEmail);
+
+      const matchesClinic = !normalizedClinicName || appClinicName === normalizedClinicName;
+
+      return (
+        appDateKey === todayKey &&
+        Boolean(isSameDoctorById || isSameDoctorByEmail) &&
+        matchesClinic &&
+        !isCancelledStatus(app.status ?? app.appointment_status ?? app.appointmentStatus)
+      );
     });
 
-    const inPersonAppointments = todayAppointments.filter(
-      (app) => app.type === "in-person"
+    const inPersonAppointments = todayAppointments.filter((app) =>
+      isInPersonType(app.type ?? app.appointment_type ?? app.appointmentType)
     ).length;
 
-    const virtualAppointments = todayAppointments.filter(
-      (app) => app.type === "virtual" || app.type === "online"
+    const virtualAppointments = todayAppointments.filter((app) =>
+      isVirtualType(app.type ?? app.appointment_type ?? app.appointmentType)
     ).length;
 
-    const totalAppointments = todayAppointments.length;
     setStats({
-      totalAppointments,
+      totalAppointments: todayAppointments.length,
       inPersonAppointments,
       virtualAppointments,
     });
     setIsLoading(false);
-  }, [appointments, todayKey, DoctorEmail, doctorUniqueId, loggedInDoctor?.clinicName]);
+  }, [appointments, todayKey, doctorEmail, doctorUniqueId, clinicName]);
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow p-6 min-h-[220px] animate-pulse">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 min-h-[260px] animate-pulse">
         <div className="h-6 w-1/3 bg-neutral-200 rounded mb-4"></div>
-        <div className="h-10 w-1/4 bg-neutral-200 rounded mb-6"></div>
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="h-20 bg-neutral-200 rounded"></div>
-          <div className="h-20 bg-neutral-200 rounded"></div>
-        </div>
-        <div className="flex gap-2">
-          <div className="h-10 w-24 bg-neutral-200 rounded"></div>
-          <div className="h-10 w-24 bg-neutral-200 rounded"></div>
+        <div className="grid grid-cols-3 gap-2 mb-6">
+          <div className="h-16 bg-neutral-200 rounded"></div>
+          <div className="h-16 bg-neutral-200 rounded"></div>
+          <div className="h-16 bg-neutral-200 rounded"></div>
         </div>
       </div>
     );
@@ -141,33 +163,38 @@ const AppointmentStats = ({ date: propDate }) => {
   const { totalAppointments, inPersonAppointments, virtualAppointments } = stats;
 
   return (
-    <div className="bg-white rounded-xl shadow p-6 flex flex-col h-full">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="text-lg font-semibold text-gray-800">Today's Schedule</div>
           <div className="text-sm text-gray-500">{formattedDate}</div>
         </div>
-        <div className="bg-blue-100 p-3 rounded-full">
-          <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="8" fill="#3b82f6" opacity="0.15" /><path d="M8 7h8M8 11h8M8 15h4" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" /></svg>
+        <div className="bg-sky-100 p-3 rounded-full">
+          <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+            <rect x="4" y="4" width="16" height="16" rx="8" fill="#3b82f6" opacity="0.15" />
+            <path d="M8 7h8M8 11h8M8 15h4" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </div>
       </div>
-      <div className="flex items-center bg-blue-50 rounded-lg p-4 mb-4">
-        <div className="flex-1">
-          <div className="text-sm text-blue-700 font-medium">Total Appointments</div>
-          <div className="text-3xl font-bold text-blue-900">{totalAppointments}</div>
-          <div className="text-xs text-blue-500 mt-1">Scheduled for today</div>
+
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="min-h-[84px] rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+            Total Visits
+          </div>
+          <div className="mt-1 text-2xl font-bold text-violet-800">{totalAppointments}</div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="flex flex-col items-center justify-center bg-green-50 rounded-xl p-4 border border-green-100">
-          <FaUserMd className="text-green-500 text-2xl mb-2" />
-          <div className="text-2xl font-bold text-green-700">{inPersonAppointments}</div>
-          <div className="text-sm text-green-700 font-medium">In-Person</div>
+        <div className="min-h-[84px] rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+            In-Person
+          </div>
+          <div className="mt-1 text-2xl font-bold text-emerald-800">{inPersonAppointments}</div>
         </div>
-        <div className="flex flex-col items-center justify-center bg-blue-50 rounded-xl p-4 border border-blue-100">
-          <FaVideo className="text-blue-500 text-2xl mb-2" />
-          <div className="text-2xl font-bold text-blue-700">{virtualAppointments}</div>
-          <div className="text-sm text-blue-700 font-medium">Virtual</div>
+        <div className="min-h-[84px] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+            Virtual
+          </div>
+          <div className="mt-1 text-2xl font-bold text-blue-800">{virtualAppointments}</div>
         </div>
       </div>
     </div>

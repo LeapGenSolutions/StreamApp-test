@@ -29,6 +29,7 @@ import CreateAppointmentModal from "../components/appointments/CreateAppointment
 import { checkAppointments } from "../api/callHistory";
 import { formatUsDate } from "../lib/dateUtils";
 import HasPermission from "../components/auth/HasPermission";
+import { useAnyPermission } from "../hooks/use-permission";
 
 const toISODate = (date) => {
   const year = date.getFullYear();
@@ -124,6 +125,11 @@ function Patients() {
 
   const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const canViewPatientReports = useAnyPermission([
+    { required: "patients.info", level: "read" },
+    { required: "patients.clinical_summary", level: "read" },
+    { required: "patients.previous_calls", level: "read" },
+  ]);
 
   const [seismifiedIds, setSeismifiedIds] = useState([]);   /* ✅ ADDED */
 
@@ -513,7 +519,7 @@ function Patients() {
 
                       {/* ACTIONS */}
                       <TableCell className="text-right whitespace-nowrap">
-                        <HasPermission required="patients.clinical_summary" level="read">
+                        {canViewPatientReports ? (
                           <Link
                             href={`/patients/${p.patient_id}`}
                             title="View Patient Reports"
@@ -521,7 +527,7 @@ function Patients() {
                           >
                             <Eye className="w-4 h-4" />
                           </Link>
-                        </HasPermission>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   );

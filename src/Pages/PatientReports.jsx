@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye } from "lucide-react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { navigate } from "wouter/use-browser-location";
 import { useParams } from "wouter";
 import PatientInfoComponent from "../components/patients/PatientInfoComponent";
@@ -13,26 +13,45 @@ import { format, isToday } from "date-fns";
 import { fetchCallHistory } from "../api/callHistory";
 import { formatUsDate } from "../lib/dateUtils";
 import { usePermission } from "../hooks/use-permission";
+import { fetchPatientsDetails } from "../redux/patient-actions";
+
+const EMPTY_ARRAY = [];
 
 const PatientReports = () => {
   const { patientId } = useParams();
 
-  const patients = useSelector((state) => state.patients.patients);
-  const appointments = useSelector((state) => state.appointments.appointments);
-  const doctorEmail = useSelector(
-    (state) => state.me.me.email?.toLowerCase()
-  );
+  const dispatch = useDispatch();
+  const patients = useSelector((state) => state.patients.patients) || EMPTY_ARRAY;
+  const appointments = useSelector((state) => state.appointments.appointments) || EMPTY_ARRAY;
+  
+  const loggedInDoctor = useSelector((state) => state.me.me);
+  const doctorEmail = loggedInDoctor?.email?.toLowerCase();
 
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
-  const [callHistory, setCallHistory] = useState([]);
-  const canJoinCallPermission = usePermission("patients.join_call", "write");
-  const canViewPostCall = usePermission("patients.post_call_doc", "read");
+  const [hasFetched, setHasFetched] = useState(false);
 
   const patient = useMemo(
     () => patients.find((p) => String(p.patient_id) === String(patientId)),
     [patients, patientId]
   );
+
+  useEffect(() => {
+    if (!patient && loggedInDoctor && !hasFetched) {
+      if (loggedInDoctor.clinicName) {
+        dispatch(fetchPatientsDetails(loggedInDoctor.clinicName));
+      } else {
+        dispatch(fetchPatientsDetails());
+      }
+      setHasFetched(true);
+    }
+  }, [dispatch, patient, loggedInDoctor, hasFetched]);
+
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
+  const [callHistory, setCallHistory] = useState([]);
+  const canViewPatientInfo = usePermission("patients.info", "read");
+  const canViewClinicalSummary = usePermission("patients.clinical_summary", "read");
+  const canJoinCallPermission = usePermission("patients.join_call", "write");
+  const canViewPostCall = usePermission("patients.post_call_doc", "read");
   const { data: summaryData } = useQuery({
     queryKey: ["summaryOfSummaries", patientId],
     queryFn: () => fetchSummaryofSummaries(patientId),
@@ -223,6 +242,8 @@ const PatientReports = () => {
     patient?.original_json?.original_json?.details?.dob;
 
   const formattedDOB = formatUsDate(rawDOB);
+  const showPatientOverviewSection =
+    canViewPatientInfo || canViewClinicalSummary;
 
   return (
     <div className="p-6 w-full space-y-6">
@@ -236,22 +257,28 @@ const PatientReports = () => {
         ]}
       />
 
-      <div className="bg-white border rounded-xl shadow p-6">
-        <PatientInfoComponent
-          firstName={firstName}
-          middleName={middleName}
-          lastName={lastName}
-          phone={maskedPhone}
-          email={maskedEmail}
-          insuranceProvider={insuranceProvider}
-          insuranceId={insuranceId}
-          lastVisit={lastVisit}
-          totalAppointments={mergedAppointments.length}
-          dob={formattedDOB}
-        />
+      {showPatientOverviewSection ? (
+        <div className="bg-white border rounded-xl shadow p-6">
+          {canViewPatientInfo ? (
+            <PatientInfoComponent
+              firstName={firstName}
+              middleName={middleName}
+              lastName={lastName}
+              phone={maskedPhone}
+              email={maskedEmail}
+              insuranceProvider={insuranceProvider}
+              insuranceId={insuranceId}
+              lastVisit={lastVisit}
+              totalAppointments={mergedAppointments.length}
+              dob={formattedDOB}
+            />
+          ) : null}
 
-        <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
-      </div>
+          {canViewClinicalSummary ? (
+            <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
+          ) : null}
+        </div>
+      ) : null}
 
       {nextUpcoming && (
         <div className="bg-white border rounded-xl shadow p-6">

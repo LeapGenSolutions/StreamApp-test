@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import { fetchSummaryByAppointment } from "../../api/summary";
@@ -15,44 +16,71 @@ const extractReasonFromSoap = (soapText) => {
   return match ? match[1].trim() : null;
 };
 
+const getSummaryText = (summaryResponse) =>
+  summaryResponse?.data?.full_summary_text ||
+  summaryResponse?.full_summary_text ||
+  summaryResponse?.summary ||
+  "";
+
+const getCallHistoryEntryForAppointment = (historyList = [], appointmentId) =>
+  historyList.find(
+    (entry) => String(entry.appointmentID) === String(appointmentId)
+  );
+
 const Summary = ({ appointmentId, username, patientId }) => {
   const [selectedAppointment, setSelectedAppointment] = useState({});
   const dispatch = useDispatch();
 
   const appointments = useSelector((state) => state.appointments.appointments);
 
+  const callHistoryQuery = useQuery({
+    queryKey: ["call-history-summary", username, appointmentId],
+    queryFn: () => fetchCallHistory([username]),  // ← fetch all calls for this provider
+    enabled: !!username,
+    refetchInterval: (query) => {
+      const matchingEntry = getCallHistoryEntryForAppointment(
+        query.state.data || [],
+        appointmentId
+      );
+
+      return matchingEntry?.endTime ? false : 3000;
+    },
+    refetchIntervalInBackground: true,
+  });
+
   const {
     data: callHistoryList = [],
     isLoading: loadingCallHistory,
-  } = useQuery({
-    queryKey: ["call-history-summary", username],
-    queryFn: () => fetchCallHistory([username]),  // ← fetch all calls for this provider
-    enabled: !!username,
-  });
+  } = callHistoryQuery;
 
-  
-  const callHistoryEntry = callHistoryList.find(
-    (entry) => String(entry.appointmentID) === String(appointmentId)
+  const callHistoryEntry = getCallHistoryEntryForAppointment(
+    callHistoryList,
+    appointmentId
   );
 
 
-  const {
-    data: summaryData,
-    isLoading,
-    error,
-  } = useQuery({
+  const summaryQuery = useQuery({
     queryKey: ["summary", appointmentId, username],
     queryFn: () =>
       fetchSummaryByAppointment(
         `${username}_${appointmentId}_summary`,
         username
       ),
+    enabled: Boolean(username && appointmentId),
+    refetchInterval: (query) => {
+      const summaryText = getSummaryText(query.state.data);
+      return summaryText ? false : 3000;
+    },
+    refetchIntervalInBackground: true,
   });
+
+  const { data: summaryData, isLoading, isFetching, error } = summaryQuery;
 
   const { data: soapData } = useQuery({
     queryKey: ["soap", appointmentId, username],
     queryFn: () =>
       fetchSoapNotes(`${username}_${appointmentId}_soap`, username),
+    enabled: Boolean(username && appointmentId),
   });
 
   const { data: longitudinalData, isLoading: loadingLongitudinal } = useQuery({
@@ -61,13 +89,7 @@ const Summary = ({ appointmentId, username, patientId }) => {
     enabled: !!patientId,
   });
 
-  const [summary, setSummary] = useState("");
-
-  useEffect(() => {
-    if (!isLoading && summaryData) {
-      setSummary(summaryData.data.full_summary_text);
-    }
-  }, [summaryData, isLoading]);
+  const summary = useMemo(() => getSummaryText(summaryData), [summaryData]);
 
   useEffect(() => {
     if (appointments.length === 0 && username) {
@@ -83,7 +105,9 @@ const Summary = ({ appointmentId, username, patientId }) => {
     );
   }, [appointmentId, appointments]);
 
-  if (isLoading || loadingCallHistory) {
+  const isSummaryPending = isLoading || (isFetching && !summary);
+
+  if (isSummaryPending || loadingCallHistory) {
     return <LoadingCard message="Summary’s stitching up… hang tight." />;
   }
 

@@ -38,7 +38,7 @@ const WelcomeCard = () => {
 
           {/* Buttons */}
           <div className="mt-6 flex flex-wrap gap-4">
-            <HasPermission required="appointments.select_providers" level="read">
+            <HasPermission required="dashboard.view_appointments" level="read">
               <Link href="/appointments">
                 <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
                   <Calendar className="h-4 w-4" />

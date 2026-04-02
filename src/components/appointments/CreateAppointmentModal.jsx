@@ -3,11 +3,19 @@ import { createPortal } from "react-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
+import { fetchDoctorsFromHistory } from "../../api/callHistory";
 import { fetchPatientsDetails } from "../../redux/patient-actions";
 import { useToast } from "../../hooks/use-toast";
 import UnsavedChangesModal from "../UnsavedChangesModal";
 import { Calendar, User2, Clock } from "lucide-react";
 import SeismicTimeDropdown from "./SeismicTimeDropdown";
+import {
+  Select as RadixSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 const extractMRN = (p) =>
   p.mrn ||
@@ -77,6 +85,8 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const resolvedSpecialization = loggedInDoctor?.specialization;
   const resolvedDoctorId = loggedInDoctor?.doctor_id;
 
+  const [allProviders, setAllProviders] = useState([]);
+
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -90,7 +100,28 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     appointment_date: "",
     time: "",
     specialization: resolvedSpecialization || "",
+    provider_email: resolvedDoctorEmail || "",
   });
+
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const doctors = await fetchDoctorsFromHistory();
+        const userClinic = (loggedInDoctor?.clinicName || "").toLowerCase().trim();
+        const isAdmin = (loggedInDoctor?.role || "").toLowerCase() === "admin";
+        
+        const filtered = doctors.filter(doc => {
+           if (isAdmin && !userClinic) return true;
+           const docClinic = (doc.clinicName || "").toLowerCase().trim();
+           return docClinic === userClinic;
+        });
+        setAllProviders(filtered);
+      } catch (err) {
+        console.error("Failed to fetch providers", err);
+      }
+    };
+    loadProviders();
+  }, [loggedInDoctor?.clinicName, loggedInDoctor?.role]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -171,6 +202,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       appointment_date: "",
       time: "",
       specialization: resolvedSpecialization || "",
+      provider_email: resolvedDoctorEmail || "",
     });
     setErrors({});
     setTouched({});
@@ -262,6 +294,19 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       delete updated[name];
       return updated;
     });
+  };
+
+  const handleProviderChange = (e) => {
+    const value = e.target.value;
+    const selectedDoc = allProviders.find(
+      (d) => (d.doctor_email || d.email) === value
+    );
+    
+    setFormData(prev => ({
+      ...prev,
+      provider_email: value,
+      specialization: selectedDoc?.specialization || ""
+    }));
   };
 
   const handlePhoneChange = (e) => {
@@ -418,6 +463,8 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         .filter(Boolean)
         .join(" ");
 
+      const selectedDoc = allProviders.find(d => (d.doctor_email || d.email) === formData.provider_email);
+
       const appointmentData = {
         type: "appointment",
         full_name,
@@ -428,9 +475,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         gender: formData.gender,
         mrn: formData.mrn,
         ehr: formData.ehr,
-        doctor_name: resolvedDoctorName,
-        doctor_id: resolvedDoctorId,
-        doctor_email: resolvedDoctorEmail,
+        doctor_name: selectedDoc ? (selectedDoc.doctor_name || selectedDoc.name) : resolvedDoctorName,
+        doctor_id: selectedDoc?.doctor_id || resolvedDoctorId,
+        doctor_email: formData.provider_email || resolvedDoctorEmail,
         specialization: formData.specialization,
         time: convertTo24Hour(formData.time),
         appointment_date: formData.appointment_date,
@@ -443,7 +490,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       };
 
       const created = await createAppointment(
-        resolvedDoctorEmail,
+        formData.provider_email || resolvedDoctorEmail,
         appointmentData
       );
 
@@ -501,6 +548,35 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
 
         <div className="flex flex-1 min-h-0">
           <div className="w-[40%] border-r border-black-200 p-4 overflow-y-auto">
+
+            {/* Provider Selection - first step for staff scheduling */}
+            <div className="mb-4 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-md font-semibold text-blue-700">Assign Provider / Doctor</span>
+              </div>
+              <RadixSelect
+                value={formData.provider_email}
+                onValueChange={(val) => handleProviderChange({ target: { value: val } })}
+                disabled={allProviders.length === 0}
+              >
+                <SelectTrigger className="border-gray-300 w-full bg-white h-[38px] text-sm">
+                  <SelectValue placeholder={allProviders.length === 0 ? "Loading providers..." : "Select provider..."} />
+                </SelectTrigger>
+                <SelectContent className="z-[10005] bg-white border border-gray-200 shadow-lg">
+                  {allProviders.map((doc) => {
+                    const email = doc.doctor_email || doc.email;
+                    const name = doc.doctor_name || doc.name || email;
+                    const spec = doc.specialization ? ` (${doc.specialization})` : "";
+                    return (
+                      <SelectItem key={email} value={email}>
+                        {name}{spec}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </RadixSelect>
+            </div>
+
             <h3 className="text-md font-semibold text-blue-700 mb-3">
               Find Existing Patient
             </h3>

@@ -17,7 +17,7 @@ import { PageNavigation } from "../components/ui/page-navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Checkbox } from "../components/ui/checkbox";
+
 import {
   Table,
   TableBody,
@@ -185,21 +185,11 @@ const formatAccessCountSummary = (levels = []) => {
     .join(" | ");
 };
 
-const getOverrideOptionsForPermission = (permissionKey) => {
-  if (permissionKey === "admin.manage_rbac") {
-    return ["write", "read", "none"];
-  }
-
-  const permissionDefaults = PERMISSION_CATALOG[permissionKey] || {};
-  const supportedLevels = new Set(
-    Object.values(permissionDefaults).filter((level) => level && level !== "none")
-  );
-
-  const orderedLevels = ["write", "read"].filter((level) =>
-    supportedLevels.has(level)
-  );
-
-  return [...orderedLevels, "none"];
+const getOverrideOptionsForPermission = (_permissionKey) => {
+  // Always offer all 3 levels as override options for every permission.
+  // Defaults per role are enforced by PERMISSION_CATALOG — overrides here
+  // are intentionally unrestricted so admins can fine-tune any user's access.
+  return ["write", "read", "none"];
 };
 
 const getMeaningfulOverrideChoices = (options, selectedLevels = []) => {
@@ -373,6 +363,72 @@ const buildRoleInventory = (roleDocs = [], users = []) => {
         sensitivity: "base",
       });
     });
+};
+
+const PermissionSelector = ({
+  value,
+  onChange,
+  options = ["write", "read", "none"],
+  disabled = false,
+}) => {
+  const levels = [
+    { id: "write", label: "Read + Write" },
+    { id: "read", label: "Read Only" },
+    { id: "none", label: "No Access" },
+  ];
+
+  const availableLevels = levels.filter(l => options.includes(l.id));
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-1 lg:gap-x-2 py-1">
+      {availableLevels.map((level) => {
+        const isActive = value === level.id;
+        
+        return (
+          <div
+            key={level.id}
+            role="radio"
+            aria-checked={isActive}
+            tabIndex={disabled ? -1 : 0}
+            className={`
+              flex items-center gap-2.5 rounded-lg border px-3 py-2 transition-all duration-150 select-none
+              ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer group hover:bg-white hover:shadow-md hover:border-blue-200"}
+              ${isActive
+                ? "bg-blue-50 border-blue-400 shadow-sm ring-1 ring-blue-100"
+                : "bg-white border-gray-200"
+              }
+            `}
+            onClick={() => {
+              if (disabled) return;
+              onChange(isActive ? "" : level.id); 
+            }}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && !disabled) {
+                onChange(isActive ? "" : level.id);
+              }
+            }}
+          >
+            {/* Visual checkbox indicator - Consistent small size */}
+            <div className={`
+              flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border-2 transition-colors
+              ${isActive ? "bg-blue-600 border-blue-600" : "bg-white border-gray-400 group-hover:border-blue-400"}
+            `}>
+              {isActive && (
+                <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-white">
+                  <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              )}
+            </div>
+            <span className={`text-[12.5px] font-bold tracking-tight transition-colors ${
+              isActive ? "text-blue-700" : "text-gray-600 group-hover:text-gray-900"
+            }`}>
+              {level.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 function RBACManagement() {
@@ -1566,16 +1622,25 @@ function RBACManagement() {
                             return (
                               <label
                                 key={userId}
-                                className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
+                                className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all duration-150 ${
                                   selectedUserIds.includes(userId)
-                                    ? "border-blue-300 bg-blue-50/60 shadow-sm"
-                                    : "border-transparent hover:bg-gray-50"
+                                    ? "border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-200"
+                                    : "border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/30"
                                 }`}
                               >
-                                <Checkbox
-                                  checked={selectedUserIds.includes(userId)}
-                                  onCheckedChange={() => toggleUser(userId)}
-                                />
+                                <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border-2 transition-colors ${
+                                  selectedUserIds.includes(userId)
+                                    ? "border-blue-600 bg-blue-600"
+                                    : "border-gray-400 bg-white"
+                                }`}
+                                  onClick={() => toggleUser(userId)}
+                                >
+                                  {selectedUserIds.includes(userId) && (
+                                    <svg viewBox="0 0 10 8" className="h-2.5 w-2.5">
+                                      <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                    </svg>
+                                  )}
+                                </div>
                                 <div className="flex bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-inner shrink-0 items-center justify-center rounded-full h-10 w-10 text-[13px] tracking-wider font-semibold">
                                   {getInitials(getDisplayName(user))}
                                 </div>
@@ -1825,46 +1890,20 @@ function RBACManagement() {
 
                                   <TableCell className="align-top">
                                     <div className="space-y-3">
-                                      <select
+                                      <PermissionSelector
                                         value={draftLevels[permissionKey] || ""}
                                         disabled={
                                           !canWriteAdminSettings ||
                                           overrideChoices.length === 0
                                         }
-                                        title={
-                                          overrideChoices.length > 0
-                                            ? selectedLevels.length > 1
-                                              ? "Choose bulk access update"
-                                              : "Choose override level"
-                                            : "No alternate override"
-                                        }
-                                        onChange={(event) =>
+                                        options={overrideChoices.map(c => c.level)}
+                                        onChange={(val) =>
                                           setDraftLevels((current) => ({
                                             ...current,
-                                            [permissionKey]: event.target.value,
+                                            [permissionKey]: val,
                                           }))
                                         }
-                                        className={`h-10 w-full rounded-md border px-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                          overrideChoices.length === 0
-                                            ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                                            : "border-gray-300 bg-white text-gray-900"
-                                        }`}
-                                      >
-                                        <option value="" disabled>
-                                          {overrideChoices.length > 0
-                                            ? selectedLevels.length > 1
-                                              ? "Choose bulk update"
-                                              : "Choose override level"
-                                            : "No alternate override"}
-                                        </option>
-                                        {overrideChoices.map((choice) => (
-                                          <option key={choice.level} value={choice.level}>
-                                            {selectedLevels.length > 1
-                                              ? `Set all to ${formatAccessLabel(choice.level)}`
-                                              : `Set to ${formatAccessLabel(choice.level)}`}
-                                          </option>
-                                        ))}
-                                      </select>
+                                      />
                                       {selectedOverrideChoice && selectedLevels.length > 1 ? (
                                         <p className="text-[11px] leading-5 text-gray-500">
                                           {selectedOverrideChoice.changedCount} of{" "}
@@ -2204,7 +2243,7 @@ function RBACManagement() {
                                   {permissionKeys.map((permissionKey) => (
                                     <div
                                       key={permissionKey}
-                                      className="grid grid-cols-1 gap-3 rounded-lg border border-gray-100 bg-white p-3 md:grid-cols-[minmax(0,1fr)_180px]"
+                                      className="flex flex-col gap-3 rounded-lg border border-gray-100 bg-white p-3 lg:flex-row lg:items-center lg:justify-between"
                                     >
                                       <div>
                                         <div className="text-sm font-medium text-gray-900">
@@ -2214,23 +2253,19 @@ function RBACManagement() {
                                           {permissionKey}
                                         </div>
                                       </div>
-                                      <select
-                                        value={roleForm.permissions?.[permissionKey] || "none"}
-                                        onChange={(event) =>
-                                          handleRolePermissionChange(
-                                            permissionKey,
-                                            event.target.value
-                                          )
-                                        }
-                                        disabled={isRoleReadOnly}
-                                        className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      >
-                                        {OVERRIDE_OPTIONS.map((level) => (
-                                          <option key={level} value={level}>
-                                            {formatAccessLabel(level)}
-                                          </option>
-                                        ))}
-                                      </select>
+                                      <div className="justify-end flex">
+                                        <PermissionSelector
+                                          value={roleForm.permissions?.[permissionKey] || ""}
+                                          onChange={(val) =>
+                                            handleRolePermissionChange(
+                                              permissionKey,
+                                              val
+                                            )
+                                          }
+                                          disabled={isRoleReadOnly}
+                                          options={OVERRIDE_OPTIONS}
+                                        />
+                                      </div>
                                     </div>
                                   ))}
                                 </div>

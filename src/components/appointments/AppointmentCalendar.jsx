@@ -56,14 +56,10 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
   useEffect(() => {
     const email = (loggedInDoctor?.email || "").trim().toLowerCase();
-    const hasProfileContext =
-      email.length > 0 || typeof loggedInDoctor?.clinicName === "string";
 
-    if (!hasProfileContext || isSelectionInitialized) {
-      return;
-    }
-
-    if (email && canSelectProviders) {
+    // Always default the initial selection to the logged-in clinician's email
+    // for a safe, personalized starting view.
+    if (email) {
       setSelectedDoctors([email]);
       setDoctorColorMap((current) => ({
         ...current,
@@ -72,15 +68,20 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     }
 
     setIsSelectionInitialized(true);
-  }, [canSelectProviders, loggedInDoctor?.email, loggedInDoctor?.clinicName, isSelectionInitialized]);
+  }, [loggedInDoctor?.email, loggedInDoctor?.clinicName, isSelectionInitialized]);
 
   useEffect(() => {
     if (canSelectProviders) {
       return;
     }
 
-    setSelectedDoctors([]);
-  }, [canSelectProviders]);
+    const email = (loggedInDoctor?.email || "").trim().toLowerCase();
+    if (email) {
+      setSelectedDoctors([email]);
+    } else {
+      setSelectedDoctors(["__none__"]);
+    }
+  }, [canSelectProviders, loggedInDoctor?.email]);
 
   const applySeismified = async (list) => {
     const ids = (Array.isArray(list) ? list : [])
@@ -127,7 +128,19 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
       setIsCalendarLoading(true);
 
-      const doctorsToFetch = selectedDoctors;
+      let doctorsToFetch = selectedDoctors;
+
+      if (!canSelectProviders) {
+        const myEmail = (loggedInDoctor?.email || "").trim().toLowerCase();
+        if (!myEmail) {
+          if (isActive) {
+            setAppointments([]);
+            setIsCalendarLoading(false);
+          }
+          return;
+        }
+        doctorsToFetch = [myEmail];
+      }
 
       const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch, userClinicForApi);
 
@@ -140,9 +153,11 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
       const merged = await applySeismified(flatData);
 
-      // Create a Set of selected doctor emails for efficient lookup (normalized)
-      const selectedDoctorEmails = new Set(
-        selectedDoctors.map(email => (email || "").trim().toLowerCase())
+      // SECURITY HARD-STOP: Use the secured list (doctorsToFetch) for filtering,
+      // NOT the UI state (selectedDoctors). This ensures that if canSelectProviders
+      // is false, the filter is REQUIRED to match only the user's email.
+      const securedDoctorEmails = new Set(
+        doctorsToFetch.map(email => (email || "").trim().toLowerCase())
       );
 
       const filtered = merged.filter(appt => {
@@ -160,12 +175,11 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           if (appt.clinicName && appt.clinicName.trim() !== "") return false;
         }
 
-        // 2. Filter by Selected Doctors (View preference)
-        // If selectedDoctors is empty, we might show nothing or everything? 
-        // Logic above says if empty -> return [], so we assume selectedDoctors has entries here.
-        if (selectedDoctorEmails.size > 0) {
+        // 2. Filter by Secured Doctor list (Security/View preference)
+        // If doctorsToFetch is locked (via !canSelectProviders), this set is just [myEmail].
+        if (securedDoctorEmails.size > 0) {
           const apptDoctorEmail = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
-          if (!selectedDoctorEmails.has(apptDoctorEmail)) return false;
+          if (!securedDoctorEmails.has(apptDoctorEmail)) return false;
         }
 
         return true;
@@ -187,7 +201,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     return () => {
       isActive = false;
     };
-  }, [isSelectionInitialized, selectedDoctors, loggedInDoctor?.clinicName]);
+  }, [isSelectionInitialized, selectedDoctors, loggedInDoctor?.clinicName, canSelectProviders, loggedInDoctor?.email]);
 
   const events = appointments.map((appt) => {
     const doctorKey = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
@@ -437,7 +451,15 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
                 ...updated,
               };
 
-              setAppointments((prev) => [...prev, newEvent]);
+              // Only add to the calendar view if the appointment belongs to a doctor
+              // currently being viewed. Prevents staff-created appointments from
+              // appearing in the staff's own calendar (they scheduled it for someone else).
+              const normalizedNewEmail = (updated.doctor_email || "").trim().toLowerCase();
+              const selectedSet = new Set(selectedDoctors.map(e => (e || "").trim().toLowerCase()));
+
+              if (selectedSet.has(normalizedNewEmail)) {
+                setAppointments((prev) => [...prev, newEvent]);
+              }
             }
           }}
         />

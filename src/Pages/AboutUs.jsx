@@ -1,8 +1,10 @@
 import { useState } from "react";
 import {
   Video, CalendarClock, ShieldCheck, Plug, FileText, BrainCircuit,
-  Smile, ActivitySquare, BarChart3, Bot, Handshake 
+  Smile, ActivitySquare, BarChart3, Bot, Handshake,
+  Heart, Lightbulb, Shield, Globe2
 } from "lucide-react";
+import { Link } from "wouter";
 import { PageNavigation } from "../components/ui/page-navigation";
 
 const features = [
@@ -26,6 +28,7 @@ const roadmap = [
 
 const About = () => {
   const [tab, setTab] = useState("features");
+
   return (
     <div className="px-4 pb-6">
       <div className="max-w-5xl mx-auto">
@@ -52,7 +55,12 @@ const About = () => {
               <p className="text-neutral-700 mb-4">
                 Seismic Connect leverages AI to handle administrative documentation—giving healthcare providers more time and focus to build authentic, empathetic relationships with patients.
               </p>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition">Learn More</button>
+              <Link
+                href="/about/details"
+                className="inline-flex bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition"
+              >
+                Learn More
+              </Link>
             </div>
             <div className="ml-0 md:ml-8 mt-8 md:mt-0 flex flex-col items-center justify-center">
               <Handshake className="w-20 h-20 text-blue-500 mb-2" />
@@ -66,22 +74,30 @@ const About = () => {
           <h2 className="text-2xl font-bold mb-6">Our Core Values</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow p-5 flex flex-col items-center text-center">
-              <span className="text-blue-500 text-3xl mb-2">💙</span>
+              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                <Heart className="text-blue-500 w-6 h-6" />
+              </div>
               <h4 className="font-semibold mb-1">Empathy</h4>
               <p className="text-sm text-neutral-500">We prioritize compassion in every patient interaction.</p>
             </div>
             <div className="bg-white rounded-xl shadow p-5 flex flex-col items-center text-center">
-              <span className="text-blue-500 text-3xl mb-2">🧠</span>
+              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                <Lightbulb className="text-blue-500 w-6 h-6" />
+              </div>
               <h4 className="font-semibold mb-1">Innovation</h4>
               <p className="text-sm text-neutral-500">We drive forward with bold, AI-powered solutions.</p>
             </div>
             <div className="bg-white rounded-xl shadow p-5 flex flex-col items-center text-center">
-              <span className="text-blue-500 text-3xl mb-2">🛡️</span>
+              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                <Shield className="text-blue-500 w-6 h-6" />
+              </div>
               <h4 className="font-semibold mb-1">Reliability</h4>
               <p className="text-sm text-neutral-500">We ensure consistent, secure performance at scale.</p>
             </div>
             <div className="bg-white rounded-xl shadow p-5 flex flex-col items-center text-center">
-              <span className="text-blue-500 text-3xl mb-2">🌐</span>
+              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                <Globe2 className="text-blue-500 w-6 h-6" />
+              </div>
               <h4 className="font-semibold mb-1">Accessibility</h4>
               <p className="text-sm text-neutral-500">We build inclusive tools for global reach.</p>
             </div>

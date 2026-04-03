@@ -11,9 +11,7 @@ const tabs = [
   { id: "gettingStarted", label: "Getting Started" },
   { id: "navigationGuide", label: "Navigation Guide" },
   { id: "featureWalkthroughs", label: "Feature Walkthroughs" },
-  { id: "tipsBestPractices", label: "Tips & Best Practices" },
   { id: "faq", label: "FAQ" },
-  { id: "support", label: "Support" },
 ];
 
 function GettingStartedTab() {
@@ -57,7 +55,7 @@ function GettingStartedTab() {
       num: 4, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
           <li>Use the in-app AI Chat Assistant (Pulse) by clicking the chat icon for real-time help and guidance.</li>
-          <li>For further support, go to the <b>Contact Us</b> page from the sidebar to submit a support ticket or send an email to the support team.</li>
+          <li>For further support, go to the <b>Support</b> page from the sidebar to submit a support ticket or send an email to the support team.</li>
           <li>For urgent issues, refer to emergency support instructions in the Connect or Support sections.</li>
         </ul>
       )
@@ -266,7 +264,7 @@ function NavigationGuideAccordion() {
                 id="explore-videocall-btn"
                 className="mt-8 px-5 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition text-sm"
                 style={{ display: 'none' }}
-                onClick={() => window.location.href = '/video call'}
+                onClick={() => window.location.href = '/video-call'}
               >
                 Explore your Video Call
               </button>
@@ -278,7 +276,7 @@ function NavigationGuideAccordion() {
               </div>
               <div className="text-xs text-neutral-500 mb-3">A quick tour of your Video Call features</div>
               <video
-                src="/video call.mp4"
+                src="/video-call.mp4"
                 controls
                 controlsList="nodownload"
                 className="w-full rounded-xl object-cover shadow"
@@ -493,7 +491,7 @@ function NavigationGuideAccordion() {
     },
     {
       icon: <MessageCircle className="w-7 h-7 text-blue-500" />,
-      title: "Contact Us",
+      title: "Support",
       details: (
         <>
           <div
@@ -513,13 +511,13 @@ function NavigationGuideAccordion() {
                 style={{ display: 'none' }}
                 onClick={() => window.location.href = '/contact'}
               >
-                Explore Contact Us
+                Explore Support
               </button>
             </div>
             {/* Right: Video card with clean heading */}
             <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md flex flex-col items-center md:items-start border border-neutral-200">
               <div className="mb-2 text-lg font-bold text-neutral-900">
-                Contact Us Video Walkthrough
+                Support Video Walkthrough
               </div>
               <div className="text-xs text-neutral-500 mb-3">A quick tour of the Contact Us page features</div>
               <video
@@ -581,7 +579,7 @@ function FeatureWalkthroughsAccordion() {
       content: (
         <div className="text-neutral-700 text-sm space-y-2">
           <ol className="list-decimal ml-6 space-y-1">
-            <li>Navigate to the <b>Contact Us</b> page from the sidebar.</li>
+            <li>Navigate to the <b>Support</b> page from the sidebar.</li>
             <li>Click on <b>"Create a Ticket."</b></li>
             <li>Fill in the ticket form:
               <ul className="list-disc ml-6">
@@ -709,7 +707,7 @@ function FAQAccordion() {
         <div className="text-neutral-700 text-sm space-y-2">
           <div>There are two fast ways to get help:</div>
           <ul className="list-disc ml-6">
-            <li>Visit the Contact Us page to:
+            <li>Visit the Support page to:
               <ul className="list-disc ml-6">
                 <li>Submit a support ticket</li>
                 <li>Chat live with an agent</li>
@@ -741,7 +739,7 @@ function FAQAccordion() {
   return (
     <div>
       <h2 className="text-4xl font-bold text-center mb-2">FAQ</h2>
-      <p className="text-lg text-center text-neutral-500 mb-8">Find quick answers to common questions from new and returning users. If your question isn't listed here, try the Chat Assistant or reach out through the Contact Us page.</p>
+      <p className="text-lg text-center text-neutral-500 mb-8">Find quick answers to common questions from new and returning users. If your question isn't listed here, try the Chat Assistant or reach out through the Support page.</p>
       <div className="max-w-2xl mx-auto space-y-4">
         {faqs.map((faq) => (
           <div key={faq.question} className="bg-white border-2 border-blue-100 rounded-xl shadow">
@@ -820,56 +818,6 @@ const tabContent = {
   gettingStarted: <GettingStartedTab />,
   navigationGuide: <NavigationGuideAccordion />,
   featureWalkthroughs: <FeatureWalkthroughsAccordion />,
-  tipsBestPractices: (
-    <div>
-      <h2 className="text-4xl font-bold text-center mb-2">Tips & Best Practices</h2>
-      <p className="text-lg text-center text-neutral-500 mb-8">To ensure the best experience with Seismic Connect, we recommend following these key tips and operational best practices. These simple habits can save time, reduce errors, and help you get the most out of the platform.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
-        {/* Profile Info */}
-        <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center text-center border-2 border-blue-100">
-          <span className="text-5xl mb-3">🧑‍💼</span>
-          <h4 className="font-bold text-lg mb-1 text-blue-700">Keep Your Profile Information Up to Date</h4>
-          <ul className="text-neutral-700 text-sm mb-2 list-disc list-inside text-left mx-auto" style={{ maxWidth: '320px' }}>
-            <li>Update your name, specialty, and availability regularly</li>
-            <li>Ensure your email and contact number are current</li>
-            <li>Keep notification preferences aligned with your workflow</li>
-            <li>Go to <b>Settings &gt; Profile</b> to make changes</li>
-          </ul>
-          <div className="text-xs text-blue-700 mt-2 flex items-center"><span className="mr-1">🔐</span>Up-to-date profiles ensure secure communication and proper role access.</div>
-        </div>
-        {/* Chat Assistant */}
-        <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center text-center border-2 border-blue-100">
-          <span className="text-5xl mb-3">🤖</span>
-          <h4 className="font-bold text-lg mb-1 text-blue-700">Use the Chat Assistant for Quick Answers</h4>
-          <ul className="text-neutral-700 text-sm mb-2 list-disc list-inside text-left mx-auto" style={{ maxWidth: '320px' }}>
-            <li>Access Pulse, the AI Chat Assistant, anytime using the chat icon</li>
-            <li>Ask for navigation help, feature tutorials, troubleshooting tips</li>
-            <li>Escalate to a live agent if needed</li>
-          </ul>
-          <div className="text-xs text-blue-700 mt-2 flex items-center"><span className="mr-1">💬</span>Pulse provides instant, context-aware support to keep you moving forward.</div>
-        </div>
-        {/* Connect for Updates */}
-        <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center text-center border-2 border-blue-100">
-          <span className="text-5xl mb-3">📰</span>
-          <h4 className="font-bold text-lg mb-1 text-blue-700">Check Connect for the Latest Updates</h4>
-          <ul className="text-neutral-700 text-sm mb-2 list-disc list-inside text-left mx-auto" style={{ maxWidth: '320px' }}>
-            <li>Visit the Connect page for new features, security patches, planned maintenance, and emergency communications</li>
-          </ul>
-          <div className="text-xs text-blue-700 mt-2 flex items-center"><span className="mr-1">🧭</span>Staying informed ensures you're always using the most stable, secure version.</div>
-        </div>
-        {/* Contact Support */}
-        <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center text-center border-2 border-blue-100">
-          <span className="text-5xl mb-3">🆘</span>
-          <h4 className="font-bold text-lg mb-1 text-blue-700">Contact Support for Unresolved Issues</h4>
-          <ul className="text-neutral-700 text-sm mb-2 list-disc list-inside text-left mx-auto" style={{ maxWidth: '320px' }}>
-            <li>Use the Contact Us page to submit a support ticket, chat with an agent, or reach emergency contacts</li>
-            <li>Always include clear details and screenshots when possible</li>
-          </ul>
-          <div className="text-xs text-blue-700 mt-2 flex items-center"><span className="mr-1">🛠</span>Our support team responds within 24 hours for standard tickets and instantly for urgent cases.</div>
-        </div>
-      </div>
-    </div>
-  ),
   faq: <FAQAccordion />,
   support: (
     <div>

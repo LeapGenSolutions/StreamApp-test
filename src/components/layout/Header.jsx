@@ -62,7 +62,7 @@ const Header = () => {
               : "text-neutral-600 hover:text-black"
               }`}
           >
-            Contact Us
+            Support
           </Link>
         </nav>
 

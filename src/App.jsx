@@ -25,6 +25,7 @@ import RBACManagement from "./Pages/RBACManagement";
 import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import AboutUs from "./Pages/AboutUs";
+import AboutSeismic from "./Pages/AboutSeismic";
 import Connect from "./Pages/Connect";
 import ContactUs from "./Pages/ContactUs";
 import Documentation from "./Pages/Documentation";
@@ -123,6 +124,7 @@ function Router() {
         <main className="flex-1 overflow-y-auto bg-neutral-50 p-6">
           <Switch>
             <Route path="/about" component={AboutUs} />
+            <Route path="/about/details" component={AboutSeismic} />
             <Route path="/connect" component={Connect} />
             <Route path="/contact" component={ContactUs} />
             <Route path="/documentation" component={Documentation} />
@@ -375,8 +377,28 @@ function Main() {
     <>
       {tokenBypass ? (
         isAuthorizing ? (
-          <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
-            Loading your access profile...
+          <div className="flex min-h-screen bg-neutral-50">
+            {/* Skeleton sidebar */}
+            <div className="hidden md:flex flex-col w-64 bg-neutral-800 p-4 gap-4">
+              <div className="h-10 w-32 bg-neutral-700 rounded animate-pulse" />
+              <div className="space-y-3 mt-6">
+                {[1,2,3,4].map(i => <div key={i} className="h-8 bg-neutral-700 rounded animate-pulse" />)}
+              </div>
+            </div>
+            {/* Skeleton content */}
+            <div className="flex-1 flex flex-col">
+              <div className="h-14 bg-white border-b border-neutral-200 flex items-center px-6 gap-4">
+                <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
+                <div className="h-4 w-16 bg-neutral-200 rounded animate-pulse" />
+                <div className="ml-auto h-8 w-8 bg-neutral-200 rounded-full animate-pulse" />
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[1,2,3].map(i => <div key={i} className="h-40 bg-white rounded-xl shadow-sm animate-pulse" />)}
+                </div>
+              </div>
+            </div>
           </div>
         ) : me?.profileComplete !== true ? (
           registrationDenied
@@ -394,8 +416,28 @@ function Main() {
         )
       ) : isAuthorizing && isAuthenticated ? (
         <AuthenticatedTemplate>
-          <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
-            Loading your access profile...
+          <div className="flex min-h-screen bg-neutral-50">
+            {/* Skeleton sidebar */}
+            <div className="hidden md:flex flex-col w-64 bg-neutral-800 p-4 gap-4">
+              <div className="h-10 w-32 bg-neutral-700 rounded animate-pulse" />
+              <div className="space-y-3 mt-6">
+                {[1,2,3,4].map(i => <div key={i} className="h-8 bg-neutral-700 rounded animate-pulse" />)}
+              </div>
+            </div>
+            {/* Skeleton content */}
+            <div className="flex-1 flex flex-col">
+              <div className="h-14 bg-white border-b border-neutral-200 flex items-center px-6 gap-4">
+                <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
+                <div className="h-4 w-16 bg-neutral-200 rounded animate-pulse" />
+                <div className="ml-auto h-8 w-8 bg-neutral-200 rounded-full animate-pulse" />
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[1,2,3].map(i => <div key={i} className="h-40 bg-white rounded-xl shadow-sm animate-pulse" />)}
+                </div>
+              </div>
+            </div>
           </div>
         </AuthenticatedTemplate>
       ) : hasAppRole ? (

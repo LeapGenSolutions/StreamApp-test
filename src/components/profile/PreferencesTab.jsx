@@ -6,11 +6,15 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { useToast } from "../../hooks/use-toast";
 import { BACKEND_URL } from "../../constants";
-import { getSessionAuthToken } from "../../api/auth";
+
+function getSessionAuthToken() {
+  return typeof window !== "undefined"
+    ? sessionStorage.getItem("backendToken")
+    : null;
+}
 
 export default function PreferencesTab({ profileData, setProfileData }) {
   const { toast } = useToast();
-  const token = getSessionAuthToken(); 
   
   const [formData, setFormData] = useState({
     email: profileData?.notifications?.email ?? true,
@@ -49,6 +53,7 @@ export default function PreferencesTab({ profileData, setProfileData }) {
     setIsSaving(true);
     
     try {
+      const token = getSessionAuthToken();
       const response = await fetch(`${BACKEND_URL}/api/standalone/profile/preferences`, {
         method: "PUT",
         headers: {

@@ -12,11 +12,21 @@ import { insertCallHistory } from '../api/callHistory';
 import { STREAM_API_KEY } from '../constants';
 import { NotesTrigger } from "../components/ui/notes-trigger";
 import { FloatingNotepad } from "../components/ui/floating-notepad";
+import { resolveUserNameParts } from '../lib/userName';
 
+const buildDoctorName = (me = {}) => {
+  const { firstName, lastName } = resolveUserNameParts(me);
+
+  if (!firstName && !lastName) {
+    return "";
+  }
+
+  return [firstName, lastName].filter(Boolean).join(" ").trim();
+};
 
 const StreamVideoCoreV3 = () => {
   const apiKey = STREAM_API_KEY;
-  const me = useSelector((state) => state.me.me)
+  const me = useSelector((state) => state.me.me || {})
   const userId = me.aud;
   const { callId } = useParams();
   const searchParams = useSearchParams()[0]
@@ -26,13 +36,7 @@ const StreamVideoCoreV3 = () => {
   const isInPerson = normalizedType === "inperson";
 
   const role = 'doctor'
-  // Fix for duplicate names (e.g. "John Doe John Doe")
-  // If family name is already in given name, or they are identical, be smart about it.
-  const fName = (me.given_name || "").trim();
-  const lName = (me.family_name || "").trim();
-  const userName = (fName === lName || fName.toLowerCase().endsWith(lName.toLowerCase()))
-    ? fName
-    : `${fName} ${lName}`.trim();
+  const userName = buildDoctorName(me) || me.name || me.email || "Doctor";
   const myEmail = me.email
 
   const [client, setClient] = useState(null);

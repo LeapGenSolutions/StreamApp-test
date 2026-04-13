@@ -11,6 +11,37 @@ import { useToast } from "../hooks/use-toast";
 import { PageNavigation } from "../components/ui/page-navigation";
 import CreateAppointmentModal from "../components/appointments/CreateAppointmentModal";
 import { usePermission } from "../hooks/use-permission";
+import { resolveUserNameParts } from "../lib/userName";
+
+const normalizeNameValue = (value = "") =>
+  String(value).replace(/\s+/g, " ").trim();
+
+const stripHonorific = (value = "") =>
+  normalizeNameValue(value).replace(
+    /^(dr|mr|mrs|ms|miss)\.?\s+/i,
+    ""
+  );
+
+const getVideoCallDisplayName = (user = {}) => {
+  const { firstName, lastName, fullName } = resolveUserNameParts(user);
+  const pageCandidate = stripHonorific(
+    user.fullName ||
+      user.name ||
+      [user.given_name, user.family_name].filter(Boolean).join(" ") ||
+      fullName ||
+      user.doctor_name
+  );
+  const candidateParts = pageCandidate.split(" ").filter(Boolean);
+
+  if (candidateParts.length >= 2) {
+    return `${candidateParts[0]} ${candidateParts[1]}`;
+  }
+
+  const normalizedFirstName = stripHonorific(firstName).split(" ")[0] || "";
+  const primaryLastName = normalizeNameValue(lastName).split(" ")[0] || "";
+
+  return [normalizedFirstName, primaryLastName].filter(Boolean).join(" ").trim() || pageCandidate;
+};
 
 const VideoCallPage = () => {
   const [room, setRoom] = useState("");
@@ -24,7 +55,8 @@ const VideoCallPage = () => {
   const [seismifiedIds, setSeismifiedIds] = useState([]);
   const isLoadingUpcoming = useState(false)[0];
   const dispatch = useDispatch();
-  const userName = useSelector((state) => state.me.me.given_name);
+  const me = useSelector((state) => state.me.me || {});
+  const userName = getVideoCallDisplayName(me);
   const myEmail = useSelector((state) => state.me.me.email);
   const clinicName = useSelector((state) => state.me.me.clinicName);
   const appointments = useSelector((state) => state.appointments.appointments);
@@ -342,9 +374,9 @@ const VideoCallPage = () => {
 
                       <div className="flex space-x-4">
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="in-person"
+                        <input
+                          type="radio"
+                          id="in-person"
                             name="appointmentType"
                             value="in-person"
                             checked={appointmentType === "in-person"}
@@ -360,8 +392,8 @@ const VideoCallPage = () => {
                         </div>
 
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
+                        <input
+                          type="radio"
                             id="online"
                             name="appointmentType"
                             value="online"

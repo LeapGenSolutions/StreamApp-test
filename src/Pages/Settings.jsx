@@ -22,6 +22,20 @@ function Settings() {
         //showDate={true}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile & Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Manage your personal information, clinic access, notifications, compliance, and account preferences.
+            </p>
+            <Link href="/settings/profile" className="text-sm font-medium text-blue-600 hover:underline">
+              Open profile settings
+            </Link>
+          </CardContent>
+        </Card>
+
         <HasPermission required="settings.ehr_integration" level="read">
           <Card>
             <CardHeader>

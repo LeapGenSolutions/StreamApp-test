@@ -19,6 +19,7 @@ import BillingHistory from "./Pages/BillingHistory";
 import BillCalculation from "./Pages/BillCalculation";
 import InvoicePreview from "./Pages/InvoicePreview";
 import Settings from "./Pages/Settings";
+import ProfileSettings from "./Pages/ProfileSettings";
 import AthenaIntegration from "./Pages/AthenaIntegration";
 import PaymentBilling from "./Pages/PaymentBilling";
 import RBACManagement from "./Pages/RBACManagement";
@@ -121,7 +122,7 @@ function Router() {
       {!isPatientView && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-neutral-50 p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-neutral-50 p-3 sm:p-4 lg:p-6">
           <Switch>
             <Route path="/about" component={AboutUs} />
             <Route path="/about/details" component={AboutSeismic} />
@@ -209,12 +210,19 @@ function Router() {
               level="read"
             />
             <AuthorizedRoute
+              path="/profile-settings"
+              component={ProfileSettings}
+              allow
+            />
+            <AuthorizedRoute
+              path="/settings/profile"
+              component={ProfileSettings}
+              allow
+            />
+            <AuthorizedRoute
               path="/settings"
               component={Settings}
-              checks={[
-                { required: "settings.ehr_integration", level: "read" },
-                { required: "settings.payment_billing", level: "read" },
-              ]}
+              allow
             />
             <AuthorizedRoute
               path="/settings/ehr-integration"
@@ -271,11 +279,43 @@ function Router() {
   );
 }
 
+function AppShellSkeleton() {
+  return (
+    <div className="flex min-h-screen bg-neutral-50">
+      <div className="hidden md:flex flex-col w-64 bg-neutral-800 p-4 gap-4">
+        <div className="h-10 w-32 bg-neutral-700 rounded animate-pulse" />
+        <div className="space-y-3 mt-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-8 bg-neutral-700 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <div className="h-14 bg-white border-b border-neutral-200 flex items-center px-6 gap-4">
+          <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
+          <div className="h-4 w-16 bg-neutral-200 rounded animate-pulse" />
+          <div className="ml-auto h-8 w-8 bg-neutral-200 rounded-full animate-pulse" />
+        </div>
+        <div className="p-6 space-y-6">
+          <div className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-40 bg-white rounded-xl shadow-sm animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Main() {
   const isAuthenticated = useIsAuthenticated();
   const [tokenBypass, setTokenBypass] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
-  const { instance, accounts } = useMsal();
+  const [hasBootstrappedAuth, setHasBootstrappedAuth] = useState(false);
+  const { instance, accounts, inProgress } = useMsal();
   const dispatch = useDispatch();
   const me = useSelector((state) => state.me.me);
   const hasAppRole = Boolean(normalizeRole(me?.role));
@@ -303,6 +343,10 @@ function Main() {
     let isMounted = true;
 
     async function hydrateUser() {
+      if (inProgress !== "none") {
+        return;
+      }
+
       setIsAuthorizing(true);
       try {
         const queryParams = new URLSearchParams(window.location.search);
@@ -336,6 +380,7 @@ function Main() {
       } finally {
         if (isMounted) {
           setIsAuthorizing(false);
+          setHasBootstrappedAuth(true);
         }
       }
     }
@@ -346,7 +391,7 @@ function Main() {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [inProgress, isAuthenticated]);
 
   const accessDenied = (
     <AccessDenied
@@ -373,33 +418,15 @@ function Main() {
     />
   );
 
+  if (!hasBootstrappedAuth || inProgress !== "none") {
+    return <AppShellSkeleton />;
+  }
+
   return (
     <>
       {tokenBypass ? (
         isAuthorizing ? (
-          <div className="flex min-h-screen bg-neutral-50">
-            {/* Skeleton sidebar */}
-            <div className="hidden md:flex flex-col w-64 bg-neutral-800 p-4 gap-4">
-              <div className="h-10 w-32 bg-neutral-700 rounded animate-pulse" />
-              <div className="space-y-3 mt-6">
-                {[1,2,3,4].map(i => <div key={i} className="h-8 bg-neutral-700 rounded animate-pulse" />)}
-              </div>
-            </div>
-            {/* Skeleton content */}
-            <div className="flex-1 flex flex-col">
-              <div className="h-14 bg-white border-b border-neutral-200 flex items-center px-6 gap-4">
-                <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
-                <div className="h-4 w-16 bg-neutral-200 rounded animate-pulse" />
-                <div className="ml-auto h-8 w-8 bg-neutral-200 rounded-full animate-pulse" />
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[1,2,3].map(i => <div key={i} className="h-40 bg-white rounded-xl shadow-sm animate-pulse" />)}
-                </div>
-              </div>
-            </div>
-          </div>
+          <AppShellSkeleton />
         ) : me?.profileComplete !== true ? (
           registrationDenied
         ) : me?.approvalStatus === "pending" ? (
@@ -416,29 +443,7 @@ function Main() {
         )
       ) : isAuthorizing && isAuthenticated ? (
         <AuthenticatedTemplate>
-          <div className="flex min-h-screen bg-neutral-50">
-            {/* Skeleton sidebar */}
-            <div className="hidden md:flex flex-col w-64 bg-neutral-800 p-4 gap-4">
-              <div className="h-10 w-32 bg-neutral-700 rounded animate-pulse" />
-              <div className="space-y-3 mt-6">
-                {[1,2,3,4].map(i => <div key={i} className="h-8 bg-neutral-700 rounded animate-pulse" />)}
-              </div>
-            </div>
-            {/* Skeleton content */}
-            <div className="flex-1 flex flex-col">
-              <div className="h-14 bg-white border-b border-neutral-200 flex items-center px-6 gap-4">
-                <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
-                <div className="h-4 w-16 bg-neutral-200 rounded animate-pulse" />
-                <div className="ml-auto h-8 w-8 bg-neutral-200 rounded-full animate-pulse" />
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="h-20 bg-white rounded-xl shadow-sm animate-pulse" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[1,2,3].map(i => <div key={i} className="h-40 bg-white rounded-xl shadow-sm animate-pulse" />)}
-                </div>
-              </div>
-            </div>
-          </div>
+          <AppShellSkeleton />
         </AuthenticatedTemplate>
       ) : hasAppRole ? (
         <AuthenticatedTemplate>

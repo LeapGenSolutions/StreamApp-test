@@ -6,6 +6,7 @@ import {
   normalizeRole,
   SYSTEM_ROLES,
 } from "../lib/rbac";
+import { resolveUserNameParts } from "../lib/userName";
 
 const asRoleList = (value) => {
   if (Array.isArray(value)) {
@@ -22,6 +23,7 @@ const asRoleList = (value) => {
 const setMyDetails = (details) => {
   return async (dispatch) => {
     const email = details.email?.toLowerCase();
+    const emailHandle = details.email?.split("@")[0] || "";
 
     // fetch doctor metadata from doctors container
     let doctors = [];
@@ -54,24 +56,27 @@ const setMyDetails = (details) => {
       }
     }
 
-    const fullName =
-      [doctorDoc?.firstName, doctorDoc?.lastName].filter(Boolean).join(" ") ||
-      details.name ||
-      details.given_name ||
-      details.email?.split("@")[0] ||
-      "";
+    const { firstName, lastName, fullName } = resolveUserNameParts({
+      firstName: doctorDoc?.firstName,
+      lastName: doctorDoc?.lastName,
+      fullName: details.name,
+      given_name: details.given_name,
+      family_name: details.family_name,
+      doctor_name: doctorDoc?.doctor_name,
+    });
+    const resolvedFullName = fullName || emailHandle;
 
     const payload = {
       ...details,
       email,
-      doctor_name: doctorDoc?.doctor_name || fullName,
+      doctor_name: doctorDoc?.doctor_name || resolvedFullName,
       doctor_id: doctorDoc?.doctor_id || doctorDoc?.id,
       doctor_email: doctorDoc?.doctor_email || email,
       specialization: doctorDoc?.specialization || doctorDoc?.specialty,
-      given_name: fullName,
-      family_name: doctorDoc?.lastName || details.family_name,
-      name: fullName,
-      fullName,
+      given_name: firstName || details.given_name || emailHandle,
+      family_name: lastName || details.family_name,
+      name: resolvedFullName,
+      fullName: resolvedFullName,
       role: normalizedRole,
       roles: Array.isArray(doctorDoc?.roles)
         ? doctorDoc.roles

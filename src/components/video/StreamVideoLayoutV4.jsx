@@ -1,14 +1,30 @@
 import { CallingState, CancelCallButton, StreamTheme, ToggleAudioPreviewButton, ToggleVideoPreviewButton, useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import SideBySideLayout from "./SideBySideLayout";
-import RightPanel from './RightPanel';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaCircle, FaStopCircle } from 'react-icons/fa';
 
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { useSelector } from "react-redux";
 import sendMessageToQueue from "../../api/SendMessageToQueue";
 import { navigate } from "wouter/use-browser-location";
+
+const AUDIO_CHUNK_SECONDS = 0.12;
+const AUDIO_BUFFER_SIZE = 2048;
+
+const extractTranscriptSpeaker = (payload) =>
+    payload?.speaker ??
+    payload?.speaker_name ??
+    payload?.speakerName ??
+    payload?.speaker_label ??
+    payload?.speakerLabel ??
+    payload?.participant_name ??
+    payload?.participantName ??
+    payload?.participant ??
+    payload?.role ??
+    payload?.user_id ??
+    payload?.userId ??
+    '';
 
 const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
     const {
@@ -28,12 +44,15 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
     const cyclingRef = useRef(false); // flag to prevent multiple intervals
 
     const { isMute, mediaStream  } = useMicrophoneState();
-    const [transcriptionLines, setTranscriptionLines] = useState([]);
 
     const wsRef = useRef(null);
     const audioCtxRef = useRef(null);
     const processorRef = useRef(null);
     const sourceRef = useRef(null);
+    const mixDestinationRef = useRef(null);
+    const silentGainRef = useRef(null);
+    const inputSourcesRef = useRef([]);
+    const transcriptionStreamsRef = useRef([]);
 
     const encodeWav = (samples, sampleRate, numChannels) => {
         const buffer = new ArrayBuffer(44 + samples.length * 2);
@@ -66,6 +85,91 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
         return buffer;
     };
 
+    const stopRealtimeAudioCapture = useCallback(() => {
+        try {
+            if (processorRef.current) {
+                processorRef.current.disconnect();
+                processorRef.current.onaudioprocess = null;
+                processorRef.current = null;
+            }
+
+            if (sourceRef.current) {
+                sourceRef.current.disconnect();
+                sourceRef.current = null;
+            }
+
+            if (mixDestinationRef.current) {
+                mixDestinationRef.current.disconnect();
+                mixDestinationRef.current = null;
+            }
+
+            inputSourcesRef.current.forEach((sourceNode) => {
+                try {
+                    sourceNode.disconnect();
+                } catch (e) {}
+            });
+            inputSourcesRef.current = [];
+
+            if (silentGainRef.current) {
+                silentGainRef.current.disconnect();
+                silentGainRef.current = null;
+            }
+
+            if (audioCtxRef.current) {
+                try { audioCtxRef.current.close(); } catch (e) {}
+                audioCtxRef.current = null;
+            }
+        } catch (e) {
+            console.warn('cleanup audio error', e);
+        }
+    }, []);
+
+    const transcriptionStreams = useMemo(() => {
+        const streams = [];
+
+        if (!isMute && mediaStream?.getAudioTracks?.().some((track) => track.readyState === 'live')) {
+            streams.push({
+                key: `local:${mediaStream.id || 'local'}`,
+                stream: mediaStream,
+            });
+        }
+
+        Participants.forEach((participant) => {
+            if (participant?.isLocalParticipant) return;
+
+            const participantAudioStream = participant?.audioStream;
+            const hasLiveTrack = participantAudioStream?.getAudioTracks?.().some(
+                (track) => track.readyState === 'live'
+            );
+
+            if (!hasLiveTrack) return;
+
+            streams.push({
+                key: `remote:${participant?.sessionId || participant?.userId || participantAudioStream.id || 'participant'}`,
+                stream: participantAudioStream,
+            });
+        });
+
+        return streams;
+    }, [Participants, isMute, mediaStream]);
+
+    const transcriptionStreamSignature = useMemo(
+        () =>
+            transcriptionStreams
+                .map(({ key, stream }) => {
+                    const trackIds = (stream?.getAudioTracks?.() || [])
+                        .map((track) => `${track.id}:${track.readyState}`)
+                        .join(',');
+                    return `${key}:${stream?.id || 'stream'}:${trackIds}`;
+                })
+                .join('|'),
+        [transcriptionStreams]
+    );
+
+    useEffect(() => {
+        transcriptionStreamsRef.current = transcriptionStreams;
+    }, [transcriptionStreams]);
+
     useEffect(() => {
         if (callingState !== CallingState.JOINED) return;
 
@@ -79,10 +183,6 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
             const ws = new WebSocket(wsUrl);
             ws.binaryType = 'arraybuffer';
             wsRef.current = ws;
-
-            ws.onopen = () => {
-                console.log('realtime websocket open', wsUrl);
-            };
 
             // handle incoming messages (text) and push into transcription state
             ws.onmessage = (e) => {
@@ -107,8 +207,13 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
                         try {
                             parsedObj = JSON.parse(data);
                             text = parsedObj.transcript ?? parsedObj.text ?? data;
-                            speaker = parsedObj.speaker ?? parsedObj.user_id ?? '';
-                            timestamp = parsedObj.timestamp ? Date.parse(parsedObj.timestamp) : Date.now();
+                            speaker = extractTranscriptSpeaker(parsedObj);
+                            const parsedTimestamp = parsedObj.timestamp
+                              ? Date.parse(parsedObj.timestamp)
+                              : NaN;
+                            timestamp = Number.isFinite(parsedTimestamp)
+                              ? parsedTimestamp
+                              : Date.now();
                             is_final = parsedObj.is_final ?? true;
                         } catch (parseErr) {
                             text = data;
@@ -117,16 +222,16 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
                         text = String(data);
                     }
 
-                    console.log('realtime websocket message:', parsedObj ?? text);
+                    const normalizedText = String(text || '').trim();
 
-                    if (text) {
-                        const entry = { text, speaker, time: timestamp, is_final, raw: parsedObj };
-
-                        // update local state for in-component panel
-                        setTranscriptionLines((prev) => {
-                            const next = [...prev, entry];
-                            return next.slice(-200);
-                        });
+                    if (normalizedText) {
+                        const entry = {
+                            text: normalizedText,
+                            speaker,
+                            time: timestamp,
+                            is_final,
+                            raw: parsedObj,
+                        };
 
                         // also dispatch a global event so other mounted RightPanel instances can update
                         try {
@@ -145,7 +250,6 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
                 }
             };
 
-            ws.onclose = () => console.log('realtime websocket closed');
             ws.onerror = (e) => console.warn('realtime websocket error', e);
         } catch (e) {
             console.warn('websocket init error', e);
@@ -160,9 +264,13 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
     }, [callingState, callId, username]);
 
     useEffect(() => {
+        stopRealtimeAudioCapture();
+
+        const activeTranscriptionStreams = transcriptionStreamsRef.current;
+
         if (!wsRef.current || callingState !== CallingState.JOINED) return;
 
-        if (!mediaStream) {
+        if (activeTranscriptionStreams.length === 0) {
             try {
                 wsRef.current.send(JSON.stringify({ audio: null }));
             } catch (e) { console.warn(e); }
@@ -173,49 +281,59 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
         const audioCtx = new AudioContext();
         audioCtxRef.current = audioCtx;
 
-        const source = audioCtx.createMediaStreamSource(mediaStream);
+        const destination = audioCtx.createMediaStreamDestination();
+        mixDestinationRef.current = destination;
+
+        const connectedSources = [];
+        activeTranscriptionStreams.forEach(({ stream }) => {
+            try {
+                const inputSource = audioCtx.createMediaStreamSource(stream);
+                inputSource.connect(destination);
+                connectedSources.push(inputSource);
+            } catch (e) {
+                console.warn('audio source init error', e);
+            }
+        });
+
+        inputSourcesRef.current = connectedSources;
+
+        if (connectedSources.length === 0) {
+            try {
+                wsRef.current.send(JSON.stringify({ audio: null }));
+            } catch (e) { console.warn(e); }
+            stopRealtimeAudioCapture();
+            return;
+        }
+
+        const source = audioCtx.createMediaStreamSource(destination.stream);
         sourceRef.current = source;
 
         const sampleRate = audioCtx.sampleRate;
-        const numChannels = source.channelCount || 1;
+        const numChannels = 1;
+        const chunkSamples = Math.max(1, Math.floor(sampleRate * AUDIO_CHUNK_SECONDS));
 
-        // samples per 250ms chunk (not used directly)
-
-        const bufferSize = 4096;
+        // Smaller buffer/chunk reduces perceived transcript latency.
+        const bufferSize = AUDIO_BUFFER_SIZE;
         const processor = audioCtx.createScriptProcessor(bufferSize, numChannels, numChannels);
         processorRef.current = processor;
 
         let ring = new Float32Array(0);
 
         processor.onaudioprocess = (evt) => {
-            if (!mediaStream) return; // guard
+            if (activeTranscriptionStreams.length === 0) return;
 
-            if (isMute) {
-                try { wsRef.current.send(JSON.stringify({ audio: null })); } catch (e) {}
-                return;
-            }
-
-            const inputBuffers = [];
-            for (let ch = 0; ch < numChannels; ch++) inputBuffers.push(evt.inputBuffer.getChannelData(ch));
-
-            let samples = new Float32Array(inputBuffers[0].length);
-            if (numChannels === 1) samples.set(inputBuffers[0]);
-            else {
-                for (let i = 0; i < samples.length; i++) {
-                    let s = 0;
-                    for (let ch = 0; ch < numChannels; ch++) s += inputBuffers[ch][i];
-                    samples[i] = s / numChannels;
-                }
-            }
+            const inputBuffer = evt.inputBuffer.getChannelData(0);
+            const samples = new Float32Array(inputBuffer.length);
+            samples.set(inputBuffer);
 
             const tmp = new Float32Array(ring.length + samples.length);
             tmp.set(ring, 0);
             tmp.set(samples, ring.length);
             ring = tmp;
 
-            while (ring.length >= Math.floor(sampleRate * 0.25)) {
-                const chunk = ring.slice(0, Math.floor(sampleRate * 0.25));
-                ring = ring.slice(Math.floor(sampleRate * 0.25));
+            while (ring.length >= chunkSamples) {
+                const chunk = ring.slice(0, chunkSamples);
+                ring = ring.slice(chunkSamples);
 
                 const wavBuffer = encodeWav(chunk, sampleRate, 1);
 
@@ -230,26 +348,16 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
         };
 
         source.connect(processor);
-        processor.connect(audioCtx.destination);
+        const silentGain = audioCtx.createGain();
+        silentGain.gain.value = 0;
+        silentGainRef.current = silentGain;
+        processor.connect(silentGain);
+        silentGain.connect(audioCtx.destination);
 
         return () => {
-            try {
-                if (processorRef.current) {
-                    processorRef.current.disconnect();
-                    processorRef.current.onaudioprocess = null;
-                    processorRef.current = null;
-                }
-                if (sourceRef.current) {
-                    sourceRef.current.disconnect();
-                    sourceRef.current = null;
-                }
-                if (audioCtxRef.current) {
-                    try { audioCtxRef.current.close(); } catch (e) {}
-                    audioCtxRef.current = null;
-                }
-            } catch (e) { console.warn('cleanup audio error', e); }
+            stopRealtimeAudioCapture();
         };
-    }, [mediaStream, isMute, callingState]);
+    }, [callingState, stopRealtimeAudioCapture, transcriptionStreamSignature]);
     
 
     useEffect(() => {
@@ -299,21 +407,7 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
         if (intervalRef.current) clearInterval(intervalRef.current);
 
         // Stop audio processor and close AudioContext
-        try {
-            if (processorRef.current) {
-                try { processorRef.current.disconnect(); } catch (e) {}
-                processorRef.current.onaudioprocess = null;
-                processorRef.current = null;
-            }
-            if (sourceRef.current) {
-                try { sourceRef.current.disconnect(); } catch (e) {}
-                sourceRef.current = null;
-            }
-            if (audioCtxRef.current) {
-                try { audioCtxRef.current.close(); } catch (e) {}
-                audioCtxRef.current = null;
-            }
-        } catch (e) { console.warn('error stopping audio capture', e); }
+        stopRealtimeAudioCapture();
 
         // send explicit null over websocket then close
         // try {
@@ -351,7 +445,6 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
             <div>
                 <SideBySideLayout participants={Participants} />
             </div>
-            <RightPanel lines={transcriptionLines} />
             <div
                 style={{
                     display: 'flex',
@@ -428,4 +521,3 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
 };
 
 export default StreamVideoLayoutV4;
-

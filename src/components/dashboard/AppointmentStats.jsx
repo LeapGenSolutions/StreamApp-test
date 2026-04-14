@@ -1,10 +1,38 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
+import { Link } from "wouter";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
+import { fetchVbcSummary } from "../../api/vbcSummary";
 
 const normalizeToken = (value = "") =>
   String(value).toLowerCase().trim().replace(/[\s_-]/g, "");
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const hasValue = (value) =>
+  value !== undefined && value !== null && String(value).trim() !== "";
+
+const toPriorityTier = (value = "") => {
+  const normalized = normalizeToken(value);
+  if (
+    normalized.includes("high") ||
+    normalized.includes("critical") ||
+    normalized.includes("urgent")
+  ) {
+    return "high";
+  }
+  if (normalized.includes("medium") || normalized.includes("moderate")) {
+    return "medium";
+  }
+  if (normalized.includes("low")) {
+    return "low";
+  }
+  return "low";
+};
 
 const isCancelledStatus = (status = "") => {
   const normalized = normalizeToken(status);
@@ -26,6 +54,105 @@ const isVirtualType = (type = "") => {
   );
 };
 
+const toRiskTierCounts = (appointments = [], highRiskPatients = 0) => {
+  const counts = {
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+
+  for (const appointment of appointments) {
+    const tier = toPriorityTier(
+      appointment?.priority ??
+        appointment?.priorityLevel ??
+        appointment?.riskLevel ??
+        appointment?.risk_level
+    );
+    if (tier === "high") counts.high += 1;
+    else if (tier === "medium") counts.medium += 1;
+    else counts.low += 1;
+  }
+
+  counts.high = Math.max(counts.high, toNumber(highRiskPatients, 0));
+  return counts;
+};
+
+const resolveRiskTierCounts = (summary = {}) => {
+  const kpis = summary?.kpis && typeof summary.kpis === "object" ? summary.kpis : {};
+  const riskTierBreakdown =
+    (kpis?.riskTier && typeof kpis.riskTier === "object" ? kpis.riskTier : null) ||
+    (kpis?.risk_tier && typeof kpis.risk_tier === "object" ? kpis.risk_tier : null) ||
+    {};
+
+  const highCount =
+    riskTierBreakdown.high ??
+    riskTierBreakdown.highCount ??
+    riskTierBreakdown.highPatients ??
+    riskTierBreakdown.highRiskPatients ??
+    riskTierBreakdown.high_risk_patients ??
+    kpis.highRiskPatients ??
+    kpis.high_risk_patients;
+  const mediumCount =
+    riskTierBreakdown.medium ??
+    riskTierBreakdown.mediumCount ??
+    riskTierBreakdown.mediumPatients ??
+    riskTierBreakdown.mediumRiskPatients ??
+    riskTierBreakdown.medium_risk_patients ??
+    riskTierBreakdown.moderate ??
+    riskTierBreakdown.moderateCount ??
+    riskTierBreakdown.moderatePatients ??
+    kpis.mediumRiskPatients ??
+    kpis.medium_risk_patients ??
+    kpis.moderateRiskPatients ??
+    kpis.moderate_risk_patients;
+  const lowCount =
+    riskTierBreakdown.low ??
+    riskTierBreakdown.lowCount ??
+    riskTierBreakdown.lowPatients ??
+    riskTierBreakdown.lowRiskPatients ??
+    riskTierBreakdown.low_risk_patients ??
+    kpis.lowRiskPatients ??
+    kpis.low_risk_patients;
+
+  if ([highCount, mediumCount, lowCount].some(hasValue)) {
+    return {
+      high: toNumber(highCount),
+      medium: toNumber(mediumCount),
+      low: toNumber(lowCount),
+    };
+  }
+
+  return toRiskTierCounts(summary?.appointments, kpis.highRiskPatients);
+};
+
+const buildRiskTierDonut = (riskTier) => {
+  const high = toNumber(riskTier?.high);
+  const medium = toNumber(riskTier?.medium);
+  const low = toNumber(riskTier?.low);
+  const total = high + medium + low;
+
+  if (total <= 0) {
+    return {
+      total: 0,
+      background: "#e2e8f0",
+    };
+  }
+
+  const highPercent = (high / total) * 100;
+  const mediumPercent = (medium / total) * 100;
+  const highStop = highPercent;
+  const mediumStop = highPercent + mediumPercent;
+
+  return {
+    total,
+    background: `conic-gradient(#e11d48 0% ${highStop.toFixed(
+      2
+    )}%, #f59e0b ${highStop.toFixed(2)}% ${mediumStop.toFixed(
+      2
+    )}%, #16a34a ${mediumStop.toFixed(2)}% 100%)`,
+  };
+};
+
 const normalizeText = (value = "") => String(value || "").trim().toLowerCase();
 
 const AppointmentStats = ({ date: propDate }) => {
@@ -38,11 +165,27 @@ const AppointmentStats = ({ date: propDate }) => {
     inPersonAppointments: 0,
     virtualAppointments: 0,
   });
+  const [vbcMetric, setVbcMetric] = useState({
+    highRiskPatients: 0,
+    riskTier: {
+      high: 0,
+      medium: 0,
+      low: 0,
+    },
+    lastUpdatedAt: null,
+    isLoading: true,
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const doctorEmail = loggedInDoctor?.email || loggedInDoctor?.doctor_email || null;
   const doctorUniqueId =
     loggedInDoctor?.doctor_id || loggedInDoctor?.id || loggedInDoctor?.oid || null;
+  const clinicId =
+    loggedInDoctor?.clinic_id ||
+    loggedInDoctor?.clinicId ||
+    loggedInDoctor?.practice_id ||
+    loggedInDoctor?.practiceId ||
+    null;
   const clinicName = loggedInDoctor?.clinicName || loggedInDoctor?.clinic_name || "";
 
   const localTodayKey = new Date().toLocaleDateString("en-CA");
@@ -62,6 +205,54 @@ const AppointmentStats = ({ date: propDate }) => {
       : propDate instanceof Date
       ? format(propDate, "yyyy-MM-dd")
       : localTodayKey;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadVbcMetric = async () => {
+      setVbcMetric((current) => ({ ...current, isLoading: true }));
+
+      try {
+        const summary = await fetchVbcSummary(
+          {
+            date: todayKey,
+            clinicId,
+            doctorEmail,
+            doctorId: doctorUniqueId,
+          },
+          { signal: controller.signal }
+        );
+
+        const highRiskPatients = toNumber(summary?.kpis?.highRiskPatients);
+        const riskTier = resolveRiskTierCounts(summary);
+
+        setVbcMetric({
+          highRiskPatients,
+          riskTier,
+          lastUpdatedAt: new Date(),
+          isLoading: false,
+        });
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          // eslint-disable-next-line no-console
+          console.warn("VBC summary fetch failed:", error?.status, error?.url, error);
+          setVbcMetric({
+            highRiskPatients: 0,
+            riskTier: {
+              high: 0,
+              medium: 0,
+              low: 0,
+            },
+            lastUpdatedAt: new Date(),
+            isLoading: false,
+          });
+        }
+      }
+    };
+
+    loadVbcMetric();
+    return () => controller.abort();
+  }, [todayKey, clinicId, doctorEmail, doctorUniqueId]);
 
   let formattedDate = "";
   {
@@ -156,11 +347,29 @@ const AppointmentStats = ({ date: propDate }) => {
           <div className="h-16 bg-neutral-200 rounded"></div>
           <div className="h-16 bg-neutral-200 rounded"></div>
         </div>
+        <div className="space-y-2">
+          <div className="h-24 bg-neutral-200 rounded"></div>
+          <div className="h-14 bg-neutral-200 rounded"></div>
+        </div>
       </div>
     );
   }
 
   const { totalAppointments, inPersonAppointments, virtualAppointments } = stats;
+  const refreshTimeLabel = vbcMetric.lastUpdatedAt
+    ? vbcMetric.lastUpdatedAt.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "--:--";
+  const { total: totalRiskPatients, background: riskTierDonutBackground } =
+    buildRiskTierDonut(vbcMetric.riskTier);
+
+  const buildMetricHref = (metricKey) =>
+    `/vbc/details?date=${encodeURIComponent(todayKey)}&metric=${encodeURIComponent(
+      metricKey
+    )}`;
+  const viewDashboardHref = `/vbc?date=${encodeURIComponent(todayKey)}`;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col h-full">
@@ -195,6 +404,84 @@ const AppointmentStats = ({ date: propDate }) => {
             Virtual
           </div>
           <div className="mt-1 text-2xl font-bold text-blue-800">{virtualAppointments}</div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+              VBC Dashboard
+            </div>
+            <div className="mt-1 text-sm font-semibold text-slate-800">
+              Patients by Risk Tier
+            </div>
+            <div className="mt-1 text-[11px] text-slate-500">Last refresh: {refreshTimeLabel}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href={buildMetricHref("risk-tier")}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Details
+            </Link>
+            <Link
+              href={viewDashboardHref}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Open
+            </Link>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          {vbcMetric.isLoading ? (
+            <div className="h-[230px] w-full animate-pulse rounded bg-slate-200" />
+          ) : (
+            <Link
+              href={buildMetricHref("risk-tier")}
+              className="block rounded-lg border border-slate-200 bg-white px-3 py-3 transition hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="relative mx-auto h-28 w-28 shrink-0 sm:mx-0">
+                  <div
+                    className="h-full w-full rounded-full border border-slate-200"
+                    style={{ background: riskTierDonutBackground }}
+                  />
+                  <div className="absolute inset-[20%] flex flex-col items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700">
+                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      Total
+                    </span>
+                    <span className="text-lg font-bold text-slate-800">{totalRiskPatients}</span>
+                  </div>
+                </div>
+
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="inline-flex items-center gap-2 text-rose-700">
+                      <span className="h-2.5 w-2.5 rounded-full bg-rose-600" />
+                      High
+                    </span>
+                    <span className="font-semibold text-rose-800">{vbcMetric.riskTier.high}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="inline-flex items-center gap-2 text-amber-700">
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                      Medium
+                    </span>
+                    <span className="font-semibold text-amber-800">{vbcMetric.riskTier.medium}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="inline-flex items-center gap-2 text-emerald-700">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                      Low
+                    </span>
+                    <span className="font-semibold text-emerald-800">{vbcMetric.riskTier.low}</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
     </div>

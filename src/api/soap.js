@@ -62,3 +62,23 @@ export const postToAthena = async (data) => {
     return await postAll(data.username, data.athena_encounter_id, data.content, data.practiceID);
   }
 };
+
+export const getEncounterId = async (appointmentId, userName, date, practiceID) => {
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}api/orders/${encodeURIComponent(userName)}/encounters/${appointmentId}/encounterId`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          practiceId : practiceID,
+          date : date
+        }),
+      }
+    );
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch encounter ID:", error);
+    throw new Error("Failed to fetch encounter ID");
+  }
+}

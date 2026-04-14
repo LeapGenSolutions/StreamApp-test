@@ -6,6 +6,7 @@ import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { useDispatch, useSelector } from "react-redux";
 import HasPermission from "../components/auth/HasPermission";
+import { fetchDoctors } from "../redux/doctors-actions";
 
 const toISODate = (date) => {
   const year = date.getFullYear();
@@ -19,12 +20,20 @@ function Dashboard() {
   const loggedInDoctor = useSelector((state) => state.me.me);
   const myEmail = loggedInDoctor?.email;
   const todayISO = toISODate(new Date());
+  const doctors = useSelector((state) => state.doctors?.doctors || []);
+  const clinicName = useSelector(
+    (state) => state.me.me.clinicName
+  );
 
   useEffect(() => {
     if (myEmail) {
       dispatch(fetchAppointmentDetails(myEmail, loggedInDoctor?.clinicName));
     }
   }, [dispatch, myEmail, loggedInDoctor?.clinicName]);
+
+  useEffect(() => {
+    if (doctors.length === 0) dispatch(fetchDoctors(clinicName));
+  }, [doctors.length, dispatch, clinicName]);
 
   useEffect(() => {
     document.title = "Dashboard - Seismic Connect";

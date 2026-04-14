@@ -33,6 +33,9 @@ import Documentation from "./Pages/Documentation";
 import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import TimelineDashboard from "./Pages/TimelineDashboard";
+import VBCDashboard from "./Pages/VBCDashboard";
+import VBCSummary from "./Pages/VBCSummary";
+import VBCWorkQueue from "./Pages/VBCWorkQueue";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
 import { loginRequest } from "./authConfig";
 import setMyDetails from "./redux/me-actions";
@@ -246,6 +249,36 @@ function Router() {
               path="/payment-billing"
               component={PaymentBilling}
               required="settings.payment_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc"
+              component={VBCSummary}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc/summary"
+              component={VBCSummary}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc/work-queue"
+              component={VBCWorkQueue}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc/details"
+              component={VBCDashboard}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc-dashboard"
+              component={VBCSummary}
+              required="dashboard.view_appointments"
               level="read"
             />
             <AuthorizedRoute

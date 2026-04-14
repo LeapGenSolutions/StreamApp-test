@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Button } from "../ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { fetchSoapNotes, updateSoapNotes, postToAthena } from "../../api/soap";
+import { fetchSoapNotes, updateSoapNotes, postToAthena, getEncounterId } from "../../api/soap";
 import LoadingCard from "./LoadingCard";
 import SubjectiveSection from "./sections/SubjectiveSection";
 import ObjectiveSection from "./sections/ObjectiveSection";
@@ -395,7 +395,7 @@ const Soap = ({
   const [ordersData, setOrdersData] = useState({ orders: [], confirmed: false });
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("soap");
-
+  const [encounterId, setEncounterId] = useState(appointment?.athena_encounter_id || "");
   const [pendingPost, setPendingPost] = useState(null);
   const [postFlowStage, setPostFlowStage] = useState("idle");
   const [mainPostStatus, setMainPostStatus] = useState("idle");
@@ -410,6 +410,7 @@ const Soap = ({
         .join(""),
     []
   );
+  
   const isAthenaAppointment = useMemo(() => {
     const hasAthenaIds = Boolean(
       appointment?.athena_encounter_id && appointment?.athena_practice_id
@@ -436,6 +437,18 @@ const Soap = ({
     const end = nextIdxs.length ? Math.min(...nextIdxs) : after.length;
     return after.slice(0, end).trim();
   };
+
+  useEffect(() => {
+    const getEncounterID = async () => {
+      if(isAthenaAppointment && (appointment?.athena_encounter_id === "" || !appointment?.athena_encounter_id)) {
+        const response = await getEncounterId(appointmentId, username, appointment?.appointment_date, appointment?.athena_practice_id);
+        if(response?.success === true){
+          setEncounterId(response.encounterId);
+        }
+      }
+    }
+    getEncounterID();
+  }, [appointmentId, appointment, username, isAthenaAppointment]);
 
   useEffect(() => {
     if (!data?.data?.soap_notes || isLoading) return;
@@ -646,7 +659,7 @@ const Soap = ({
     const finalPayload = {
       ...payload,
       username,
-      athena_encounter_id: appointment?.athena_encounter_id,
+      athena_encounter_id: encounterId,
       practiceID: appointment?.athena_practice_id,
     };
 
@@ -742,7 +755,7 @@ const Soap = ({
     mainPostMutation.mutate({
       content: fullRaw,
       username,
-      athena_encounter_id: appointment?.athena_encounter_id,
+      athena_encounter_id: encounterId,
       practiceID: appointment?.athena_practice_id,
     });
   };
@@ -981,7 +994,7 @@ const Soap = ({
         <OrdersSection
           ordersData={ordersData}
           doctorEmail={appointment?.doctor_email}
-          encounterId={appointment?.athena_encounter_id}
+          encounterId={encounterId}
           practiceId={appointment?.athena_practice_id}
           appointmentId={appointment?.id}
           canPostToAthena={isAthenaAppointment && canPostToAthena}

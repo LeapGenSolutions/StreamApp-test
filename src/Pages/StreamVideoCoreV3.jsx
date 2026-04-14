@@ -1,18 +1,37 @@
 import {
   StreamCall,
   StreamVideo,
-  StreamVideoClient
-} from '@stream-io/video-react-sdk';
-import { useEffect, useState, useRef } from 'react';
-import getUserToken from '../api/UserToken';
-import { useParams, useSearchParams } from 'wouter';
-import { useSelector } from 'react-redux';
-import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
-import { insertCallHistory } from '../api/callHistory';
-import { STREAM_API_KEY } from '../constants';
+  StreamVideoClient,
+} from "@stream-io/video-react-sdk";
+import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { useParams, useSearchParams } from "wouter";
+import getUserToken from "../api/UserToken";
+import { insertCallHistory } from "../api/callHistory";
+import StreamVideoLayoutV4 from "../components/video/StreamVideoLayoutV4";
+import RightPanel from "../components/video/RightPanel";
+import { STREAM_API_KEY } from "../constants";
 import { NotesTrigger } from "../components/ui/notes-trigger";
 import { FloatingNotepad } from "../components/ui/floating-notepad";
-import { resolveUserNameParts } from '../lib/userName';
+import { resolveUserNameParts } from "../lib/userName";
+
+const resolveAuthenticatedStreamUserId = (me = {}) =>
+  String(
+    me.email ||
+      me.preferred_username ||
+      me.userId ||
+      me.oid ||
+      me.sub ||
+      me.aud ||
+      ""
+  ).trim();
+
+const toSlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 const buildDoctorName = (me = {}) => {
   const { firstName, lastName } = resolveUserNameParts(me);
@@ -26,18 +45,28 @@ const buildDoctorName = (me = {}) => {
 
 const StreamVideoCoreV3 = () => {
   const apiKey = STREAM_API_KEY;
-  const me = useSelector((state) => state.me.me || {})
-  const userId = me.aud;
+  const me = useSelector((state) => state.me.me || {});
   const { callId } = useParams();
-  const searchParams = useSearchParams()[0]
-  const patientName = searchParams.get("patient")
+  const searchParams = useSearchParams()[0];
+  const patientName = searchParams.get("patient");
+  const requestedRole = (searchParams.get("role") || "doctor").toLowerCase();
+  const role = requestedRole === "patient" ? "patient" : "doctor";
+  const requestedName = searchParams.get("name");
   const type = searchParams.get("type") || "online";
-  const normalizedType = type.toLowerCase().replace(/[\s_-]/g, '');
+  const normalizedType = type.toLowerCase().replace(/[\s_-]/g, "");
   const isInPerson = normalizedType === "inperson";
 
-  const role = 'doctor'
-  const userName = buildDoctorName(me) || me.name || me.email || "Doctor";
-  const myEmail = me.email
+  const doctorName = buildDoctorName(me);
+  const userName =
+    role === "patient"
+      ? (requestedName || "Patient").trim()
+      : doctorName || me.name || me.email || "Doctor";
+  const myEmail = me.email || me.preferred_username || "";
+  const doctorUserId = String(me.aud || resolveAuthenticatedStreamUserId(me)).trim();
+  const userId =
+    role === "patient"
+      ? `patient-${callId}-${toSlug(userName) || "guest"}`
+      : doctorUserId;
 
   const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
@@ -52,8 +81,8 @@ const StreamVideoCoreV3 = () => {
   const [meetingStartTime, setMeetingStartTime] = useState(null);
   const [recordingReminderVisible, setRecordingReminderVisible] = useState(false);
   const [patientApproved, setPatientApproved] = useState(false);
+  const [callError, setCallError] = useState("");
 
-  // Show browser notification
   const showBrowserNotification = (name) => {
     if (!("Notification" in window)) return;
     if (Notification.permission === "granted") {
@@ -63,12 +92,11 @@ const StreamVideoCoreV3 = () => {
       });
       notif.onclick = () => {
         window.focus();
-        setPopupVisible(true); // Show in-app popup as well on click
+        setPopupVisible(true);
       };
     }
   };
 
-  // Approve / Reject handlers
   const handleApprove = () => {
     if (!callRef.current || !requestingUser) return;
     callRef.current.sendCustomEvent({ type: "join-accepted", user: requestingUser });
@@ -93,10 +121,13 @@ const StreamVideoCoreV3 = () => {
   useEffect(() => {
     if (!callRef.current || !showCall || !patientApproved) return;
 
-    const call = callRef.current;
+    const currentCall = callRef.current;
 
     const timer = setTimeout(() => {
-      if (!call.state.recording?.status || call.state.recording.status !== "started") {
+      if (
+        !currentCall.state.recording?.status ||
+        currentCall.state.recording.status !== "started"
+      ) {
         setRecordingReminderVisible(true);
         if (Notification.permission === "granted") {
           new Notification("Recording not started!", {
@@ -108,16 +139,15 @@ const StreamVideoCoreV3 = () => {
     }, 15000);
 
     const handleRecordingStarted = () => {
-      console.log(">>> call.recording_started fired at", new Date().toISOString());
       clearTimeout(timer);
       setRecordingReminderVisible(false);
     };
 
-    call.on("call.recording_started", handleRecordingStarted);
+    currentCall.on("call.recording_started", handleRecordingStarted);
 
     return () => {
       clearTimeout(timer);
-      call.off("call.recording_started", handleRecordingStarted);
+      currentCall.off("call.recording_started", handleRecordingStarted);
     };
   }, [showCall, patientApproved]);
 
@@ -126,86 +156,108 @@ const StreamVideoCoreV3 = () => {
 
     const setupCall = async () => {
       setLoading(true);
-      const token = await getUserToken(userId);
-      if (!token) {
+      setCallError("");
+
+      if (!userId) {
+        setCallError(
+          role === "patient"
+            ? "Missing participant identity. Reopen the join link and try again."
+            : "Missing Stream user identity. Sign in again and retry the call."
+        );
         setLoading(false);
         return;
       }
 
-      const videoClient = new StreamVideoClient({
-        apiKey,
-        user: { id: userId, name: myEmail },
-        token,
-      });
+      let token = "";
+      try {
+        token = await getUserToken(userId);
+      } catch (error) {
+        setCallError(error?.message || "Unable to get a Stream token for this user.");
+        setLoading(false);
+        return;
+      }
 
-      const videoCall = videoClient.call("default", callId);
-
-      callRef.current = videoCall;
-
-      videoCall.on("call.session_participant_joined", (req) => {
-        console.log("Session started");
-        try {
-          insertCallHistory(req.session_id, {
-            userID: myEmail,
-            appointmentID: callId,
-            startTime: req.created_at,
-            fullName: userName,
-            patientName: patientName,
-            role: "doctor"
-          });
-        } catch (error) {
-          console.log(
-            "New call History not inserted. Call history and id might exist"
-          );
-        }
-      });
-
-      if (role === "doctor") {
-        await videoCall.join({
-          data: {
-            settings_override: {
-              recording: {
-                quality: "360p",
-                mode: "available",
-              },
-            },
+      try {
+        const videoClient = new StreamVideoClient({
+          apiKey,
+          user: {
+            id: userId,
+            name: role === "doctor" ? myEmail || userName || userId : userName || userId,
           },
-          create: true,
+          token,
         });
 
-        setMeetingStartTime(Date.now());
+        const videoCall = videoClient.call("default", callId);
+        callRef.current = videoCall;
 
-        videoCall.on("custom", (event) => {
-          if (event.custom?.type === "join-request") {
-            const name = event.user?.name || "A patient";
-            setRequestingUser(event.user || null);
-            setPopupVisible(true);
-            showBrowserNotification(name);
+        videoCall.on("call.session_participant_joined", (req) => {
+          if (role !== "doctor") {
+            return;
+          }
+
+          try {
+            insertCallHistory(req.session_id, {
+              userID: myEmail,
+              appointmentID: callId,
+              startTime: req.created_at,
+              fullName: userName,
+              patientName,
+              role: "doctor",
+            });
+          } catch (error) {
+            console.log(
+              "New call history not inserted. Call history and id might already exist."
+            );
           }
         });
 
-        if (isMounted) {
-          setClient(videoClient);
-          setCall(videoCall);
-          setShowCall(true);
-          setLoading(false);
+        if (role === "doctor") {
+          await videoCall.join({
+            data: {
+              settings_override: {
+                recording: {
+                  quality: "360p",
+                  mode: "available",
+                },
+              },
+            },
+            create: true,
+          });
+
+          setMeetingStartTime(Date.now());
+
+          videoCall.on("custom", (event) => {
+            if (event.custom?.type === "join-request") {
+              const name = event.user?.name || "A patient";
+              setRequestingUser(event.user || null);
+              setPopupVisible(true);
+              showBrowserNotification(name);
+            }
+          });
+
+          if (isMounted) {
+            setClient(videoClient);
+            setCall(videoCall);
+            setShowCall(true);
+            setLoading(false);
+          }
+
+          return;
         }
-      } else {
+
         try {
           await videoCall.get();
           const count = videoCall.state.participantCount;
 
           if (count >= 2) {
-            // Auto leave after showing message
             setShowCall(false);
             setLoading(false);
             setTimeout(() => {
-              window.location.href = "/"; // or replace with navigation to home/dashboard
+              window.location.href = "/";
             }, 5000);
             return;
           }
 
-          // Send join request and wait for approval
           videoCall.sendCustomEvent({
             type: "join-request",
             user: { id: userId, name: userName },
@@ -213,7 +265,7 @@ const StreamVideoCoreV3 = () => {
           setWaitingApproval(true);
 
           videoCall.on("custom", async (event) => {
-            if (event.custom.type === "join-accepted") {
+            if (event.custom?.type === "join-accepted") {
               await videoCall.join();
               if (isMounted) {
                 setClient(videoClient);
@@ -223,7 +275,8 @@ const StreamVideoCoreV3 = () => {
                 setLoading(false);
               }
             }
-            if (event.custom.type === "join-rejected") {
+
+            if (event.custom?.type === "join-rejected") {
               setWaitingApproval(false);
               setRejected(true);
               setLoading(false);
@@ -231,8 +284,13 @@ const StreamVideoCoreV3 = () => {
           });
         } catch (error) {
           console.error("Call does not exist yet", error);
+          setCallError("Doctor has not started the call yet.");
           setLoading(false);
         }
+      } catch (error) {
+        console.error("Error starting Stream call", error);
+        setCallError(error?.message || "Unable to start the call.");
+        setLoading(false);
       }
     };
 
@@ -240,10 +298,9 @@ const StreamVideoCoreV3 = () => {
 
     return () => {
       isMounted = false;
-      callRef.current?.leave().catch(() => { });
+      callRef.current?.leave().catch(() => {});
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, callId, role, apiKey, myEmail, patientName, userName]);
+  }, [apiKey, callId, myEmail, patientName, role, userId, userName]);
 
   return (
     <>
@@ -264,7 +321,6 @@ const StreamVideoCoreV3 = () => {
                     transform: translateY(0);
                 }
             }
-
 
             .join-request-popup {
                 position: fixed;
@@ -334,7 +390,7 @@ const StreamVideoCoreV3 = () => {
                 background-color: #e74c3c;
             }
 
-           .join-request-popup .reject:hover {
+            .join-request-popup .reject:hover {
                 background-color: #c0392b;
                 box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
             }
@@ -374,19 +430,13 @@ const StreamVideoCoreV3 = () => {
         </div>
       )}
 
-      {!loading && rejected && (
-        <div style={{ padding: "2rem" }}>
-          ❌ Your request was rejected by the doctor.
-        </div>
-      )}
+      {!loading && rejected && <div style={{ padding: "2rem" }}>❌ Your request was rejected by the doctor.</div>}
 
-      {waitingApproval && (
-        <div style={{ padding: "2rem" }}>
-          ⌛ Waiting for doctor’s approval...
-        </div>
-      )}
+      {!loading && callError && <div style={{ padding: "2rem" }}>❌ {callError}</div>}
 
-      {!loading && !showCall && !waitingApproval && !rejected && (
+      {waitingApproval && <div style={{ padding: "2rem" }}>⌛ Waiting for doctor's approval...</div>}
+
+      {!loading && !showCall && !waitingApproval && !rejected && !callError && (
         <div style={{ padding: "2rem" }}>
           ⚠️ The call is currently full. You will be redirected in 5 seconds...
         </div>
@@ -406,9 +456,7 @@ const StreamVideoCoreV3 = () => {
             animation: "slideFadeInUp 0.4s ease-out",
           }}
         >
-          <div
-            style={{ display: "flex", flexDirection: "column", width: "100%" }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
             <span className="request-text" style={{ textAlign: "center" }}>
               <strong>{requestingUser.name}</strong> wants to join the call
             </span>
@@ -435,13 +483,25 @@ const StreamVideoCoreV3 = () => {
       {!loading && showCall && client && call && (
         <StreamVideo client={client}>
           <StreamCall call={call}>
-            <StreamVideoLayoutV4
-              callId={callId}
-              onRecordingStarted={() => setRecordingReminderVisible(false)}
-            />
+            <div className="flex">
+              <div className="flex-1 md:mr-[345px]">
+                <StreamVideoLayoutV4
+                  callId={callId}
+                  onRecordingStarted={() => setRecordingReminderVisible(false)}
+                />
+              </div>
+
+              <RightPanel
+                appointmentId={callId}
+                doctorName={doctorName || userName}
+                doctorEmail={myEmail}
+                showChecklist={role === "doctor"}
+              />
+            </div>
           </StreamCall>
         </StreamVideo>
       )}
+
       {!loading && showCall && role === "doctor" && (
         <>
           <NotesTrigger
@@ -462,10 +522,40 @@ const StreamVideoCoreV3 = () => {
       )}
 
       {recordingReminderVisible && role === "doctor" && (
-        <div style={{ position: "fixed", bottom: "2rem", right: "2rem", backgroundColor: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: "10px", padding: "1rem 1.5rem", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", zIndex: 2000, animation: "slideFadeInUp 0.4s ease-out" }}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: "2rem",
+            right: "2rem",
+            backgroundColor: "#fff3cd",
+            color: "#856404",
+            border: "1px solid #ffeeba",
+            borderRadius: "10px",
+            padding: "1rem 1.5rem",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            zIndex: 2000,
+            animation: "slideFadeInUp 0.4s ease-out",
+          }}
+        >
           <strong>⚠️ Recording not started</strong>
-          <div style={{ marginTop: "0.5rem" }}>Please click the <b>Record</b> button to start recording this call.</div>
-          <button style={{ marginTop: "0.75rem", backgroundColor: "#ffc107", border: "none", borderRadius: "6px", padding: "0.5rem 1rem", cursor: "pointer", fontWeight: 600 }} onClick={() => setRecordingReminderVisible(false)}>Dismiss</button>
+          <div style={{ marginTop: "0.5rem" }}>
+            Please click the <b>Record</b> button to start recording this call.
+          </div>
+          <button
+            style={{
+              marginTop: "0.75rem",
+              backgroundColor: "#ffc107",
+              border: "none",
+              borderRadius: "6px",
+              padding: "0.5rem 1rem",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+            onClick={() => setRecordingReminderVisible(false)}
+          >
+            Dismiss
+          </button>
         </div>
       )}
     </>

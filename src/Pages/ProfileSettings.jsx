@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import { PageNavigation } from "../components/ui/page-navigation";
 import { Skeleton } from "../components/ui/skeleton";
 import ProfileTab from "../components/profile/ProfileTab";
-import PreferencesTab from "../components/profile/PreferencesTab";
 import LegalTab from "../components/profile/LegalTab";
 import { useSelector } from "react-redux";
 import { resolveUserNameParts } from "../lib/userName";
 
 const TAB_OPTIONS = [
   { id: "profile", label: "My Profile" },
-  { id: "preferences", label: "Preferences & Notifications" },
   { id: "legal", label: "Legal Acknowledgements" },
 ];
 
@@ -72,7 +70,7 @@ export default function ProfileSettings() {
     <div className="space-y-4 px-2 pb-4">
       <PageNavigation
         title="Profile & Settings"
-        subtitle="Review your registered details and configure system preferences."
+        subtitle="Review your registered details and legal acknowledgements."
       />
 
       <div className="mb-6 flex space-x-6 border-b border-gray-200">
@@ -93,7 +91,6 @@ export default function ProfileSettings() {
 
       <div className="focus-visible:outline-none focus-visible:ring-0">
         {activeTab === "profile" && <ProfileTab profileData={profileData} setProfileData={setProfileData} />}
-        {activeTab === "preferences" && <PreferencesTab profileData={profileData} setProfileData={setProfileData} />}
         {activeTab === "legal" && <LegalTab profileData={profileData} />}
       </div>
     </div>

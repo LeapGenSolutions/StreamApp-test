@@ -36,11 +36,12 @@ const Header = () => {
         {/* --- Left Navigation --- */}
         <nav
           className="
-            order-2 sm:order-1
-            flex items-center gap-1
+            flex items-center gap-2
             whitespace-nowrap overflow-x-auto
             max-w-full
             flex-1 min-w-0
+            pb-1 sm:pb-0
+            scrollbar-hide
           "
         >
           <Link
@@ -55,7 +56,7 @@ const Header = () => {
 
           <Link
             href="/connect"
-            className={`px-2 sm:px-3 py-1 text-sm sm:text-base transition-colors ${isActive("/connect")
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base cursor-pointer transition-colors ${isActive("/connect")
               ? "font-bold underline underline-offset-4 text-black"
               : "text-neutral-600 hover:text-black"
               }`}
@@ -65,7 +66,7 @@ const Header = () => {
 
           <Link
             href="/about"
-            className={`px-2 sm:px-3 py-1 text-sm sm:text-base transition-colors ${isActive("/about")
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base cursor-pointer transition-colors ${isActive("/about")
               ? "font-bold underline underline-offset-4 text-black"
               : "text-neutral-600 hover:text-black"
               }`}
@@ -75,7 +76,7 @@ const Header = () => {
 
           <Link
             href="/contact"
-            className={`px-2 sm:px-3 py-1 text-sm sm:text-base transition-colors ${isActive("/contact")
+            className={`px-2 sm:px-3 py-1 text-sm sm:text-base cursor-pointer transition-colors ${isActive("/contact")
               ? "font-bold underline underline-offset-4 text-black"
               : "text-neutral-600 hover:text-black"
               }`}
@@ -85,7 +86,7 @@ const Header = () => {
         </nav>
 
         {/* --- Right: Bell + Avatar --- */}
-        <div className="order-1 sm:order-2 flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 pl-2">
 
           {/* Clinic Name */}
           {user?.clinicName && (

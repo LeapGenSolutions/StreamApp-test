@@ -12,10 +12,10 @@ export function PageNavigation({
 }) {
   return (
     <div className={`mb-6 w-full ${className}`}>
-      {/* Row: Left = Back | Center = Title | Right = Custom Slot */}
-      <div className="grid grid-cols-3 items-center">
+      {/* Responsive layout: stack on mobile, row on tablet/desktop */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Left: Back Button */}
-        <div>
+        <div className="flex-shrink-0">
           {showBackButton && (
             <button
               onClick={() => window.history.back()}
@@ -31,17 +31,17 @@ export function PageNavigation({
 
         {/* Center: Title + Subtitle */}
         {!hideTitle && title && (
-          <div className="text-center">
+          <div className="flex-1 text-left sm:text-center">
             <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
 
             {subtitle && (
-              <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">{subtitle}</p>
+              <p className="text-sm text-gray-500 mt-1 sm:whitespace-nowrap">{subtitle}</p>
             )}
           </div>
         )}
 
         {/* Right: Optional custom content (buttons, etc.) */}
-        <div className="flex justify-end">
+        <div className="flex-shrink-0 flex items-center sm:justify-end">
           {rightSlot}
         </div>
       </div>

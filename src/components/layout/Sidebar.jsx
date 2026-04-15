@@ -309,7 +309,7 @@ const Sidebar = () => {
 
       {/* --- Bottom: Logout --- */}
       {!isMeetingCompact && (
-        <div className={`border-t border-neutral-700 md:block ${isOpen ? "p-4" : "p-3"}`}>
+        <div className={`border-t border-neutral-700 ${isOpen ? "p-4 block" : "hidden md:block md:p-3"}`}>
           <button
             onClick={handleLogout}
             title={!isOpen ? "Logout" : undefined}

@@ -867,18 +867,11 @@ const Documentation = () => {
 
   return (
     <div className="space-y-6 px-4">
-      <div className="relative mb-6">
-        {/* Back button (left aligned, from PageNavigation) */}
-        <div className="mt-[11px]"> 
-          <PageNavigation 
+      <div className="mb-6">
+        <PageNavigation 
           showBackButton={true} 
-          hideTitle={true} 
-          />
-        </div>
-
-        {/* Centered title (same line as back button) */}
-        <h1 className="absolute inset-0 flex items-center justify-center 
-                      text-3xl font-bold text-blue-700 pointer-events-none">Seismic Application Documentation</h1>
+          title="Seismic Application Documentation"
+        />
       </div>
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-wrap gap-3 mb-8">

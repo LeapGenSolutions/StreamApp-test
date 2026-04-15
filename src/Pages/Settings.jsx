@@ -28,7 +28,7 @@ function Settings() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-gray-600">
-              Manage your personal information, clinic access, notifications, compliance, and account preferences.
+              Manage your personal information, clinic access, and compliance details.
             </p>
             <Link href="/settings/profile" className="text-sm font-medium text-blue-600 hover:underline">
               Open profile settings

@@ -9,6 +9,7 @@ import { checkAppointments } from "../api/callHistory";
 import CallHistory from "./CallHistory";
 import { useToast } from "../hooks/use-toast";
 import { PageNavigation } from "../components/ui/page-navigation";
+import { Button } from "../components/ui/button";
 import CreateAppointmentModal from "../components/appointments/CreateAppointmentModal";
 import { usePermission } from "../hooks/use-permission";
 import { resolveUserNameParts } from "../lib/userName";
@@ -285,12 +286,12 @@ const VideoCallPage = () => {
         showDate={false}
         rightSlot={
           role === "doctor" && activeTab === "upcoming" && canAddVideoCall ? (
-            <button
+            <Button
               onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 shadow-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               + Add
-            </button>
+            </Button>
           ) : null
         }
       />
@@ -475,13 +476,13 @@ const VideoCallPage = () => {
 
                   {canStartVideoCall && canStartVideoCallPermission && (
                     <div className="flex justify-end space-x-2 mt-4">
-                      <button
+                      <Button
                         onClick={() => joinAsDoctor(room)}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 py-2"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
                       >
                         <FaVideo className="mr-2" />
                         Start Video Call
-                      </button>
+                      </Button>
                     </div>
                   )}
 
@@ -495,13 +496,13 @@ const VideoCallPage = () => {
                           <p className="text-sm text-gray-700 mr-4">
                             Patient's link for the appointment
                           </p>
-                          <button
+                          <Button
                             onClick={copyToClipboard}
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded"
+                            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
                           >
                             <FaCopy className="w-4 h-4" />
                             Copy
-                          </button>
+                          </Button>
                         </div>
                         <p className="text-sm text-gray-600 mt-2">
                           Click copy to share this appointment link
@@ -538,13 +539,13 @@ const VideoCallPage = () => {
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <button
+                    <Button
                       onClick={() => joinAsParticipant(room, userName)}
                       disabled={!room || !userName}
-                      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Join Call
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}

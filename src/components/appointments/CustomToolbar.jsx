@@ -9,6 +9,7 @@ import {
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import TeamsDatePicker from "../TeamsDatePicker";
 import { usePermission } from "../../hooks/use-permission";
+import { Button } from "../ui/button";
 
 const viewOptions = [
   { value: "day", label: "Day" },
@@ -181,7 +182,7 @@ const CustomToolbar = ({
       </div>
 
       <div className="relative flex justify-end" ref={addMenuRef}>
-        <button
+        <Button
           disabled={isPastDate() || !canAddAppointment}
           title={
             isPastDate()
@@ -195,15 +196,14 @@ const CustomToolbar = ({
               setShowAddMenu((prev) => !prev);
             }
           }}
-          className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-md
-            ${isPastDate() || !canAddAppointment
+          className={
+            isPastDate() || !canAddAppointment
               ? "bg-gray-300 cursor-default text-gray-600"
               : "bg-blue-600 text-white hover:bg-blue-700"
-            }
-          `}
+          }
         >
           + Add <ChevronDown size={14} />
-        </button>
+        </Button>
         {showAddMenu && !isPastDate() && canAddAppointment && (
           <div className="absolute right-0 mt-1 w-40 bg-white rounded-md border border-blue-200 shadow-md z-20 text-sm">
             <button

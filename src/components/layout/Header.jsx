@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Link, useLocation } from "wouter";
 import { normalizeRole } from "../../lib/rbac";
 import { resolveUserNameParts } from "../../lib/userName";
+import { Button } from "../ui/button";
 
 const Header = () => {
   const [location] = useLocation();
@@ -96,15 +97,16 @@ const Header = () => {
           )}
 
           {/* Bell Icon */}
-          <button className="p-1.5 sm:p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-full">
+          <Button variant="ghost" size="icon" className="text-neutral-500 hover:text-neutral-700 rounded-full h-9 w-9 sm:h-10 sm:w-10">
             <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+          </Button>
 
           {/* Clickable Avatar */}
           <div className="relative" ref={dropdownRef}>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setDropdownOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 rounded-full focus:outline-none hover:opacity-80 transition-opacity"
+              className="flex items-center gap-1.5 rounded-full px-2 py-1 h-auto"
               aria-label="Open profile menu"
             >
               {user?.profileImage ? (
@@ -119,7 +121,7 @@ const Header = () => {
                 </div>
               )}
               <ChevronDown className={`w-3.5 h-3.5 text-neutral-500 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
-            </button>
+            </Button>
 
             {/* Dropdown */}
             {dropdownOpen && (

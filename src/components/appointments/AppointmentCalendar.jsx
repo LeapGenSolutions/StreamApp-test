@@ -6,11 +6,13 @@ import enUS from "date-fns/locale/en-US";
 import AppointmentModal from "./AppointmentModal";
 import CustomToolbar from "./CustomToolbar";
 import { fetchAppointmentsByDoctorEmails, checkAppointments } from "../../api/callHistory";
+import { pullAthenaAppointments } from "../../api/appointment";
+import { getSessionAuthScope } from "../../api/auth";
 import CreateAppointmentModal from "./CreateAppointmentModal";
 import { useSelector } from "react-redux";
 import CreateBulkAppointments from "./createBulkAppointments";
 import { usePermission } from "../../hooks/use-permission";
-
+import { useToast } from "../../hooks/use-toast";
 import { getColorFromName } from "../../constants/colors";
 
 function capitalizeFirst(str = "") {
@@ -83,7 +85,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     }
   }, [canSelectProviders, loggedInDoctor?.email]);
 
-  const applySeismified = async (list) => {
+  const applySeismified = useCallback(async (list) => {
     const ids = (Array.isArray(list) ? list : [])
       .map((a) => a?.id)
       .filter(Boolean);
@@ -104,7 +106,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         seismified: false,
       }));
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isSelectionInitialized) {
@@ -201,7 +203,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     return () => {
       isActive = false;
     };
-  }, [isSelectionInitialized, selectedDoctors, loggedInDoctor?.clinicName, canSelectProviders, loggedInDoctor?.email]);
+  }, [applySeismified, isSelectionInitialized, selectedDoctors, loggedInDoctor?.clinicName, canSelectProviders, loggedInDoctor?.email]);
 
   const events = appointments.map((appt) => {
     const doctorKey = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
@@ -268,10 +270,27 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
     if (currentView === "day") {
       return (
-        <div title={tooltip}>
-          <span style={{ marginRight: 6 }}>{icon}</span>
-          <b>{eventLabel}</b>
-          <div style={{ fontSize: "11px", opacity: 0.9 }}>{timeRange}</div>
+        <div
+          title={tooltip}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            minWidth: 0,
+            height: "100%",
+            overflow: "hidden",
+          }}
+        >
+          <span style={{ flexShrink: 0 }}>{icon}</span>
+          <b
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {eventLabel}
+          </b>
         </div>
       );
     }
@@ -350,6 +369,105 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     }, 200);
   }, []);
 
+  const { toast } = useToast();
+
+  const handleRefresh = useCallback(async () => {
+    const { clinicId: practiceId, doctorId: providerId } = getSessionAuthScope();
+    const email = (loggedInDoctor?.email || "").toLowerCase();
+    const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const userClinicForComparison = normalize(loggedInDoctor?.clinicName);
+    const userClinicForApi = (loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim();
+
+    let doctorsToFetch = selectedDoctors;
+    if (!canSelectProviders) {
+      const myEmail = (loggedInDoctor?.email || "").trim().toLowerCase();
+      if (myEmail) {
+        doctorsToFetch = [myEmail];
+      }
+    }
+
+    setIsCalendarLoading(true);
+    try {
+      const data = await pullAthenaAppointments(email, practiceId, providerId);
+
+      const refreshed = await fetchAppointmentsByDoctorEmails(
+        doctorsToFetch,
+        userClinicForApi
+      );
+
+      let flatData = refreshed;
+      if (
+        Array.isArray(refreshed) &&
+        refreshed.length > 0 &&
+        refreshed[0].data &&
+        Array.isArray(refreshed[0].data)
+      ) {
+        flatData = refreshed.flatMap((day) => day.data || []);
+      } else if (
+        !Array.isArray(refreshed) &&
+        refreshed.data &&
+        Array.isArray(refreshed.data)
+      ) {
+        flatData = refreshed.data;
+      }
+
+      const merged = await applySeismified(flatData);
+      const securedDoctorEmails = new Set(
+        doctorsToFetch.map((doctorEmail) =>
+          (doctorEmail || "").trim().toLowerCase()
+        )
+      );
+
+      const filtered = merged.filter((appt) => {
+        if (userClinicForComparison) {
+          const apptClinic = normalize(
+            appt.clinicName ||
+              appt.details?.clinicName ||
+              appt.original_json?.clinicName ||
+              appt.original_json?.details?.clinicName
+          );
+          if (apptClinic !== userClinicForComparison) return false;
+        } else if (appt.clinicName && appt.clinicName.trim() !== "") {
+          return false;
+        }
+
+        if (securedDoctorEmails.size > 0) {
+          const apptDoctorEmail = (
+            appt.doctor_email ||
+            appt.doctorEmail ||
+            ""
+          )
+            .trim()
+            .toLowerCase();
+          if (!securedDoctorEmails.has(apptDoctorEmail)) return false;
+        }
+
+        return true;
+      });
+
+      setAppointments(filtered);
+      toast({
+        title: "Appointments Refreshed",
+        description: data?.message || "Appointments Pulled Successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Refresh Failed",
+        description:
+          error?.message || "Could not pull appointments. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCalendarLoading(false);
+    }
+  }, [
+    applySeismified,
+    canSelectProviders,
+    loggedInDoctor,
+    selectedDoctors,
+    toast,
+  ]);
+
   const { components } = useMemo(() => ({
     components: {
       event: (props) => <EventCell {...props} currentView={currentView} />,
@@ -360,10 +478,12 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           onDoctorUpdate={handleDoctorUpdate}
           onAddAppointment={() => setShowCreateModal(true)}
           onAddBulkAppointment={() => setShowBulkCreateModal(true)}
+          onRefresh={handleRefresh}
+          isCalendarLoading={isCalendarLoading}
         />
       ),
     }
-  }), [currentView, selectedDoctors, handleDoctorUpdate]);
+  }), [currentView, selectedDoctors, handleDoctorUpdate, handleRefresh, isCalendarLoading]);
   // Note: dependencies are a bit tricky. CustomToolbar uses setDropdownOpen, setShowCreateModal etc.
   // These are state setters, so stable.
   // We include handleDoctorUpdate which is now a stable callback.

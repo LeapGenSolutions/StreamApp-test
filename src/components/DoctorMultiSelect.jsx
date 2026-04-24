@@ -183,7 +183,7 @@ const DoctorMultiSelect = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setDropdownOpen((prev) => !prev)}
-        className="flex items-center justify-between w-64 h-10 border border-gray-300 rounded-md px-4 text-sm bg-white shadow-sm hover:border-blue-500 cursor-pointer select-none"
+        className="flex items-center justify-between w-[clamp(120px,12vw,256px)] h-10 border border-gray-300 rounded-md px-3 text-sm bg-white shadow-sm hover:border-blue-500 cursor-pointer select-none"
       >
         <span>{getPlaceholder()}</span>
         <ChevronDown className="w-4 h-4 text-gray-600" />

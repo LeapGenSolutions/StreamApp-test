@@ -1,7 +1,7 @@
 import { BACKEND_URL } from "../constants";
 
 const PROD_TOKEN_BACKEND_URL =
-  "https://seismicdockerbackend-test-e0ducsgtggh7ftat.centralus-01.azurewebsites.net/";
+  "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/";
 
 const isLocalTokenBackend = (url = "") =>
   url.includes("localhost:8080") || url.includes("127.0.0.1:8080");

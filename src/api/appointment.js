@@ -79,6 +79,32 @@ export const cancelAppointment = async (doctorEmail, id, payload = {}) => {
   }
 };
 
+export const pullAthenaAppointments = async (doctorEmail, practiceId, providerId, departmentId = "150") => {
+  try {
+    const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
+    const response = await fetch(
+      `${BACKEND_URL}api/appointments/${encodedEmail}/pull`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          practice_id: practiceId,
+          provider_id: providerId,
+          department_id: departmentId,
+        }),
+      }
+    );
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to pull appointments: ${errText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Pull Athena appointments error:", error);
+    throw error;
+  }
+};
+
 export const deleteAppointment = async (doctorEmail, id, appointment_date) => {
   try {
     const encodedEmail = encodeURIComponent(doctorEmail?.toLowerCase());
